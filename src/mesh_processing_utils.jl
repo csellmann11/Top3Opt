@@ -48,6 +48,15 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol=:MBB_sym)
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc_2", x -> SA[0.0], c_dofs=SA[2])
         add_dirichlet_bc!(ch, cv.dh, "roller_bearing", x -> SA[0.0, 0.0], c_dofs=SA[2, 3])
         add_neumann_bc!(ch, cv.dh, cv.facedata_col, "middle_traction", x -> SA[0.0, 0.0, -1.0])
+    elseif b_case == :Cantilever_sym 
+
+        # add_face_set!(mesh, "symmetry_bc", x -> x[2] ≈ 0.5)
+        add_face_set!(mesh,"left_clamp", x -> x[1] ≈ 0.0)
+        add_face_set!(mesh,"right_traction", x -> x[1] ≈ 2.0 && (0.4 ≤ x[3] ≤ 0.6) && (0.4 ≤ x[2] ≤ 0.6))
+
+        # add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc", x -> SA[0.0], c_dofs=SA[2])
+        add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "left_clamp", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
+        add_neumann_bc!(ch, cv.dh, cv.facedata_col, "right_traction", x -> SA[0.0, 0.0, -1.0])
     end
     ch
 end
