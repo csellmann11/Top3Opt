@@ -1,0 +1,21 @@
+name = "ToOpt3"
+uuid = "fa21d375-5604-4f00-a1e1-496246133ddf"
+authors = ["csellmann "]
+version = "0.1.0"
+
+[deps]
+AlgebraicMultigrid = "2169fc97-5a83-5252-b627-83903c6c433c"
+Chairmarks = "0ca39b1e-fe0b-4e98-acfc-b1656634c4de"
+IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
+Ju3VEM = "1347c348-1bfd-4c3d-8882-6b82a363c4f2"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
+
+[compat]
+AlgebraicMultigrid = "1.1.0"
+Chairmarks = "1.3.1"
+IterativeSolvers = "0.9.4"
+SparseArrays = "1.11.0"
+StaticArrays = "1.9.15"
+TimerOutputs = "0.5.29"

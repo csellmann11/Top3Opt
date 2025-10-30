@@ -1,0 +1,151 @@
+using Ju3VEM.VEMGeo: is_active_root
+
+"""
+    TopStates{D}
+
+A struct representing the states of elements in a topology optimization problem.
+
+# Fields
+- `χ_vec::FlattenVecs{2,Float64}`: A flattened vector storing the state values (χ) for both inner and ghost states.
+- `x_vec::Vector{SVector{D,Float64}}`: A vector storing the coordinates of the centroids for inner states.
+- `el_id_to_state_id::Dict{Int,Int}`: A dictionary mapping element IDs to their corresponding state IDs.
+
+# Type Parameters
+- `D`: The dimension of the problem (e.g., 2 for 2D problems).
+
+# Notes
+- The `χ_vec` field uses `FlattenVecs` to efficiently store both inner and ghost states.
+- Only the coordinates of inner states are stored in `x_vec`.
+- The `el_id_to_state_id` dictionary allows for quick lookup of state IDs given an element ID.
+"""
+struct TopStates{D}
+    χ_vec::Vector{Float64} 
+    x_vec::Vector{SVector{D,Float64}}
+    area_vec::Vector{Float64} #TODO: rename to elsize_vec
+    h_vec::Vector{Float64} 
+
+    el_id_to_state_id::Dict{Int,Int}
+end
+
+
+
+function fill_states!(states::TopStates{D},cv::CellValues{D,U},ρ_init) where {D,U}
+
+    topo = cv.mesh.topo 
+    for (state_id,element) in enumerate(RootIterator{D+1}(topo))
+        vol_data = precompute_volume_monomials(element.id,topo,cv.facedata_col,Val(1))
+        bc                     = vol_data.vol_bc
+        hvol                   = vol_data.hvol 
+        area                   = vol_data.integrals[1]
+
+        states.χ_vec[state_id]               = ρ_init
+        states.x_vec[state_id]               = bc
+        states.area_vec[state_id]            = area
+        states.h_vec[state_id]               = hvol
+        states.el_id_to_state_id[element.id] = state_id
+    end
+end
+
+function resize_states!(states::TopStates{D},
+    n_states::Int) where {D}
+    
+    resize!(states.χ_vec,n_states)
+    resize!(states.x_vec,n_states)
+    resize!(states.area_vec,n_states)
+    resize!(states.h_vec,n_states)
+    empty!(states.el_id_to_state_id)
+end
+
+
+function TopStates{D}(cv::CellValues{D,U},ρ_init) where {D,U}
+
+
+    mesh = cv.mesh
+    topo = mesh.topo
+
+    n_states = length(RootIterator{D+1}(topo))
+
+    χ_vec              = Vector{Float64}(undef,n_states)
+    x_vec              = Vector{SVector{D,Float64}}(undef, n_states)
+    area_vec           = Vector{Float64}(undef,n_states)
+    h_vec              = Vector{Float64}(undef,n_states)
+    el_id_to_state_id  = Dict{Int,Int}()
+
+    states = TopStates(χ_vec,x_vec,area_vec,h_vec,el_id_to_state_id)
+    fill_states!(states,cv,ρ_init)
+
+    # for (state_id,element) in enumerate(RootIterator{D+1}(topo))
+    #     vol_data = precompute_volume_monomials(element.id,topo,cv.facedata_col,Val(1))
+    #     bc                     = vol_data.vol_bc
+    #     hvol                   = vol_data.hvol 
+    #     area                   = vol_data.integrals[1]
+
+    #     states.χ_vec[state_id]               = ρ_init
+    #     states.x_vec[state_id]               = bc
+    #     states.area_vec[state_id]            = area
+    #     states.h_vec[state_id]               = hvol
+    #     states.el_id_to_state_id[element.id] = state_id
+    # end
+
+    return states
+end
+
+
+
+function update_states_after_mesh_adaption!(states::TopStates,
+    cv::CellValues{D,U},
+    ref_marker::Vector{Bool},
+    coarse_marker::Vector{Bool}) where {D,U}	
+
+    topo      = cv.mesh.topo
+    e2s_old   = copy(states.el_id_to_state_id)
+    χ_vec_old = copy(states.χ_vec)
+
+    n_states = length(RootIterator{4}(topo))
+    resize_states!(states,n_states)
+    fill_states!(states,cv,0.0) # here rho init is just a dummy
+
+    e2s = states.el_id_to_state_id
+
+    for element in RootIterator{4}(topo) 
+        parent_id = element.parent_id 
+        child_ids = element.childs 
+
+        #Info: element comes from refinement
+        if parent_id != 0 && ref_marker[parent_id]
+            parents_old_state_id = e2s_old[parent_id]
+            χ_parent             = χ_vec_old[parents_old_state_id]
+            # element gets parent density 
+            states.χ_vec[e2s[element.id]] = χ_parent
+        elseif !isempty(child_ids) && all(coarse_marker[child_ids])
+            #Info: element comes from coarseing 
+
+            χ_sum = 0.0 
+            for child_id in child_ids 
+                χ_sum += χ_vec_old[e2s_old[child_id]]
+            end
+            states.χ_vec[e2s[element.id]] = χ_sum / length(child_ids)
+
+        else #INFO: element is not new, just state_id changed
+            states.χ_vec[e2s[element.id]] = χ_vec_old[e2s_old[element.id]]
+        end
+    end
+    return states
+end
+
+
+
+function measure_of_nondiscreteness(
+    states::TopStates,
+    pars::SimParameter)
+
+
+    ∑Ω  = 0.0 
+    ∑Ωχ = 0.0 
+    χmin = pars.χmin
+    for (χ,el_size) in zip(states.χ_vec,states.area_vec) 
+        ∑Ω  += el_size
+        ∑Ωχ += el_size * (1 - χ)*(χ-χmin)
+    end
+    return 4∑Ωχ/∑Ω
+end
