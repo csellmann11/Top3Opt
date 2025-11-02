@@ -1,6 +1,6 @@
 
 function run_optimization(
-    cv::CellValues{U},
+    cv::CellValues{D,U},
     rhs_fun::F,
     states::TopStates{U},
     ch::ConstraintHandler{U},
@@ -10,13 +10,14 @@ function run_optimization(
     MAX_REF_LEVEL::Int = 3,
     tolerance::Float64 = 1e-5,
     n_conv_until_stop::Int = 2,
-    write_vtk_every_n_steps::Int = 30,
+    take_snapshots_at::AbstractVector{Int} = 1:30:MAX_OPT_STEPS,
     do_adaptivity::Bool = true,
     b_case::Symbol = :MBB_sym,
- ) where {U,H<:Helmholtz,F<:Function}
+ ) where {D,U,H<:Helmholtz,F<:Function}
 
     n_conv_count = 0
-    sim_results  = SimulationResults(MAX_REF_LEVEL,MAX_OPT_STEPS,sim_pars)
+    sim_results  = SimulationResults(MAX_REF_LEVEL,
+              MAX_OPT_STEPS,sim_pars,Val{D}())
     if isdir(vtk_folder_name)
         println("Removing existing vtk folder: $vtk_folder_name")
         rm(vtk_folder_name,recursive=true)
@@ -60,10 +61,13 @@ function run_optimization(
 
         optimization_step == MAX_OPT_STEPS && break
 
-        if optimization_step % write_vtk_every_n_steps == 0
+        if optimization_step in take_snapshots_at
             println("Writing vtk file for optimization step: $optimization_step")
             full_name = joinpath(vtk_folder_name, "temp_res_$(optimization_step)")
             write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data = states.χ_vec)
+            push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col)[:])
+            push!(sim_results.topology_at_snapshots,deepcopy(cv.mesh.topo))
+            push!(sim_results.states_at_snapshots,deepcopy(states))
         end
 
         

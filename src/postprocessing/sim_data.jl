@@ -9,7 +9,7 @@ using Dates
 end
 
 
-struct SimulationResults{H<:Helmholtz}
+struct SimulationResults{H<:Helmholtz,D}
 
     sim_data         ::DateTime
     max_ref_level    ::Int
@@ -23,24 +23,35 @@ struct SimulationResults{H<:Helmholtz}
     number_of_states ::Vector{Int}
     number_of_dofs   ::Vector{Int}  
 
+    el_error_at_snapshots::Vector{Vector{Float64}}
+    states_at_snapshots::Vector{TopStates{D}}
+    topology_at_snapshots::Vector{Topology{D}}
+
 end
 
 
 function SimulationResults(
     max_ref_level::Int,
     max_opt_steps::Int,
-    sim_pars::SimParameter{H}
-) where {H<:Helmholtz}
+    sim_pars::SimParameter{H},
+    ::Val{D}
+) where {H<:Helmholtz,D}
 
     sim_data            = now()
     mod                 = Float64[]
     strain_energy       = Float64[]
     number_of_states    = Int[]
     number_of_dofs      = Int[]
+    el_error_at_snapshots = Vector{Vector{Float64}}()
+    states_at_snapshots   = Vector{TopStates{D}}()
+    topology_at_snapshots = Vector{Topology{D}}()
 
     simulation_times = SimulationTimes()
 
-    SimulationResults(sim_data,max_ref_level,max_opt_steps,sim_pars,simulation_times,mod,strain_energy,number_of_states,number_of_dofs)
+    SimulationResults(sim_data,max_ref_level,
+        max_opt_steps,sim_pars,simulation_times,mod,
+        strain_energy,number_of_states,number_of_dofs,
+        el_error_at_snapshots,states_at_snapshots,topology_at_snapshots)
 end
 
 function update_sim_data!(

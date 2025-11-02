@@ -13,6 +13,7 @@ using Dates
 using Bumper
 
 
+
 const to = TimerOutput()
 
 struct SimParameter{H<:Helmholtz}
@@ -46,9 +47,42 @@ include("optim_run.jl")
 const K = 1
 const U = 3
 
-MAX_OPT_STEPS = 1
-MAX_REF_LEVEL = 3
-MeshType = :Hexahedra
+if length(ARGS) == 0
+    MAX_OPT_STEPS = 1
+    MAX_REF_LEVEL = 3
+    MeshType = :Hexahedra
+    do_adaptivity = true
+elseif length(ARGS) == 1
+    MAX_OPT_STEPS = parse(Int, ARGS[1])
+    MAX_REF_LEVEL = 3
+    MeshType = :Hexahedra
+    do_adaptivity = true
+elseif length(ARGS) == 2
+    MAX_OPT_STEPS = parse(Int, ARGS[1])
+    MAX_REF_LEVEL = parse(Int, ARGS[2])
+    MeshType = :Hexahedra
+    do_adaptivity = true
+elseif length(ARGS) == 3
+    MAX_OPT_STEPS = parse(Int, ARGS[1])
+    MAX_REF_LEVEL = parse(Int, ARGS[2])
+    MeshType = ARGS[3] |> Symbol
+    do_adaptivity = true
+elseif length(ARGS) == 4
+    MAX_OPT_STEPS = parse(Int, ARGS[1])
+    MAX_REF_LEVEL = parse(Int, ARGS[2])
+    MeshType = ARGS[3] |> Symbol
+    do_adaptivity = parse(Bool, ARGS[4])
+else
+    error("Invalid number of arguments: $(length(ARGS))")
+end
+
+
+println("Running simulation with:")
+println("MAX_OPT_STEPS: $MAX_OPT_STEPS")
+println("MAX_REF_LEVEL: $MAX_REF_LEVEL")
+println("MeshType: $MeshType")
+println("do_adaptivity: $do_adaptivity")
+
 
 function Cantilever_rhs(x)
     SA[0.0,0.0,0.0]
@@ -60,18 +94,20 @@ end
 n = div(4,2)*2
 l_beam = 2.0
 
-if MeshType == :Hexahedra
-    mesh = create_rectangular_mesh(
+mesh = if MeshType == :Hexahedra
+    create_rectangular_mesh(
         2n,n,n,
         l_beam,1.0,1.0,StandardEl{K}
-    );
+    )
 elseif MeshType == :Voronoi
     mesh2d = create_voronoi_mesh(
         (0.0,0.0),
         (l_beam,0.5),
         2n,div(n,2),StandardEl{K}
         )
-    mesh = extrude_to_3d(n,mesh2d,1.0);
+    extrude_to_3d(n,mesh2d,1.0)
+else
+    error("Invalid MeshType: $MeshType")
 end
 
 h_cell = find_maximal_cell_diameter(mesh.topo)
@@ -125,8 +161,8 @@ optimization_time = @elapsed sim_results = run_optimization(
     vtk_folder_name = joinpath(project_root, "Results", "vtk", "Adaptive_Runs", "Cant_$(n)_$(MAX_REF_LEVEL)_$(MeshType)"),
     MAX_OPT_STEPS = MAX_OPT_STEPS,
     MAX_REF_LEVEL = MAX_REF_LEVEL,
-    write_vtk_every_n_steps = 50,
-    do_adaptivity = false,
+    take_snapshots_at = [1,10,20,30,50,100,200],
+    do_adaptivity = do_adaptivity,
     b_case = :Cantilever_sym
 )
 
