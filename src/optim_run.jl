@@ -65,7 +65,7 @@ function run_optimization(
             println("Writing vtk file for optimization step: $optimization_step")
             full_name = joinpath(vtk_folder_name, "temp_res_$(optimization_step)")
             write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data = states.χ_vec)
-            push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col)[:])
+            push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
             push!(sim_results.topology_at_snapshots,deepcopy(cv.mesh.topo))
             push!(sim_results.states_at_snapshots,deepcopy(states))
         end
@@ -91,6 +91,9 @@ function run_optimization(
 
     full_name = joinpath(vtk_folder_name, "final_res")
     write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data = states.χ_vec)
+    push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
+    push!(sim_results.states_at_snapshots,deepcopy(states))
+    push!(sim_results.topology_at_snapshots,deepcopy(cv.mesh.topo))
 
     sim_results.simulation_times.solve_time = TimerOutputs.time(to["compute_displacement"]["solver"])/(1e09)
     sim_results.simulation_times.assembly_time = TimerOutputs.time(to["compute_displacement"]["assembly"])/(1e09)

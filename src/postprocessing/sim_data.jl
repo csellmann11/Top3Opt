@@ -23,7 +23,7 @@ struct SimulationResults{H<:Helmholtz,D}
     number_of_states ::Vector{Int}
     number_of_dofs   ::Vector{Int}  
 
-    el_error_at_snapshots::Vector{Vector{Float64}}
+    el_error_at_snapshots::Vector{Dict{Int,Float64}}
     states_at_snapshots::Vector{TopStates{D}}
     topology_at_snapshots::Vector{Topology{D}}
 
@@ -42,7 +42,7 @@ function SimulationResults(
     strain_energy       = Float64[]
     number_of_states    = Int[]
     number_of_dofs      = Int[]
-    el_error_at_snapshots = Vector{Vector{Float64}}()
+    el_error_at_snapshots = Vector{Dict{Int,Float64}}()
     states_at_snapshots   = Vector{TopStates{D}}()
     topology_at_snapshots = Vector{Topology{D}}()
 

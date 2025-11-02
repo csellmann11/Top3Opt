@@ -11,7 +11,7 @@ using Bumper
 using TimerOutputs
 using Dates
 using Bumper
-
+using JLD2
 
 
 const to = TimerOutput()
@@ -170,5 +170,8 @@ println("Optimization time: $optimization_time")
 show(to)
 
 
+jld2_path = joinpath(project_root, "Results", "SimData", "Cant_$(n)_$(MAX_REF_LEVEL)_$(MeshType).jld2")
+
+@save jld2_path sim_results
 export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", "Cant_$(n)_$(MAX_REF_LEVEL)_$(MeshType).csv"))
 
