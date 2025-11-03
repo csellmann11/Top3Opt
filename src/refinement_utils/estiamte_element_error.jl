@@ -26,7 +26,8 @@ function mark_elements_for_adaption(
     element_error::Dict{Int,Float64},
     states       ::TopStates,
     state_changed::Vector{Bool},
-    max_ref_level::Int;
+    max_ref_level::Int,
+    forbid_coarsening::Vector{Bool};
     upper_error_bound::Float64 = 4.0,
     lower_error_bound::Float64 = 1/8
     ) where {D,U}
@@ -51,6 +52,7 @@ function mark_elements_for_adaption(
         if (error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
             ref_marker[el_id] = true
         elseif error < m_error * lower_error_bound && has_parent
+            (el_id <= length(forbid_coarsening) && forbid_coarsening[el_id]) && continue
             coarse_marker[el_id] = true
         end
     end

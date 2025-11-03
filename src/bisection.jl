@@ -82,7 +82,6 @@ function state_update!(states::TopStates,
         hmax = max(hmax,eldata.hvol)
     end
     β0 = 2*hmax^2*sim_pars.β0
-    # hmin = sim_pars.h_min
 
     n_steps = 4*ceil(Int,12/sim_pars.η0 * β0/hmin^2)
     dt = 1.0/n_steps
@@ -121,8 +120,8 @@ function state_update!(states::TopStates,
             
             for (state_id,(χi,area,h,pχi,Δχi)) in enumerate(zip(χv,areav,hv,p_χ,Δχ))
                  
-                β = max(h^2*p_avg,βmin) 
-                # β = sim_pars.β0*p_avg*h^2
+                # β = max(2*h^2*p_avg,βmin) 
+                β = 2*h^2*p_avg * sim_pars.β0
                 dχ = dt/η * (pχi - λ_trial + β * Δχi)
                 χv_trial[state_id] = clamp(χi + dχ,χ_min,1.0)
 

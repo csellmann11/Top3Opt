@@ -29,10 +29,10 @@ const K = 1
 const U = 3
 
 if length(ARGS) == 0
-    MAX_OPT_STEPS = 1
+    MAX_OPT_STEPS = 100
     MAX_REF_LEVEL = 3
     MeshType = :Hexahedra
-    do_adaptivity = true
+    do_adaptivity = false
 elseif length(ARGS) == 1
     MAX_OPT_STEPS = parse(Int, ARGS[1])
     MAX_REF_LEVEL = 3

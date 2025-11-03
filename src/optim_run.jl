@@ -40,6 +40,8 @@ function run_optimization(
 
     Psi0 = 0.0; Psi_step0 = 0.0; u = Float64[]
 
+    forbid_coarsening = mark_elements_which_are_part_of_sets(cv,ch)
+
     for optimization_step in 1:MAX_OPT_STEPS
         @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
         @timeit to "state_update" state_changed = state_update!(
@@ -86,8 +88,8 @@ function run_optimization(
         @timeit to "adaptivity" begin
             !do_adaptivity && continue
             @timeit to "estimate_element_error" element_error = estimate_element_error(u,eldata_col)
-            ref_marker, coarse_marker = mark_elements_for_adaption(cv,
-                            element_error,states,state_changed,MAX_REF_LEVEL)
+            ref_marker, coarse_marker = mark_elements_for_adaption(cv, 
+                            element_error,states,state_changed,MAX_REF_LEVEL,forbid_coarsening)
 
             @timeit to "mesh_clearing" clear_up_mesh(cv.mesh.topo,face_to_vols,edge_to_vols)
             @timeit to "adapt_mesh" cv = adapt_mesh(cv,coarse_marker,ref_marker)

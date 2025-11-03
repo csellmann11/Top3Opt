@@ -33,6 +33,52 @@ function permute_coord_dimensions(mesh::Mesh{D,ET}, perm::SVector{D,Int}) where 
     return Mesh(mesh.topo, ET)
 end
 
+
+
+# function ref_mesh_at_sets(mesh::Mesh{3}, set_member_funs::T, max_ref_level::Int) where T<:Tuple 
+#     topo = mesh.topo
+
+#     for rl in 1:max_ref_level
+#         for element in RootIterator{3}(mesh.topo)
+#             node_ids = get_volume_node_ids(mesh.topo, element.id)
+#             # only refine if at least one node is a member of any of the sets
+#             !any(set_member_funs[i].(topo.nodes[node_ids]) for i in eachindex(set_member_funs)) && continue
+#             element.refinement_level >= rl && continue
+#             _refine!(element, mesh.topo)
+#         end
+#     end
+# end
+
+
+function mark_elements_which_are_part_of_sets(cv::CellValues{3}, ch::ConstraintHandler{3})
+    mesh = cv.mesh
+    topo = mesh.topo
+    forbid_coarsening = zeros(Bool,length(get_volumes(topo)))
+
+    for element in RootIterator{4}(topo)
+        
+        reinit!(element.id,cv)
+        dofs  = Ju3VEM.VEMUtils.get_cell_dofs(cv)
+        forbidden = false
+
+        for dof in dofs
+            if haskey(ch.n_bcs,dof)
+                forbidden = true
+                break
+            end
+            if haskey(ch.d_bcs,dof)
+                forbidden = true
+                break
+            end
+        end
+
+        forbid_coarsening[element.id] = forbidden
+    end
+
+    return forbid_coarsening
+end
+
+
 function create_constraint_handler(cv::CellValues{3}, b_case::Symbol=:MBB_sym)
     mesh = cv.mesh
     ch = ConstraintHandler{U}(mesh)
@@ -59,12 +105,16 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol=:MBB_sym)
         add_neumann_bc!(ch, cv.dh, cv.facedata_col, "right_traction", x -> SA[0.0, 0.0, -1.0])
     elseif b_case == :Bending_Beam_sym
         add_face_set!(mesh, "symmetry_bc", x -> x[2] ≈ 0.5)
-        add_face_set!(mesh, "left_clamp", x -> x[1] ≈ 0.0)
+        add_node_set!(mesh, "left_clamp1", x -> x[1] ≈ 0.0 && x[2] ≈ 0.0 && x[3] ≈ 0.0)
+        add_node_set!(mesh, "left_clamp2", x -> x[1] ≈ 0.0 && x[2] ≈ 0.0 && x[3] ≈ 1.0)
         add_edge_set!(mesh, "right_traction", x -> x[1] ≈ 3.0 && x[3] ≈ 0.0)
+        # add_face_set!(mesh, "right_traction", x -> x[1] ≈ 3.0 && x[3] <= 0.1)
 
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc", x -> SA[0.0], c_dofs=SA[2])
-        add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "left_clamp", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
+        add_dirichlet_bc!(ch, cv.dh, "left_clamp1", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
+        add_dirichlet_bc!(ch, cv.dh, "left_clamp2", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
         add_neumann_bc!(ch, cv.dh, "right_traction", x -> SA[0.0, 0.0, -1.0])
+        # add_neumann_bc!(ch, cv.dh, cv.facedata_col, "right_traction", x -> SA[0.0, 0.0, -100.0])
     else
         error("Invalid boundary value problem: $b_case")
     end

@@ -1,5 +1,5 @@
 using Dates
-using FixedSizeArrays
+using Ju3VEM.FixedSizeArrays
 @kwdef mutable struct SimulationTimes 
     solve_time       ::Float64 = 0.0
     assembly_time    ::Float64 = 0.0

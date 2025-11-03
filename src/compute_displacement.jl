@@ -16,12 +16,11 @@ function assembly(cv::CellValues{D,U,ET},
     sim_pars::SimParameter) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     mat_law = sim_pars.mat_law
-    mat_pars = (sim_pars.λ,sim_pars.μ)
     ass = Assembler{Float64}(cv)
 
 
     Is = SMatrix{U,U,Float64}(I)
-    γ = Is ⊡₂ eval_hessian(mat_law,Is) ⊡₂ Is
+    γ = Is ⊡₂ eval_hessian(mat_law,Is,(sim_pars.λ,sim_pars.μ,1.0)) ⊡₂ Is
     rhs_element = DefCachedVector{Float64}()
     kelement    = DefCachedMatrix{Float64}()
 
@@ -34,7 +33,7 @@ function assembly(cv::CellValues{D,U,ET},
         χ = states.χ_vec[e2s[element.id]]
         reinit!(element.id,cv)
 
-        γ_stab = γ * χ^3
+        γ_stab = γ/4* χ^3
 
         proj_s, proj = build_local_kel_and_f!(kelement,
         rhs_element,cv,element.id,f,mat_law,γ_stab,(sim_pars.λ,sim_pars.μ,χ))
@@ -69,6 +68,7 @@ function compute_displacement(cv::CellValues{D,U,ET},
     sim_pars::SimParameter) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     @timeit to "assembly" k_global,rhs_global, eldata_col = assembly(cv,states,f,sim_pars)
+    # @timeit to "assembly" k_global, rhs_global, eldata_col = FEM_assembly(cv,states,sim_pars)
     apply!(k_global,rhs_global,ch)
   
     @timeit to "solver" u = cholesky(Symmetric(k_global)) \ rhs_global

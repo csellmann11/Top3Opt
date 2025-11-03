@@ -37,8 +37,8 @@ const K = 1
 const U = 3
 
 if length(ARGS) == 0
-    MAX_OPT_STEPS = 51
-    MAX_REF_LEVEL = 4
+    MAX_OPT_STEPS = 151
+    MAX_REF_LEVEL = 3
     MeshType = :Hexahedra
     do_adaptivity = true
 elseif length(ARGS) == 1
@@ -71,6 +71,9 @@ println("MAX_OPT_STEPS: $MAX_OPT_STEPS")
 println("MAX_REF_LEVEL: $MAX_REF_LEVEL")
 println("MeshType: $MeshType")
 println("do_adaptivity: $do_adaptivity")
+
+#print number of threads
+println("Number of threads: $(Threads.nthreads())")
 
 
 function Bending_Beam_rhs(x)
@@ -117,9 +120,9 @@ println("Number of nodes: $n_nodes")
 
 
 
-E = 210.e03; ν = 0.33
+E = 2.e05; ν = 0.30
 λ,μ = E_ν_to_lame(E,ν)
-χ = 0.3
+χ = 0.1
 mat_law  = Helmholtz{3,3}(Ψlin_totopt,(λ,μ,χ))
 mat_pars = (λ,μ)
 
