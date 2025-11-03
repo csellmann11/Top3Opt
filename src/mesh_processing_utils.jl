@@ -60,10 +60,10 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol=:MBB_sym)
     elseif b_case == :Bending_Beam_sym
         add_face_set!(mesh, "symmetry_bc", x -> x[2] ≈ 0.5)
         add_face_set!(mesh, "left_clamp", x -> x[1] ≈ 0.0)
-        add_edge_set!(mesh, "right_traction", x -> x[1] ≈ 2.0 && x[3] ≈ 0.0)
+        add_edge_set!(mesh, "right_traction", x -> x[1] ≈ 3.0 && x[3] ≈ 0.0)
 
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc", x -> SA[0.0], c_dofs=SA[2])
-        add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "left_clamp", x -> SA[0.0 ,0.0,0.0], c_dofs=SA[1,2,3])
+        add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "left_clamp", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
         add_neumann_bc!(ch, cv.dh, "right_traction", x -> SA[0.0, 0.0, -1.0])
     else
         error("Invalid boundary value problem: $b_case")

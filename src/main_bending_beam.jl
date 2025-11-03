@@ -37,8 +37,8 @@ const K = 1
 const U = 3
 
 if length(ARGS) == 0
-    MAX_OPT_STEPS = 151
-    MAX_REF_LEVEL = 3
+    MAX_OPT_STEPS = 51
+    MAX_REF_LEVEL = 4
     MeshType = :Hexahedra
     do_adaptivity = true
 elseif length(ARGS) == 1
@@ -81,18 +81,18 @@ end
 
 
 n = div(4,2)*2
-l_beam = 2.0
+l_beam = 3.0
 
 mesh = if MeshType == :Hexahedra
     create_rectangular_mesh(
-        2n,div(n,2),n,
+        3n,div(n,2),n,
         l_beam,0.5,1.0,StandardEl{K}
     )
 elseif MeshType == :Voronoi
     mesh2d = create_voronoi_mesh(
         (0.0,0.0),
         (l_beam,0.5),
-        2n,div(n,2),StandardEl{K}
+        3n,div(n,2),StandardEl{K}
         )
     extrude_to_3d(n,mesh2d,1.0)
 else
@@ -126,14 +126,14 @@ mat_pars = (λ,μ)
 χmin = 1e-03
 η0   = 15.0 
 β0   = 2*h_cell_min^2 
-ρ_init = 0.1 
+ρ_init = 0.15 
 sim_pars = SimParameter(mat_law,λ,μ,χmin,η0,1.0,ρ_init,h_cell_min)
 
 @time cv = CellValues{U}(mesh);
 
 states = TopStates{U}(cv,ρ_init)
 
-ch = create_constraint_handler(cv,:Cantilever_sym);
+ch = create_constraint_handler(cv,:Bending_Beam_sym);
 
 # Get project root directory (robust to where script is called from)
 project_root = dirname(@__DIR__)
