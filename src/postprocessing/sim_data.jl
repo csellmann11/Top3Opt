@@ -1,5 +1,5 @@
 using Dates
-
+using FixedSizeArrays
 @kwdef mutable struct SimulationTimes 
     solve_time       ::Float64 = 0.0
     assembly_time    ::Float64 = 0.0
@@ -25,7 +25,8 @@ struct SimulationResults{H<:Helmholtz,D}
 
     el_error_at_snapshots::Vector{Dict{Int,Float64}}
     states_at_snapshots::Vector{TopStates{D}}
-    topology_at_snapshots::Vector{Topology{D}}
+    topology_nodes_at_snapshots::Vector{Vector{SVector{D,Float64}}}
+    topology_connectivity_at_snapshots::Vector{Matrix{Vector{FixedSizeVectorDefault{Int}}}}
 
 end
 
@@ -44,14 +45,15 @@ function SimulationResults(
     number_of_dofs      = Int[]
     el_error_at_snapshots = Vector{Dict{Int,Float64}}()
     states_at_snapshots   = Vector{TopStates{D}}()
-    topology_at_snapshots = Vector{Topology{D}}()
+    topology_nodes_at_snapshots = Vector{Vector{SVector{D,Float64}}}()
+    topology_connectivity_at_snapshots = Vector{Matrix{Vector{FixedSizeVectorDefault{Int}}}}()
 
     simulation_times = SimulationTimes()
 
     SimulationResults(sim_data,max_ref_level,
-        max_opt_steps,sim_pars,simulation_times,mod,
+        max_opt_steps,sim_pars,simulation_times,mod, 
         strain_energy,number_of_states,number_of_dofs,
-        el_error_at_snapshots,states_at_snapshots,topology_at_snapshots)
+        el_error_at_snapshots,states_at_snapshots,topology_nodes_at_snapshots,topology_connectivity_at_snapshots)
 end
 
 function update_sim_data!(

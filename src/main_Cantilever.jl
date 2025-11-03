@@ -16,23 +16,8 @@ using JLD2
 
 const to = TimerOutput()
 
-struct SimParameter{H<:Helmholtz}
-    mat_law::H
-    λ::Float64
-    μ::Float64 
-    
-    χmin::Float64
-    η0::Float64 
-    β0::Float64
-    ρ_init::Float64
-    h_min::Float64
-end
 
-@inline function Ψlin_totopt(∇u::M,λ,μ,χ) where {M<:AbstractMatrix}
-    ε = 1/2*(∇u + ∇u')
-    W = λ/2 * tr(ε)^2 + μ*tr(ε*ε)
-    return W*χ[1]^3
-end
+
 
 
 include("mat_states.jl")
@@ -96,8 +81,8 @@ l_beam = 2.0
 
 mesh = if MeshType == :Hexahedra
     create_rectangular_mesh(
-        2n,n,n,
-        l_beam,1.0,1.0,StandardEl{K}
+        2n,div(n,2),n,
+        l_beam,0.5,1.0,StandardEl{K}
     )
 elseif MeshType == :Voronoi
     mesh2d = create_voronoi_mesh(
@@ -137,7 +122,7 @@ mat_pars = (λ,μ)
 χmin = 1e-03
 η0   = 15.0 
 β0   = 2*h_cell_min^2 
-ρ_init = 0.3 
+ρ_init = 0.1 
 sim_pars = SimParameter(mat_law,λ,μ,χmin,η0,1.0,ρ_init,h_cell_min)
 
 @time cv = CellValues{U}(mesh);
@@ -172,6 +157,8 @@ show(to)
 
 jld2_path = joinpath(project_root, "Results", "SimData", "Cant_$(n)_$(MAX_REF_LEVEL)_$(MeshType).jld2")
 
-@save jld2_path sim_results
-export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", "Cant_$(n)_$(MAX_REF_LEVEL)_$(MeshType).csv"))
+@time "jld_save" @save jld2_path sim_results
+@time "export_data" export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", "Cant_$(n)_$(MAX_REF_LEVEL)_$(MeshType).csv"))
+
+
 

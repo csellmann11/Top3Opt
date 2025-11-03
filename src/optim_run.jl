@@ -1,3 +1,12 @@
+function el_dict_to_state_vec(d::Dict{Int},states::TopStates{D}) where D 
+    e2s = states.el_id_to_state_id
+    vec = zeros(length(states.χ_vec))
+    for (el_id,el_data) in d
+        vec[e2s[el_id]] = el_data
+    end
+    vec
+end
+
 
 function run_optimization(
     cv::CellValues{D,U},
@@ -18,6 +27,7 @@ function run_optimization(
     n_conv_count = 0
     sim_results  = SimulationResults(MAX_REF_LEVEL,
               MAX_OPT_STEPS,sim_pars,Val{D}())
+    eldata_col = Dict{Int,ElData{D}}()
     if isdir(vtk_folder_name)
         println("Removing existing vtk folder: $vtk_folder_name")
         rm(vtk_folder_name,recursive=true)
@@ -64,10 +74,12 @@ function run_optimization(
         if optimization_step in take_snapshots_at
             println("Writing vtk file for optimization step: $optimization_step")
             full_name = joinpath(vtk_folder_name, "temp_res_$(optimization_step)")
-            write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data = states.χ_vec)
-            push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
-            push!(sim_results.topology_at_snapshots,deepcopy(cv.mesh.topo))
-            push!(sim_results.states_at_snapshots,deepcopy(states))
+            el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
+            write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
+            # push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
+            # push!(sim_results.topology_nodes_at_snapshots,copy(cv.mesh.topo.nodes))
+            # push!(sim_results.topology_connectivity_at_snapshots,deepcopy(cv.mesh.topo.connectivity))
+            # push!(sim_results.states_at_snapshots,deepcopy(states))
         end
 
         
@@ -90,10 +102,12 @@ function run_optimization(
     end
 
     full_name = joinpath(vtk_folder_name, "final_res")
-    write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data = states.χ_vec)
-    push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
-    push!(sim_results.states_at_snapshots,deepcopy(states))
-    push!(sim_results.topology_at_snapshots,deepcopy(cv.mesh.topo))
+    el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
+    write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
+    # push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
+    # push!(sim_results.states_at_snapshots,deepcopy(states))
+    # push!(sim_results.topology_nodes_at_snapshots,copy(cv.mesh.topo.nodes))
+    # push!(sim_results.topology_connectivity_at_snapshots,deepcopy(cv.mesh.topo.connectivity))
 
     sim_results.simulation_times.solve_time = TimerOutputs.time(to["compute_displacement"]["solver"])/(1e09)
     sim_results.simulation_times.assembly_time = TimerOutputs.time(to["compute_displacement"]["assembly"])/(1e09)

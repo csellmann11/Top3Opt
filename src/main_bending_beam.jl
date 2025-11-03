@@ -13,7 +13,15 @@ using Dates
 using Bumper
 using JLD2
 
+
 const to = TimerOutput()
+
+
+@inline function Ψlin_totopt(∇u::M,λ,μ,χ) where {M<:AbstractMatrix}
+    ε = 1/2*(∇u + ∇u')
+    W = λ/2 * tr(ε)^2 + μ*tr(ε*ε)
+    return W*χ[1]^3
+end
 
 
 include("mat_states.jl")
@@ -29,7 +37,7 @@ const K = 1
 const U = 3
 
 if length(ARGS) == 0
-    MAX_OPT_STEPS = 1
+    MAX_OPT_STEPS = 151
     MAX_REF_LEVEL = 3
     MeshType = :Hexahedra
     do_adaptivity = true
@@ -64,7 +72,8 @@ println("MAX_REF_LEVEL: $MAX_REF_LEVEL")
 println("MeshType: $MeshType")
 println("do_adaptivity: $do_adaptivity")
 
-function MBB_rhs(x)
+
+function Bending_Beam_rhs(x)
     SA[0.0,0.0,0.0]
 end
 
@@ -72,20 +81,22 @@ end
 
 
 n = div(4,2)*2
-l_beam = 3.0
+l_beam = 2.0
 
-if MeshType == :Hexahedra
-    mesh = create_rectangular_mesh(
-        3n,div(n,2),n,
+mesh = if MeshType == :Hexahedra
+    create_rectangular_mesh(
+        2n,div(n,2),n,
         l_beam,0.5,1.0,StandardEl{K}
-    );
+    )
 elseif MeshType == :Voronoi
     mesh2d = create_voronoi_mesh(
         (0.0,0.0),
         (l_beam,0.5),
-        3n,div(n,2),StandardEl{K}
+        2n,div(n,2),StandardEl{K}
         )
-    mesh = extrude_to_3d(n,mesh2d,1.0);
+    extrude_to_3d(n,mesh2d,1.0)
+else
+    error("Invalid MeshType: $MeshType")
 end
 
 h_cell = find_maximal_cell_diameter(mesh.topo)
@@ -115,14 +126,14 @@ mat_pars = (λ,μ)
 χmin = 1e-03
 η0   = 15.0 
 β0   = 2*h_cell_min^2 
-ρ_init = 0.3 
+ρ_init = 0.1 
 sim_pars = SimParameter(mat_law,λ,μ,χmin,η0,1.0,ρ_init,h_cell_min)
 
 @time cv = CellValues{U}(mesh);
 
 states = TopStates{U}(cv,ρ_init)
 
-ch = create_constraint_handler(cv,:MBB_sym);
+ch = create_constraint_handler(cv,:Cantilever_sym);
 
 # Get project root directory (robust to where script is called from)
 project_root = dirname(@__DIR__)
@@ -132,24 +143,24 @@ println("Starting optimization")
 println("="^100)
 optimization_time = @elapsed sim_results = run_optimization(
     cv,
-    MBB_rhs,
+    Bending_Beam_rhs,
     states,
     ch,
     sim_pars,
-    vtk_folder_name = joinpath(project_root, "Results", "vtk", "Adaptive_Runs", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType)"),
+    vtk_folder_name = joinpath(project_root, "Results", "vtk", "Adaptive_Runs", "Bending_Beam_$(n)_$(MAX_REF_LEVEL)_$(MeshType)"),
     MAX_OPT_STEPS = MAX_OPT_STEPS,
     MAX_REF_LEVEL = MAX_REF_LEVEL,
     take_snapshots_at = [1,10,20,30,50,100,200],
     do_adaptivity = do_adaptivity,
-    b_case = :MBB_sym
+    b_case = :Bending_Beam_sym
 )
 
 println("Optimization time: $optimization_time")
 show(to)
 
 
-jld2_path = joinpath(project_root, "Results", "SimData", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType).jld2")
+jld2_path = joinpath(project_root, "Results", "SimData", "Bending_Beam_$(n)_$(MAX_REF_LEVEL)_$(MeshType).jld2")
 
-@save jld2_path sim_results
-export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType).csv"))
+@time "jld_save" @save jld2_path sim_results
+@time "export_data" export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", "Bending_Beam_$(n)_$(MAX_REF_LEVEL)_$(MeshType).csv"))
 

@@ -1,5 +1,25 @@
 using Ju3VEM.VEMGeo: is_active_root
 
+
+struct SimParameter{H<:Helmholtz}
+    mat_law::H
+    λ::Float64
+    μ::Float64 
+    
+    χmin::Float64
+    η0::Float64 
+    β0::Float64
+    ρ_init::Float64
+    h_min::Float64
+end
+
+
+@inline function Ψlin_totopt(∇u::M,λ,μ,χ) where {M<:AbstractMatrix}
+    ε = 1/2*(∇u + ∇u')
+    W = λ/2 * tr(ε)^2 + μ*tr(ε*ε)
+    return W*χ[1]^3
+end
+
 """
     TopStates{D}
 
