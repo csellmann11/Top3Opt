@@ -27,7 +27,7 @@ function mark_elements_for_adaption(
     states       ::TopStates,
     state_changed::AbstractVector{Float64},
     max_ref_level::Int,
-    forbid_coarsening::Vector{Bool};
+    no_coarsening_marker::Vector{Bool};
     upper_error_bound::Float64 = 4.0,
     lower_error_bound::Float64 = 1/8
     ) where {D,U}
@@ -38,7 +38,15 @@ function mark_elements_for_adaption(
     ref_marker    = zeros(Bool,length(get_volumes(topo)))
     coarse_marker = copy(ref_marker)
 
-    m_error = mean(values(element_error))
+    # m_error = mean(values(element_error))
+    m_error = 0.0 
+    sum_area = 0.0 
+    for (el_id,error) in element_error
+        s_id = e2s[el_id] 
+        m_error += error * states.area_vec[s_id]
+        sum_area += states.area_vec[s_id]
+    end
+    m_error /= sum_area
 
     for (el_id,state_id) in e2s
 
@@ -52,7 +60,7 @@ function mark_elements_for_adaption(
         if (dχi > 0.0 || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
             ref_marker[el_id] = true
         elseif error < m_error * lower_error_bound && has_parent && dχi == 0.0
-            (el_id <= length(forbid_coarsening) && forbid_coarsening[el_id]) && continue
+            (el_id <= length(no_coarsening_marker) && no_coarsening_marker[el_id]) && continue
             coarse_marker[el_id] = true
         end
     end

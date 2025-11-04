@@ -52,51 +52,67 @@ function refine_sets(cv::CellValues{3},
 
         Ju3VEM.VEMGeo.iterate_volume_areas(
             fdc,topo,element.id) do face,fd,_ 
-        
-                ref_marker[element.id] && return nothing
-                for set_name in sets_to_refine 
-                    set = get(mesh.face_sets,set_name,nothing)
 
-                    set === nothing && continue 
-                    if face.id in set
+                vertex_ids = fd.face_node_ids |> get_first
+                for set_func in sets_to_refine
+                    if any(set_func(topo.nodes[vid]) for vid in vertex_ids)
                         ref_marker[element.id] = true
                         return nothing
                     end
                 end
+        
+                # ref_marker[element.id] && return nothing
+                # for set_name in sets_to_refine 
+                #     set = get(mesh.face_sets,set_name,nothing)
 
-                vertex_ids = fd.face_node_ids |> get_first
-                for (i,vid) in enumerate(vertex_ids)
-                    i_p1 = get_next_idx(vertex_ids,i)
-                    vid_p1 = vertex_ids[i_p1]
-                    edge = get_edge(vid,vid_p1,topo)
-                    for set_name in sets_to_refine 
-                        set = get(mesh.edge_sets,set_name,nothing)
+                #     set === nothing && continue 
+                #     if face.id in set
+                #         ref_marker[element.id] = true
+                #         return nothing
+                #     end
+                # end
+
+                # vertex_ids = fd.face_node_ids |> get_first
+                # for (i,vid) in enumerate(vertex_ids)
+                #     i_p1 = get_next_idx(vertex_ids,i)
+                #     vid_p1 = vertex_ids[i_p1]
+                #     edge = get_edge(vid,vid_p1,topo)
+                #     for set_name in sets_to_refine 
+                #         set = get(mesh.edge_sets,set_name,nothing)
 
                         
-                        if set !== nothing && edge.id in set
-                            ref_marker[element.id] = true
-                            return nothing
-                        end
+                #         if set !== nothing && edge.id in set
+                #             ref_marker[element.id] = true
+                #             return nothing
+                #         end
 
-                        set = get(mesh.node_sets,set_name,nothing)
-                        if set !== nothing && vid in set
-                            ref_marker[element.id] = true
-                            return nothing
-                        end
-                    end
-                end
+                #         set = get(mesh.node_sets,set_name,nothing)
+                #         if set !== nothing && vid in set
+                #             ref_marker[element.id] = true
+                #             return nothing
+                #         end
+                #     end
+                # end
         end
     end
 
     for element in RootIterator{4}(topo)
-        element.refinement_level >= MAX_REF_LEVEL && continue
+        
+        if element.refinement_level >= MAX_REF_LEVEL 
+            ref_marker[element.id] = false
+            continue
+        end
         ref_marker[element.id] && _refine!(element,topo)
     end
 
+  
     for _ in 3:MAX_REF_LEVEL 
+        ref_marker = resize!(ref_marker,length(get_volumes(topo)))
+
         for element in RootIterator{4}(topo)
             element.id <= n_els && continue 
             _refine!(element,topo)
+            ref_marker[element.id] = true
         end
 
     end
@@ -104,7 +120,7 @@ function refine_sets(cv::CellValues{3},
     mesh = Mesh(topo,StandardEl{1}())
     cv = CellValues{3}(mesh)
 
-    return cv
+    return cv,ref_marker
 end
 
 
@@ -140,11 +156,12 @@ end
 
 function get_sets_to_refine(b_case::Symbol)
     if b_case == :MBB_sym
-        return ("middle_traction",)
+        return ( x -> (0 ≤ x[1] ≤ 0.251) && x[3] ≈ 1.0,)
+        # return (x -> x[1] ≈ 0.0 && x[3] ≈ 1.0,)
     elseif b_case == :Cantilever_sym
-        return ("symmetry_bc",)
+        return (x -> x[1] ≈ 2.0 && (0.4 ≤ x[3] ≤ 0.6) && (0.4 ≤ x[2] ≤ 0.6),)
     elseif b_case == :Bending_Beam_sym
-        return ("right_traction",)
+        return (x -> x[1] ≈ 3.0 && x[3] ≈ 0.0,)
     end
 end
 
@@ -157,13 +174,16 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol)
 
         add_face_set!(mesh, "symmetry_bc", x -> x[1] ≈ 0.0)
         add_face_set!(mesh, "symmetry_bc_2", x -> x[2] ≈ 0.5)
-        add_node_set!(mesh, "roller_bearing", x -> x[1] ≈ 3.0 && x[3] ≈ 0.0)
+        add_node_set!(mesh, "roller_bearing", x -> x[1] ≈ 3.0 && x[3] ≈ 0.0 && x[2] ≈ 0.0)
         add_face_set!(mesh, "middle_traction", x -> (0 ≤ x[1] ≤ 0.251) && x[3] ≈ 1.0)
+        # add_edge_set!(mesh, "middle_traction", x -> (x[1] ≈ 0.0) && x[3] ≈ 1.0)
 
+        
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc", x -> SA[0.0], c_dofs=SA[1])
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc_2", x -> SA[0.0], c_dofs=SA[2])
         add_dirichlet_bc!(ch, cv.dh, "roller_bearing", x -> SA[0.0, 0.0], c_dofs=SA[2, 3])
         add_neumann_bc!(ch, cv.dh, cv.facedata_col, "middle_traction", x -> SA[0.0, 0.0, -1.0])
+        # add_neumann_bc!(ch, cv.dh, "middle_traction", x -> SA[0.0, 0.0, -1.0])
 
     elseif b_case == :Cantilever_sym 
 

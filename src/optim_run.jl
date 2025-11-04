@@ -13,6 +13,7 @@ function run_optimization(
     rhs_fun::F,
     states::TopStates{U},
     ch::ConstraintHandler{U},
+    no_coarsening_marker::Vector{Bool},
     sim_pars::SimParameter{H};
     vtk_folder_name::String,
     MAX_OPT_STEPS::Int = 200,
@@ -40,7 +41,8 @@ function run_optimization(
 
     Psi0 = 0.0; Psi_step0 = 0.0; u = Float64[]
 
-    forbid_coarsening = mark_elements_which_are_part_of_sets(cv,ch)
+    # forbid_coarsening = mark_elements_which_are_part_of_sets(cv,ch)
+    t_now = 0.0
 
     for optimization_step in 1:MAX_OPT_STEPS
         @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
@@ -53,13 +55,20 @@ function run_optimization(
             Psi0 = Psi
         end
         ΔPsi_rel = (Psi - Psi0) / Psi0
-        println("Optimization step: $optimization_step, Relative strain energy change: $ΔPsi_rel")
-        improvement = round(Psi_step0/Psi * 100,sigdigits=2)
-        println("Improvement: $improvement %")
+        mod      = measure_of_nondiscreteness(states,sim_pars)
         n_states = length(states.χ_vec) 
         n_dofs   = length(u)  
-        mod      = measure_of_nondiscreteness(states,sim_pars)
         update_sim_data!(sim_results,mod,Psi,n_states,n_dofs)
+
+        if time() - t_now > 1e-10
+            println("Optimization step: $optimization_step, Relative strain energy change: $ΔPsi_rel")
+            improvement = round(Psi_step0/Psi * 100,sigdigits=2)
+            println("Improvement: $improvement %")
+            
+            println("number of states: $n_states, number of dofs: $n_dofs")
+            t_now = time()
+        end
+    
 
         if abs(ΔPsi_rel) < tolerance 
             n_conv_count += 1
@@ -77,7 +86,7 @@ function run_optimization(
             println("Writing vtk file for optimization step: $optimization_step")
             full_name = joinpath(vtk_folder_name, "temp_res_$(optimization_step)")
             el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
-            # write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
+            write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
             # push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
             # push!(sim_results.topology_nodes_at_snapshots,copy(cv.mesh.topo.nodes))
             # push!(sim_results.topology_connectivity_at_snapshots,deepcopy(cv.mesh.topo.connectivity))
@@ -89,7 +98,7 @@ function run_optimization(
             !do_adaptivity && continue
             @timeit to "estimate_element_error" element_error = estimate_element_error(u,eldata_col)
             ref_marker, coarse_marker = mark_elements_for_adaption(cv, 
-                            element_error,states,state_changed,MAX_REF_LEVEL,forbid_coarsening)
+                            element_error,states,state_changed,MAX_REF_LEVEL,no_coarsening_marker)
 
             @timeit to "mesh_clearing" clear_up_mesh(cv.mesh.topo,face_to_vols,edge_to_vols)
             @timeit to "adapt_mesh" cv = adapt_mesh(cv,coarse_marker,ref_marker)
@@ -105,7 +114,7 @@ function run_optimization(
 
     full_name = joinpath(vtk_folder_name, "final_res")
     el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
-    # write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
+    write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
     # push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
     # push!(sim_results.states_at_snapshots,deepcopy(states))
     # push!(sim_results.topology_nodes_at_snapshots,copy(cv.mesh.topo.nodes))

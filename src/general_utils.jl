@@ -8,7 +8,7 @@ function parse_commandline()
         "--max_opt_steps","-s"
             help = "Maximum number of optimization steps"
             arg_type = Int
-            default  = 2
+            default  = 200
         "--max_ref_level","-r"
             help = "Maximum refinement level"
             arg_type = Int
@@ -16,7 +16,7 @@ function parse_commandline()
         "--mesh_type","-m"
             help = "Mesh type"
             arg_type = Symbol
-            default  = :Hexahedra
+            default  = :Voronoi
         "--do_adaptivity","-a"
             help = "Boolean to determine if adaptivity is enabled"
             arg_type = Bool
@@ -24,7 +24,7 @@ function parse_commandline()
         "--do_adaptivity_at_the_start","-b"
             help = "if true, the mesh is refined to the finest level at the start"
             arg_type = Bool
-            default  = true
+            default  = false
     end
     return parse_args(s)
 

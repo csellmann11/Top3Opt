@@ -36,10 +36,6 @@ MeshType = args["mesh_type"]
 do_adaptivity = args["do_adaptivity"]
 do_adaptivity_at_the_start = args["do_adaptivity_at_the_start"]
 
-
-
-run(`powershell -Command "Get-WmiObject Win32_Processor | Select-Object Name, CurrentClockSpeed, MaxClockSpeed"`)
-
 println("Optimization level: ", Base.JLOptions().opt_level)
 println("Inline: ", Base.JLOptions().can_inline)
 println("Check bounds: ", Base.JLOptions().check_bounds)
@@ -55,7 +51,6 @@ println("MAX_REF_LEVEL: $MAX_REF_LEVEL")
 println("MeshType: $MeshType")
 println("do_adaptivity: $do_adaptivity")
 
-#print number of threads and blas threads
 println("Number of threads: $(Threads.nthreads())")
 println("Number of BLAS threads: $(BLAS.get_num_threads())")
 println("Sysimage: ", unsafe_string(Base.JLOptions().image_file))
@@ -127,19 +122,15 @@ function main_MBB(
 
     @time cv = CellValues{U}(mesh);
 
-    if !do_adaptivity_at_the_start
-        sets_to_refine = get_sets_to_refine(:MBB_sym)
-        cv = refine_sets(cv,sets_to_refine,MAX_REF_LEVEL);
-    end
+    sets_to_refine = get_sets_to_refine(:MBB_sym)
+    cv,no_coarsening_marker = refine_sets(cv,sets_to_refine,MAX_REF_LEVEL);
+
+    ch = create_constraint_handler(cv,:MBB_sym);
+    write_vtk(cv.mesh.topo,"test")
 
     states = TopStates{U}(cv,ρ_init)
 
-    ch = create_constraint_handler(cv,:MBB_sym);
-
-    # warm up assembly for timing purposes
-    assembly(cv,states,MBB_rhs,sim_pars);
-
-    # write_vtk(cv.mesh.topo,"test")
+    
     # Get project root directory (robust to where script is called from)
     project_root = dirname(@__DIR__)
 
@@ -148,9 +139,10 @@ function main_MBB(
     println("="^100)
     sim_results = run_optimization(
         cv,
-        MBB_rhs,
+        MBB_rhs, 
         states,
         ch,
+        no_coarsening_marker,
         sim_pars,
         vtk_folder_name = joinpath(project_root, "Results", "vtk", "Adaptive_Runs", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType)"),
         MAX_OPT_STEPS = MAX_OPT_STEPS,
