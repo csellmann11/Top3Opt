@@ -35,19 +35,77 @@ end
 
 
 
-# function ref_mesh_at_sets(mesh::Mesh{3}, set_member_funs::T, max_ref_level::Int) where T<:Tuple 
-#     topo = mesh.topo
+function refine_sets(cv::CellValues{3},
+    sets_to_refine::T,
+    MAX_REF_LEVEL::Int) where T<:Tuple 
 
-#     for rl in 1:max_ref_level
-#         for element in RootIterator{3}(mesh.topo)
-#             node_ids = get_volume_node_ids(mesh.topo, element.id)
-#             # only refine if at least one node is a member of any of the sets
-#             !any(set_member_funs[i].(topo.nodes[node_ids]) for i in eachindex(set_member_funs)) && continue
-#             element.refinement_level >= rl && continue
-#             _refine!(element, mesh.topo)
-#         end
-#     end
-# end
+    mesh = cv.mesh
+    topo = mesh.topo
+
+    fdc = cv.facedata_col
+
+    ref_marker = zeros(Bool,length(get_volumes(topo)))
+
+    n_els = length(get_volumes(topo))
+    
+    for element in RootIterator{4}(topo)
+
+        Ju3VEM.VEMGeo.iterate_volume_areas(
+            fdc,topo,element.id) do face,fd,_ 
+        
+                ref_marker[element.id] && return nothing
+                for set_name in sets_to_refine 
+                    set = get(mesh.face_sets,set_name,nothing)
+
+                    set === nothing && continue 
+                    if face.id in set
+                        ref_marker[element.id] = true
+                        return nothing
+                    end
+                end
+
+                vertex_ids = fd.face_node_ids |> get_first
+                for (i,vid) in enumerate(vertex_ids)
+                    i_p1 = get_next_idx(vertex_ids,i)
+                    vid_p1 = vertex_ids[i_p1]
+                    edge = get_edge(vid,vid_p1,topo)
+                    for set_name in sets_to_refine 
+                        set = get(mesh.edge_sets,set_name,nothing)
+
+                        
+                        if set !== nothing && edge.id in set
+                            ref_marker[element.id] = true
+                            return nothing
+                        end
+
+                        set = get(mesh.node_sets,set_name,nothing)
+                        if set !== nothing && vid in set
+                            ref_marker[element.id] = true
+                            return nothing
+                        end
+                    end
+                end
+        end
+    end
+
+    for element in RootIterator{4}(topo)
+        element.refinement_level >= MAX_REF_LEVEL && continue
+        ref_marker[element.id] && _refine!(element,topo)
+    end
+
+    for _ in 3:MAX_REF_LEVEL 
+        for element in RootIterator{4}(topo)
+            element.id <= n_els && continue 
+            _refine!(element,topo)
+        end
+
+    end
+
+    mesh = Mesh(topo,StandardEl{1}())
+    cv = CellValues{3}(mesh)
+
+    return cv
+end
 
 
 function mark_elements_which_are_part_of_sets(cv::CellValues{3}, ch::ConstraintHandler{3})
@@ -80,7 +138,18 @@ function mark_elements_which_are_part_of_sets(cv::CellValues{3}, ch::ConstraintH
 end
 
 
-function create_constraint_handler(cv::CellValues{3}, b_case::Symbol=:MBB_sym)
+function get_sets_to_refine(b_case::Symbol)
+    if b_case == :MBB_sym
+        return ("middle_traction",)
+    elseif b_case == :Cantilever_sym
+        return ("symmetry_bc",)
+    elseif b_case == :Bending_Beam_sym
+        return ("right_traction",)
+    end
+end
+
+
+function create_constraint_handler(cv::CellValues{3}, b_case::Symbol)
     mesh = cv.mesh
     ch = ConstraintHandler{U}(mesh)
 
@@ -95,6 +164,7 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol=:MBB_sym)
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc_2", x -> SA[0.0], c_dofs=SA[2])
         add_dirichlet_bc!(ch, cv.dh, "roller_bearing", x -> SA[0.0, 0.0], c_dofs=SA[2, 3])
         add_neumann_bc!(ch, cv.dh, cv.facedata_col, "middle_traction", x -> SA[0.0, 0.0, -1.0])
+
     elseif b_case == :Cantilever_sym 
 
         add_face_set!(mesh, "symmetry_bc", x -> x[2] ≈ 0.5)
@@ -119,7 +189,7 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol=:MBB_sym)
     else
         error("Invalid boundary value problem: $b_case")
     end
-    ch
+    return ch
 end
 
 

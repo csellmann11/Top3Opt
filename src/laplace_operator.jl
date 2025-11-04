@@ -69,7 +69,7 @@ function compute_d_mat(
             h_n = states.h_vec[n_state_id]
             n_bc = states.x_vec[n_state_id]
             λ_scale = h0*inv(0.5*(h0+h_n))
-            λ_scale = 1.0
+            # λ_scale = 1.0
         end
 
         dx,dy,dz = λ_scale*(n_bc - bc)

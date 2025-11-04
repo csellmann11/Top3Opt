@@ -16,7 +16,8 @@ using Infiltrator
 
 const to = TimerOutput()
 
-
+include("general_utils.jl")
+args = parse_commandline()
 include("mat_states.jl")
 include("laplace_operator.jl")
 include("compute_displacement.jl")
@@ -29,34 +30,23 @@ include("optim_run.jl")
 const K = 1
 const U = 3
 
-if length(ARGS) == 0
-    MAX_OPT_STEPS = 400
-    MAX_REF_LEVEL = 3
-    MeshType = :Hexahedra
-    do_adaptivity = true
-elseif length(ARGS) == 1
-    MAX_OPT_STEPS = parse(Int, ARGS[1])
-    MAX_REF_LEVEL = 3
-    MeshType = :Hexahedra
-    do_adaptivity = true
-elseif length(ARGS) == 2
-    MAX_OPT_STEPS = parse(Int, ARGS[1])
-    MAX_REF_LEVEL = parse(Int, ARGS[2])
-    MeshType = :Hexahedra
-    do_adaptivity = true
-elseif length(ARGS) == 3
-    MAX_OPT_STEPS = parse(Int, ARGS[1])
-    MAX_REF_LEVEL = parse(Int, ARGS[2])
-    MeshType = ARGS[3] |> Symbol
-    do_adaptivity = true
-elseif length(ARGS) == 4
-    MAX_OPT_STEPS = parse(Int, ARGS[1])
-    MAX_REF_LEVEL = parse(Int, ARGS[2])
-    MeshType = ARGS[3] |> Symbol
-    do_adaptivity = parse(Bool, ARGS[4])
-else
-    error("Invalid number of arguments: $(length(ARGS))")
-end
+MAX_OPT_STEPS = args["max_opt_steps"]
+MAX_REF_LEVEL = args["max_ref_level"]
+MeshType = args["mesh_type"]
+do_adaptivity = args["do_adaptivity"]
+do_adaptivity_at_the_start = args["do_adaptivity_at_the_start"]
+
+
+
+run(`powershell -Command "Get-WmiObject Win32_Processor | Select-Object Name, CurrentClockSpeed, MaxClockSpeed"`)
+
+println("Optimization level: ", Base.JLOptions().opt_level)
+println("Inline: ", Base.JLOptions().can_inline)
+println("Check bounds: ", Base.JLOptions().check_bounds)
+println("Julia version: ", VERSION)
+println("Julia executable: ", Base.julia_cmd())
+println("BLAS vendor: ", BLAS.vendor())
+println("BLAS config: ", BLAS.get_config())
 
 
 println("Running simulation with:")
@@ -65,92 +55,122 @@ println("MAX_REF_LEVEL: $MAX_REF_LEVEL")
 println("MeshType: $MeshType")
 println("do_adaptivity: $do_adaptivity")
 
+#print number of threads and blas threads
+println("Number of threads: $(Threads.nthreads())")
+println("Number of BLAS threads: $(BLAS.get_num_threads())")
+println("Sysimage: ", unsafe_string(Base.JLOptions().image_file))
+println("Compile mode: ", Base.JLOptions().compile_enabled)
+println("Active project: ", Base.active_project())
+
 function MBB_rhs(x)
     SA[0.0,0.0,0.0]
 end
 
 
-
-
-n = div(4,2)*2
-l_beam = 3.0
-
-if MeshType == :Hexahedra
-    mesh = create_rectangular_mesh(
-        3n,div(n,2),n,
-        l_beam,0.5,1.0,StandardEl{K}
-    );
-elseif MeshType == :Voronoi
-    mesh2d = create_voronoi_mesh(
-        (0.0,0.0),
-        (l_beam,0.5),
-        3n,div(n,2),StandardEl{K}
-        )
-    mesh = extrude_to_3d(n,mesh2d,1.0);
-end
-
-h_cell = find_maximal_cell_diameter(mesh.topo)
-h_cell_min = h_cell * (1/2)^(MAX_REF_LEVEL-1)
-for level in 1:(MAX_REF_LEVEL-1)
-    for element in RootIterator{4}(mesh.topo)
-        _refine!(element,mesh.topo)
-    end
-end
-
-
-
-mesh = Mesh(mesh.topo,StandardEl{1}())
-n_els = count(is_active_root,get_volumes(mesh.topo))
-println("Number of elements: $n_els")
-n_nodes = count(is_active,get_nodes(mesh.topo))
-println("Number of nodes: $n_nodes")
-
-
-
-E = 210.e03; ν = 0.33
-λ,μ = E_ν_to_lame(E,ν)
-χ = 0.3
-mat_law  = Helmholtz{3,3}(Ψlin_totopt,(λ,μ,χ))
-mat_pars = (λ,μ)
-
-χmin = 1e-03
-η0   = 15.0 
-β0   = 2*h_cell_min^2 
-ρ_init = 0.3 
-sim_pars = SimParameter(mat_law,λ,μ,χmin,η0,1.0,ρ_init,h_cell_min)
-
-@time cv = CellValues{U}(mesh);
-
-states = TopStates{U}(cv,ρ_init)
-
-ch = create_constraint_handler(cv,:MBB_sym);
-
-# Get project root directory (robust to where script is called from)
-project_root = dirname(@__DIR__)
-
-println("="^100)
-println("Starting optimization")
-println("="^100)
-optimization_time = @elapsed sim_results = run_optimization(
-    cv,
-    MBB_rhs,
-    states,
-    ch,
-    sim_pars,
-    vtk_folder_name = joinpath(project_root, "Results", "vtk", "Adaptive_Runs", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType)"),
-    MAX_OPT_STEPS = MAX_OPT_STEPS,
-    MAX_REF_LEVEL = MAX_REF_LEVEL,
-    take_snapshots_at = [1,10,20,30,50,100,200],
-    do_adaptivity = do_adaptivity,
-    b_case = :MBB_sym
+function main_MBB(
+    MAX_OPT_STEPS::Int,
+    MAX_REF_LEVEL::Int,
+    MeshType::Symbol,
+    do_adaptivity::Bool,
+    do_adaptivity_at_the_start::Bool
 )
 
-println("Optimization time: $optimization_time")
-show(to)
+    n = div(4,2)*2
+    l_beam = 3.0
+
+    mesh =if MeshType == :Hexahedra
+        create_rectangular_mesh(
+            3n,div(n,2),n,
+            l_beam,0.5,1.0,StandardEl{K}
+        );
+    elseif MeshType == :Voronoi
+        mesh2d = create_voronoi_mesh(
+            (0.0,0.0),
+            (l_beam,0.5),
+            3n,div(n,2),StandardEl{K}
+            )
+        extrude_to_3d(n,mesh2d,1.0);
+    end
+
+    h_cell = find_maximal_cell_diameter(mesh.topo)
+    h_cell_min = h_cell * (1/2)^(MAX_REF_LEVEL-1)
+    if do_adaptivity_at_the_start
+        for level in 1:(MAX_REF_LEVEL-1)
+            for element in RootIterator{4}(mesh.topo)
+                _refine!(element,mesh.topo)
+            end
+        end
+        mesh = Mesh(mesh.topo,StandardEl{1}())
+    end
 
 
-jld2_path = joinpath(project_root, "Results", "SimData", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType).jld2")
 
-@save jld2_path sim_results
-export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType).csv"))
 
+    n_els = count(is_active_root,get_volumes(mesh.topo))
+    println("Number of elements: $n_els")
+    n_nodes = count(is_active,get_nodes(mesh.topo))
+    println("Number of nodes: $n_nodes")
+
+
+
+    E = 210.e03; ν = 0.33
+    λ,μ = E_ν_to_lame(E,ν)
+    χ = 0.3
+    mat_law  = Helmholtz{3,3}(Ψlin_totopt,(λ,μ,χ))
+    mat_pars = (λ,μ)
+
+    χmin = 1e-03
+    η0   = 15.0 
+    β0   = 2*h_cell_min^2 
+    ρ_init = 0.3 
+    sim_pars = SimParameter(mat_law,λ,μ,χmin,η0,1.0,ρ_init,h_cell_min)
+
+    @time cv = CellValues{U}(mesh);
+
+    if !do_adaptivity_at_the_start
+        sets_to_refine = get_sets_to_refine(:MBB_sym)
+        cv = refine_sets(cv,sets_to_refine,MAX_REF_LEVEL);
+    end
+
+    states = TopStates{U}(cv,ρ_init)
+
+    ch = create_constraint_handler(cv,:MBB_sym);
+
+    # warm up assembly for timing purposes
+    assembly(cv,states,MBB_rhs,sim_pars);
+
+    # write_vtk(cv.mesh.topo,"test")
+    # Get project root directory (robust to where script is called from)
+    project_root = dirname(@__DIR__)
+
+    println("="^100)
+    println("Starting optimization")
+    println("="^100)
+    sim_results = run_optimization(
+        cv,
+        MBB_rhs,
+        states,
+        ch,
+        sim_pars,
+        vtk_folder_name = joinpath(project_root, "Results", "vtk", "Adaptive_Runs", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType)"),
+        MAX_OPT_STEPS = MAX_OPT_STEPS,
+        MAX_REF_LEVEL = MAX_REF_LEVEL,
+        take_snapshots_at = [1,10,20,30,50,100,200],
+        do_adaptivity = do_adaptivity,
+        b_case = :MBB_sym
+    )
+
+  
+
+    show(to)
+
+
+    jld2_path = joinpath(project_root, "Results", "SimData", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType).jld2")
+
+    @save jld2_path sim_results
+    export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType).csv"))
+end
+
+main_MBB(
+    MAX_OPT_STEPS,MAX_REF_LEVEL, 
+    MeshType,do_adaptivity,do_adaptivity_at_the_start)

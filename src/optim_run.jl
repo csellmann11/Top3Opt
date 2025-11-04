@@ -77,7 +77,7 @@ function run_optimization(
             println("Writing vtk file for optimization step: $optimization_step")
             full_name = joinpath(vtk_folder_name, "temp_res_$(optimization_step)")
             el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
-            write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
+            # write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
             # push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
             # push!(sim_results.topology_nodes_at_snapshots,copy(cv.mesh.topo.nodes))
             # push!(sim_results.topology_connectivity_at_snapshots,deepcopy(cv.mesh.topo.connectivity))
@@ -87,7 +87,6 @@ function run_optimization(
         
         @timeit to "adaptivity" begin
             !do_adaptivity && continue
-            abs(ΔPsi_rel) < 10*tolerance && continue 
             @timeit to "estimate_element_error" element_error = estimate_element_error(u,eldata_col)
             ref_marker, coarse_marker = mark_elements_for_adaption(cv, 
                             element_error,states,state_changed,MAX_REF_LEVEL,forbid_coarsening)
@@ -106,7 +105,7 @@ function run_optimization(
 
     full_name = joinpath(vtk_folder_name, "final_res")
     el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
-    write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
+    # write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
     # push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
     # push!(sim_results.states_at_snapshots,deepcopy(states))
     # push!(sim_results.topology_nodes_at_snapshots,copy(cv.mesh.topo.nodes))
