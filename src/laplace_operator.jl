@@ -36,7 +36,8 @@ function compute_d_mat(
     states::TopStates{D},
     sim_pars::SimParameter) where D
 
-    β = sim_pars.β0
+    # β = sim_pars.β0
+    # hmin,hmax = extrema(states.h_vec)
     n_neighs  = length(el_neighs)
     h0         = states.h_vec[state_id]
     bc         = states.x_vec[state_id]
@@ -68,11 +69,11 @@ function compute_d_mat(
             h_n = states.h_vec[n_state_id]
             n_bc = states.x_vec[n_state_id]
             λ_scale = h0*inv(0.5*(h0+h_n))
-            # λ_scale = 1.0
+            λ_scale = 1.0
         end
 
         dx,dy,dz = λ_scale*(n_bc - bc)
-        w_vec[n_count] = 1.0#weight_factor(norm(n_bc - bc),2*h0^2)
+        w_vec[n_count] = 1.0#weight_factor(norm(n_bc - bc),2*hmin^2)
         A[n_count,:] .= (dx,dy,dz,0.5*dx^2,dx*dy,dx*dz,0.5*dy^2,dy*dz,0.5*dz^2)
     end
 
@@ -80,11 +81,11 @@ function compute_d_mat(
     W_A = w_vec .*A
     AT_A = static_matmul(A',W_A,Val((9,9)))
 
-    if cond(AT_A) > 1e9 
-        display(bc)
-        throw("Condition number of AT_A is too high")
+    # if cond(AT_A) > 1e9 
+    #     display(bc)
+    #     throw("Condition number of AT_A is too high")
 
-    end
+    # end
 
     invAT_A = inv(AT_A)
     res  = FixedSizeVector{Float64}(undef,n_neighs)

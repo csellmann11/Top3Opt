@@ -43,6 +43,8 @@ function create_neighbor_list(
 
     # Info: create adj informations - Loop Faces
     for (face_id,adj_elements) in face_to_vols
+
+        # handling of a normal face
         if length(adj_elements) == 2
             adj_el1 = adj_elements[1]; adj_el2 = adj_elements[2]
             push!(
@@ -56,6 +58,7 @@ function create_neighbor_list(
             continue 
         end
 
+        # if element does not have 2 neighs, it has to be a boundary face
         adj_el = only(adj_elements)
 
         push!(
@@ -74,6 +77,7 @@ function create_neighbor_list(
     end
 
     # Info: Loop Edges
+    # collects edge neighbors, also boundary edge neighs are handled here
     for (_,adj_elements) in edge_to_vols
         
         for adj_element in adj_elements 

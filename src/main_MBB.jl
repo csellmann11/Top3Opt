@@ -12,6 +12,7 @@ using TimerOutputs
 using Dates
 using Bumper
 using JLD2
+using Infiltrator
 
 const to = TimerOutput()
 
@@ -29,10 +30,10 @@ const K = 1
 const U = 3
 
 if length(ARGS) == 0
-    MAX_OPT_STEPS = 100
+    MAX_OPT_STEPS = 400
     MAX_REF_LEVEL = 3
     MeshType = :Hexahedra
-    do_adaptivity = false
+    do_adaptivity = true
 elseif length(ARGS) == 1
     MAX_OPT_STEPS = parse(Int, ARGS[1])
     MAX_REF_LEVEL = 3

@@ -62,6 +62,7 @@ function mark_elements_which_are_part_of_sets(cv::CellValues{3}, ch::ConstraintH
         forbidden = false
 
         for dof in dofs
+            continue #! remove
             if haskey(ch.n_bcs,dof)
                 forbidden = true
                 break

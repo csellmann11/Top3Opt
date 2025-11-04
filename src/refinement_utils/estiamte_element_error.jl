@@ -25,7 +25,7 @@ function mark_elements_for_adaption(
     cv::CellValues{D,U},
     element_error::Dict{Int,Float64},
     states       ::TopStates,
-    state_changed::Vector{Bool},
+    state_changed::AbstractVector{Float64},
     max_ref_level::Int,
     forbid_coarsening::Vector{Bool};
     upper_error_bound::Float64 = 4.0,
@@ -49,9 +49,9 @@ function mark_elements_for_adaption(
 
         has_parent = element.parent_id != 0
 #dχi != 0 || 
-        if (error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
+        if (dχi > 0.0 || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
             ref_marker[el_id] = true
-        elseif error < m_error * lower_error_bound && has_parent
+        elseif error < m_error * lower_error_bound && has_parent && dχi == 0.0
             (el_id <= length(forbid_coarsening) && forbid_coarsening[el_id]) && continue
             coarse_marker[el_id] = true
         end

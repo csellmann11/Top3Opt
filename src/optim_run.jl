@@ -87,6 +87,7 @@ function run_optimization(
         
         @timeit to "adaptivity" begin
             !do_adaptivity && continue
+            abs(ΔPsi_rel) < 10*tolerance && continue 
             @timeit to "estimate_element_error" element_error = estimate_element_error(u,eldata_col)
             ref_marker, coarse_marker = mark_elements_for_adaption(cv, 
                             element_error,states,state_changed,MAX_REF_LEVEL,forbid_coarsening)
@@ -94,7 +95,7 @@ function run_optimization(
             @timeit to "mesh_clearing" clear_up_mesh(cv.mesh.topo,face_to_vols,edge_to_vols)
             @timeit to "adapt_mesh" cv = adapt_mesh(cv,coarse_marker,ref_marker)
             @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
-            @timeit to "update_states_after_mesh_adaption" states = update_states_after_mesh_adaption!(states,cv,ref_marker,coarse_marker)
+            @timeit to "update_states_after_mesh_adaption" states = update_states_after_mesh_adaption!(states,cv,eldata_col,ref_marker,coarse_marker)
 
             @timeit to "create_neighbor_list" el_neighs, face_to_vols, edge_to_vols = create_neighbor_list(cv);
 

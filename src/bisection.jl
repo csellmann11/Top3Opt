@@ -4,7 +4,7 @@ function compute_driving_force!(
     states::TopStates) 
 
     for (state_id,(χ,Ψ0)) in enumerate(zip(states.χ_vec,Ψvec))
-        pχv[state_id]    = -3χ^2 * Ψ0 
+        pχv[state_id]    = -3χ^2 * Ψ0
     end
     pχv
 end
@@ -75,13 +75,15 @@ function state_update!(states::TopStates,
 
     MAX_ITER = 1000
 
-    hmin = Inf 
-    hmax = -Inf
-    for eldata in values(eldata_col)
-        hmin = min(hmin,eldata.hvol)
-        hmax = max(hmax,eldata.hvol)
-    end
-    β0 = 2*hmax^2*sim_pars.β0
+    # hmin = Inf 
+    # hmax = -Inf
+    # for eldata in values(eldata_col)
+    #     hmin = min(hmin,eldata.hvol)
+    #     hmax = max(hmax,eldata.hvol)
+    # end
+
+    hmin,hmax = extrema(states.h_vec)
+    β0 = 2*hmin^2 * sim_pars.β0
 
     n_steps = 4*ceil(Int,12/sim_pars.η0 * β0/hmin^2)
     dt = 1.0/n_steps
@@ -94,7 +96,8 @@ function state_update!(states::TopStates,
     hv          = states.h_vec
     Ψvec        = compute_strain_energy(eldata_col,u,states,sim_pars)
 
-    state_changed = zeros(Bool,length(states.χ_vec))
+    # state_changed = zeros(Bool,length(states.χ_vec))
+    state_initial = copy(states.χ_vec)
 
     for _ in 1:n_steps
 
@@ -120,8 +123,8 @@ function state_update!(states::TopStates,
             
             for (state_id,(χi,area,h,pχi,Δχi)) in enumerate(zip(χv,areav,hv,p_χ,Δχ))
                  
-                # β = max(2*h^2*p_avg,βmin) 
-                β = 2*h^2*p_avg * sim_pars.β0
+                β = max(2*h^2,2*hmin^2)*p_avg
+    
                 dχ = dt/η * (pχi - λ_trial + β * Δχi)
                 χv_trial[state_id] = clamp(χi + dχ,χ_min,1.0)
 
@@ -141,9 +144,10 @@ function state_update!(states::TopStates,
                 break
             end
         end
-        state_changed .= (χv_trial .!= χv) .|| state_changed
+        # state_changed .= (χv_trial .!= χv) .|| state_changed
         copyto!(states.χ_vec,χv_trial)
     end
+    state_changed = (χv_trial .- state_initial) 
     return state_changed
 end
 
