@@ -48,7 +48,6 @@ function compute_d_mat(
     w_vec     = FixedSizeVector{Float64}(undef,n_neighs)
     n_state_ids = FixedSizeVector{Int}(undef,n_neighs)
 
-
     for (n_count,n_id) in enumerate(el_neighs) 
          
          
@@ -73,11 +72,12 @@ function compute_d_mat(
         end
 
         dx,dy,dz = λ_scale*(n_bc - bc)
-        w_vec[n_count] = 1.0#weight_factor(norm(n_bc - bc),2*hmin^2)
+        hw = n_id > 0 ? h_n : h0
+        w_vec[n_count] = 1.0#weight_factor(norm(n_bc - bc),2*hw^2)
         A[n_count,:] .= (dx,dy,dz,0.5*dx^2,dx*dy,dx*dz,0.5*dy^2,dy*dz,0.5*dz^2)
     end
 
-    # W = diagm(w_vec)
+
     W_A = w_vec .*A
     AT_A = static_matmul(A',W_A,Val((9,9)))
 

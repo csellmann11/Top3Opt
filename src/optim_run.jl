@@ -96,7 +96,8 @@ function run_optimization(
         
         @timeit to "adaptivity" begin
             !do_adaptivity && continue
-            @timeit to "estimate_element_error" element_error = estimate_element_error(u,eldata_col)
+            # @timeit to "estimate_element_error" element_error = estimate_element_error(u,eldata_col)
+            @timeit to "estimate_element_error" element_error = estimate_element_error(u,states,cv,eldata_col)
             ref_marker, coarse_marker = mark_elements_for_adaption(cv, 
                             element_error,states,state_changed,MAX_REF_LEVEL,no_coarsening_marker)
 

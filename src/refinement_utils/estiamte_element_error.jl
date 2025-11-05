@@ -1,11 +1,79 @@
 using Ju3VEM
 
+function project_states_to_nodes(
+    eldata_col::Dict{Int,<:ElData},
+    cv::CellValues{D,U},
+    states::TopStates) where {D,U}
+
+    node_sums   = zeros(Float64,length(cv.mesh.topo.nodes))
+    node_states = Dict{Int,Float64}()
+    e2s = states.el_id_to_state_id
+    for (el_id,el_data) in eldata_col
+        sid      = e2s[el_id]
+        χ_el     = states.χ_vec[sid]
+        γ_stab   = el_data.γ_stab
+        bc       = states.x_vec[sid]
+        node_ids = el_data.node_ids
+        
+        for node_id in node_ids
+            weight =  get!(node_states,node_id,0.0)
+            node    = cv.mesh.topo.nodes[node_id]
+            d       = node.coords - bc
+            weight += γ_stab/norm(d)
+            node_states[node_id] = weight
+            node_sums[node_id] += 1/norm(d)
+        end
+    end
+    for node_id in keys(node_states)
+        node_states[node_id] /= node_sums[node_id]
+    end
+
+    return node_states
+end
+
+function estimate_element_error(
+    u::AbstractVector{Float64},
+    states::TopStates,
+    cv::CellValues{D,U},
+    eldata_col::Dict{Int,<:ElData}
+    ) where {D,U}
+
+    element_error = Dict{Int,Float64}()
+
+    node_states = project_states_to_nodes(eldata_col,cv,states)
+
+    for (el_id,el_data) in eldata_col
+
+        dofs = el_data.dofs
+        uel  = @view u[dofs]
+        proj = el_data.proj 
+        node_ids = el_data.node_ids 
+        error = 0.0 
+        for i in axes(proj,1)
+            du = 0.0 
+            for j in axes(proj,2)
+                du += proj[i,j] * uel[j]
+            end  
+            du -= uel[i]
+            n_count = ceil(Int,i/U)
+            error += du^2 * node_states[node_ids[n_count]]
+        end
+        element_error[el_id] = error
+    end
+
+    return element_error
+end
+
+
+
 function estimate_element_error(
     u::AbstractVector{Float64},
     eldata_col::Dict{Int,<:ElData}
     ) 
 
     element_error = Dict{Int,Float64}()
+
+    
 
     for (el_id,el_data) in eldata_col
 
@@ -14,6 +82,7 @@ function estimate_element_error(
         proj = el_data.proj 
         diff = stretch((I-proj),Val(3))*uel
         error = el_data.γ_stab * diff' * diff
+        # error = diff' * diff
         element_error[el_id] = error
     end
 
@@ -38,18 +107,22 @@ function mark_elements_for_adaption(
     ref_marker    = zeros(Bool,length(get_volumes(topo)))
     coarse_marker = copy(ref_marker)
 
-    # m_error = mean(values(element_error))
-    m_error = 0.0 
-    sum_area = 0.0 
-    for (el_id,error) in element_error
-        s_id = e2s[el_id] 
-        m_error += error * states.area_vec[s_id]
-        sum_area += states.area_vec[s_id]
-    end
-    m_error /= sum_area
+    m_error = median(values(element_error))
+    # m_error = 0.0 
+    # sum_area = 0.0 
+    # for (el_id,error) in element_error
+    #     s_id = e2s[el_id] 
+    #     m_error += error * states.area_vec[s_id]
+    #     sum_area += states.area_vec[s_id]
+    # end
+    # m_error /= sum_area
+
+    @infiltrate
 
     for (el_id,state_id) in e2s
 
+        n_vertices = length(get_area_node_ids(topo,el_id))
+        lower_error_bound = upper_error_bound/(4*n_vertices)
         error  = element_error[el_id]
         element = get_volumes(topo)[el_id]
         ref_level = element.refinement_level
@@ -57,9 +130,9 @@ function mark_elements_for_adaption(
 
         has_parent = element.parent_id != 0
 #dχi != 0 || 
-        if (dχi > 0.0 || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
+        if (error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
             ref_marker[el_id] = true
-        elseif error < m_error * lower_error_bound && has_parent && dχi == 0.0
+        elseif error < m_error * lower_error_bound && has_parent && abs(dχi) == 0.0
             (el_id <= length(no_coarsening_marker) && no_coarsening_marker[el_id]) && continue
             coarse_marker[el_id] = true
         end

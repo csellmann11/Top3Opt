@@ -79,17 +79,25 @@ function main_MBB(
             l_beam,0.5,1.0,StandardEl{K}
         );
     elseif MeshType == :Voronoi
+        # mesh2d = create_voronoi_mesh(
+        #     (0.0,0.0),
+        #     (l_beam,0.5),
+        #     3n,div(n,2),StandardEl{K}
+        #     )
+        # extrude_to_3d(n,mesh2d,1.0);
+
         mesh2d = create_voronoi_mesh(
             (0.0,0.0),
-            (l_beam,0.5),
-            3n,div(n,2),StandardEl{K}
+            (l_beam,1.0),
+            3n,n,StandardEl{K}
             )
-        extrude_to_3d(n,mesh2d,1.0);
+        _mesh = extrude_to_3d(n,mesh2d,0.5);
+        permute_coord_dimensions(_mesh,SA[1,3,2])
     end
 
     h_cell = find_maximal_cell_diameter(mesh.topo)
     h_cell_min = h_cell * (1/2)^(MAX_REF_LEVEL-1)
-    if do_adaptivity_at_the_start
+    if do_adaptivity_at_the_start || !do_adaptivity
         for level in 1:(MAX_REF_LEVEL-1)
             for element in RootIterator{4}(mesh.topo)
                 _refine!(element,mesh.topo)

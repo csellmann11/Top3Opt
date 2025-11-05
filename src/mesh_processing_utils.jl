@@ -30,7 +30,7 @@ function permute_coord_dimensions(mesh::Mesh{D,ET}, perm::SVector{D,Int}) where 
         node = nodes[i]
         nodes[i] = Node(node.id, node.coords[perm])
     end
-    return Mesh(mesh.topo, ET)
+    return Mesh(mesh.topo, StandardEl{1}())
 end
 
 
@@ -175,15 +175,15 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol)
         add_face_set!(mesh, "symmetry_bc", x -> x[1] ≈ 0.0)
         add_face_set!(mesh, "symmetry_bc_2", x -> x[2] ≈ 0.5)
         add_node_set!(mesh, "roller_bearing", x -> x[1] ≈ 3.0 && x[3] ≈ 0.0 && x[2] ≈ 0.0)
-        add_face_set!(mesh, "middle_traction", x -> (0 ≤ x[1] ≤ 0.251) && x[3] ≈ 1.0)
-        # add_edge_set!(mesh, "middle_traction", x -> (x[1] ≈ 0.0) && x[3] ≈ 1.0)
+        # add_face_set!(mesh, "middle_traction", x -> (0 ≤ x[1] ≤ 0.251) && x[3] ≈ 1.0)
+        add_edge_set!(mesh, "middle_traction", x -> (x[1] ≈ 0.0) && x[3] ≈ 1.0)
 
         
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc", x -> SA[0.0], c_dofs=SA[1])
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc_2", x -> SA[0.0], c_dofs=SA[2])
         add_dirichlet_bc!(ch, cv.dh, "roller_bearing", x -> SA[0.0, 0.0], c_dofs=SA[2, 3])
-        add_neumann_bc!(ch, cv.dh, cv.facedata_col, "middle_traction", x -> SA[0.0, 0.0, -1.0])
-        # add_neumann_bc!(ch, cv.dh, "middle_traction", x -> SA[0.0, 0.0, -1.0])
+        # add_neumann_bc!(ch, cv.dh, cv.facedata_col, "middle_traction", x -> SA[0.0, 0.0, -1.0])
+        add_neumann_bc!(ch, cv.dh, "middle_traction", x -> SA[0.0, 0.0, -1.0])
 
     elseif b_case == :Cantilever_sym 
 

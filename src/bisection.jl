@@ -147,7 +147,7 @@ function state_update!(states::TopStates,
         # state_changed .= (χv_trial .!= χv) .|| state_changed
         copyto!(states.χ_vec,χv_trial)
     end
-    state_changed = (χv_trial .- state_initial) 
+    state_changed = (states.χ_vec .- state_initial) 
     return state_changed
 end
 

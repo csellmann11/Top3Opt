@@ -202,28 +202,26 @@ function update_states_after_mesh_adaption!(states::TopStates,
     e2s_old   = copy(states.el_id_to_state_id)
     χ_vec_old = copy(states.χ_vec)
     
-
-    # node_states = Dict{Int,Tuple{Vector{Float64},Vector{Float64}}}()
-    node_sums   = zeros(Float64,length(cv.mesh.topo.nodes))
-    node_states = Dict{Int,Float64}()
-    for (el_id,el_data) in eldata_col
-        sid      = e2s_old[el_id]
-        χ_el     = χ_vec_old[sid]
-        bc       = states.x_vec[sid]
-        node_ids = el_data.node_ids
+    # node_sums   = zeros(Float64,length(cv.mesh.topo.nodes))
+    # node_states = Dict{Int,Float64}()
+    # for (el_id,el_data) in eldata_col
+    #     sid      = e2s_old[el_id]
+    #     χ_el     = χ_vec_old[sid]
+    #     bc       = states.x_vec[sid]
+    #     node_ids = el_data.node_ids
         
-        for node_id in node_ids
-            weight =  get!(node_states,node_id,0.0)
-            node    = cv.mesh.topo.nodes[node_id]
-            d       = node.coords - bc
-            weight += χ_el/norm(d)
-            node_states[node_id] = weight
-            node_sums[node_id] += 1/norm(d)
-        end
-    end
-    for node_id in keys(node_states)
-        node_states[node_id] /= node_sums[node_id]
-    end
+    #     for node_id in node_ids
+    #         weight =  get!(node_states,node_id,0.0)
+    #         node    = cv.mesh.topo.nodes[node_id]
+    #         d       = node.coords - bc
+    #         weight += χ_el/norm(d)
+    #         node_states[node_id] = weight
+    #         node_sums[node_id] += 1/norm(d)
+    #     end
+    # end
+    # for node_id in keys(node_states)
+    #     node_states[node_id] /= node_sums[node_id]
+    # end
 
 
     n_states = length(RootIterator{4}(topo))
@@ -244,7 +242,7 @@ function update_states_after_mesh_adaption!(states::TopStates,
             states.χ_vec[e2s[element.id]] = χ_parent
             # handle_state_change_for_refinement!(parent_id,cv,eldata_col,states,χ_vec_old,e2s_old,node_states)
             # ref_marker[child_ids] .= false
-        elseif !isempty(child_ids) && all(coarse_marker[child_ids])
+        elseif !isempty(child_ids) && any(coarse_marker[child_ids])
             #Info: element comes from coarseing 
 
             χ_sum = 0.0 
