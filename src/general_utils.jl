@@ -16,7 +16,7 @@ function parse_commandline()
         "--mesh_type","-m"
             help = "Mesh type"
             arg_type = Symbol
-            default  = :Voronoi # :Voronoi
+            default  = :Hexahedra # :Voronoi
         "--do_adaptivity","-a"
             help = "Boolean to determine if adaptivity is enabled"
             arg_type = Bool
@@ -24,7 +24,15 @@ function parse_commandline()
         "--do_adaptivity_at_the_start","-b"
             help = "if true, the mesh is refined to the finest level at the start"
             arg_type = Bool
-            default  = true
+            default  = false
+        "--b_case","-c"
+            help = "Case name"
+            arg_type = Symbol
+            default  = :MBB_sym
+        "--rhs_fun","-f"
+            help = "Right hand side function"
+            arg_type = Function
+            default  = def_rhs_fun
     end
     return parse_args(s)
 

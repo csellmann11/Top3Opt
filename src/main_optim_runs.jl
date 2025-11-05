@@ -16,6 +16,12 @@ using Infiltrator
 
 const to = TimerOutput()
 
+
+function def_rhs_fun(x)
+    SA[0.0,0.0,0.0]
+end
+
+
 include("general_utils.jl")
 args = parse_commandline()
 include("mat_states.jl")
@@ -35,6 +41,8 @@ MAX_REF_LEVEL = args["max_ref_level"]
 MeshType = args["mesh_type"]
 do_adaptivity = args["do_adaptivity"]
 do_adaptivity_at_the_start = args["do_adaptivity_at_the_start"]
+b_case = args["b_case"]
+rhs_fun = args["rhs_fun"]
 
 println("Optimization level: ", Base.JLOptions().opt_level)
 println("Inline: ", Base.JLOptions().can_inline)
@@ -50,6 +58,9 @@ println("MAX_OPT_STEPS: $MAX_OPT_STEPS")
 println("MAX_REF_LEVEL: $MAX_REF_LEVEL")
 println("MeshType: $MeshType")
 println("do_adaptivity: $do_adaptivity")
+println("do_adaptivity_at_the_start: $do_adaptivity_at_the_start")
+println("b_case: $b_case")
+println("rhs_fun: $rhs_fun")
 
 println("Number of threads: $(Threads.nthreads())")
 println("Number of BLAS threads: $(BLAS.get_num_threads())")
@@ -57,21 +68,24 @@ println("Sysimage: ", unsafe_string(Base.JLOptions().image_file))
 println("Compile mode: ", Base.JLOptions().compile_enabled)
 println("Active project: ", Base.active_project())
 
-function MBB_rhs(x)
-    SA[0.0,0.0,0.0]
-end
 
-
-function main_MBB(
+function main(
     MAX_OPT_STEPS::Int,
     MAX_REF_LEVEL::Int,
     MeshType::Symbol,
     do_adaptivity::Bool,
-    do_adaptivity_at_the_start::Bool
-)
+    do_adaptivity_at_the_start::Bool,
+    rhs_fun::F,
+    b_case::Symbol) where {F<:Function}
 
     n = div(4,2)*2
-    l_beam = 3.0
+    l_beam = if b_case == :MBB_sym
+        3.0
+    elseif b_case == :Cantilever_sym
+        2.0
+    elseif b_case == :Bending_Beam_sym
+        3.0
+    end
 
     mesh =if MeshType == :Hexahedra
         create_rectangular_mesh(
@@ -79,12 +93,6 @@ function main_MBB(
             l_beam,0.5,1.0,StandardEl{K}
         );
     elseif MeshType == :Voronoi
-        # mesh2d = create_voronoi_mesh(
-        #     (0.0,0.0),
-        #     (l_beam,0.5),
-        #     3n,div(n,2),StandardEl{K}
-        #     )
-        # extrude_to_3d(n,mesh2d,1.0);
 
         mesh2d = create_voronoi_mesh(
             (0.0,0.0),
@@ -130,10 +138,10 @@ function main_MBB(
 
     @time cv = CellValues{U}(mesh);
 
-    sets_to_refine = get_sets_to_refine(:MBB_sym)
+    sets_to_refine = get_sets_to_refine(b_case)
     cv,no_coarsening_marker = refine_sets(cv,sets_to_refine,MAX_REF_LEVEL);
 
-    ch = create_constraint_handler(cv,:MBB_sym);
+    ch = create_constraint_handler(cv,b_case);
     write_vtk(cv.mesh.topo,"test")
 
     states = TopStates{U}(cv,ρ_init)
@@ -141,23 +149,24 @@ function main_MBB(
     
     # Get project root directory (robust to where script is called from)
     project_root = dirname(@__DIR__)
+    folder_name = "$(string(b_case))_$(n)_$(MAX_REF_LEVEL)_$(MeshType)"
 
     println("="^100)
     println("Starting optimization")
     println("="^100)
     sim_results = run_optimization(
         cv,
-        MBB_rhs, 
+        rhs_fun, 
         states,
         ch,
         no_coarsening_marker,
         sim_pars,
-        vtk_folder_name = joinpath(project_root, "Results", "vtk", "Adaptive_Runs", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType)"),
+        vtk_folder_name = joinpath(project_root, "Results", "vtk", "Adaptive_Runs", folder_name),
         MAX_OPT_STEPS = MAX_OPT_STEPS,
         MAX_REF_LEVEL = MAX_REF_LEVEL,
         take_snapshots_at = [1,10,20,30,50,100,200],
         do_adaptivity = do_adaptivity,
-        b_case = :MBB_sym
+        b_case = b_case
     )
 
   
@@ -165,12 +174,14 @@ function main_MBB(
     show(to)
 
 
-    jld2_path = joinpath(project_root, "Results", "SimData", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType).jld2")
+    jld2_path = joinpath(project_root, "Results", "SimData", folder_name*".jld2")
 
     @save jld2_path sim_results
-    export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", "MBB_$(n)_$(MAX_REF_LEVEL)_$(MeshType).csv"))
+    export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", folder_name*".csv"))
 end
 
-main_MBB(
+main(
     MAX_OPT_STEPS,MAX_REF_LEVEL, 
-    MeshType,do_adaptivity,do_adaptivity_at_the_start)
+    MeshType,do_adaptivity,
+    do_adaptivity_at_the_start,
+    rhs_fun,b_case)
