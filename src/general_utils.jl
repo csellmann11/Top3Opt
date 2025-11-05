@@ -28,7 +28,7 @@ function parse_commandline()
         "--b_case","-c"
             help = "Case name"
             arg_type = Symbol
-            default  = :MBB_sym
+            default  = :Bending_Beam_sym
         "--rhs_fun","-f"
             help = "Right hand side function"
             arg_type = Function

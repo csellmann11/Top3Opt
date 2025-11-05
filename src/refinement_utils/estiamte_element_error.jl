@@ -119,7 +119,7 @@ function mark_elements_for_adaption(
 
         has_parent = element.parent_id != 0
 #dχi != 0 || 
-        if (χi != 0 || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
+        if (dχi != 0 || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
             ref_marker[el_id] = true
         elseif error < m_error * lower_error_bound && has_parent && abs(dχi) == 0.0
             (el_id <= length(no_coarsening_marker) && no_coarsening_marker[el_id]) && continue

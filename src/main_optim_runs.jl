@@ -85,6 +85,10 @@ function main(
         2.0
     elseif b_case == :Bending_Beam_sym
         3.0
+    else 
+        @show b_case
+        @show typeof(b_case)
+        error("Invalid b_case: $b_case")
     end
 
     mesh =if MeshType == :Hexahedra
