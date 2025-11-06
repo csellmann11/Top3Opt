@@ -86,7 +86,7 @@ function run_optimization(
             println("Writing vtk file for optimization step: $optimization_step")
             full_name = joinpath(vtk_folder_name, "temp_res_$(optimization_step)")
             el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
-            write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
+            write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
             # push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
             # push!(sim_results.topology_nodes_at_snapshots,copy(cv.mesh.topo.nodes))
             # push!(sim_results.topology_connectivity_at_snapshots,deepcopy(cv.mesh.topo.connectivity))

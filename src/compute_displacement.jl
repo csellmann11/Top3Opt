@@ -42,7 +42,7 @@ function assembly(cv::CellValues{D,U,ET},
         χ = states.χ_vec[e2s[element.id]]
         reinit!(element.id,cv)
 
-        γ_stab = γ * χ^3
+        γ_stab = γ/4 * χ^3
 
         proj_s, proj = build_local_kel_and_f!(kelement,
         rhs_element,cv,element.id,f,mat_law,γ_stab,(sim_pars.λ,sim_pars.μ,χ))

@@ -115,7 +115,7 @@ function state_update!(states::TopStates,
         λ_lower, λ_upper = lower_upper_bound(p_χ,η,dt)
         ρ_trial = 1.0
 
-        while abs(sim_pars.ρ_init - ρ_trial) > 1e-8
+        while abs(sim_pars.ρ_init - ρ_trial) > 1e-12
 
             iter += 1
             ∑χ = 0.0  

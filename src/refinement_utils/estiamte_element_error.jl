@@ -10,7 +10,6 @@ function project_states_to_nodes(
     e2s = states.el_id_to_state_id
     for (el_id,el_data) in eldata_col
         sid      = e2s[el_id]
-        χ_el     = states.χ_vec[sid]
         γ_stab   = el_data.γ_stab
         bc       = states.x_vec[sid]
         node_ids = el_data.node_ids
@@ -18,10 +17,10 @@ function project_states_to_nodes(
         for node_id in node_ids
             weight =  get!(node_states,node_id,0.0)
             node    = cv.mesh.topo.nodes[node_id]
-            d       = node.coords - bc
-            weight += γ_stab/norm(d)
+            d       = norm(node.coords - bc)
+            weight += γ_stab/d
             node_states[node_id] = weight
-            node_sums[node_id] += 1/norm(d)
+            node_sums[node_id] += 1/d
         end
     end
     for node_id in keys(node_states)
@@ -46,8 +45,9 @@ function estimate_element_error(
 
         dofs = el_data.dofs
         uel  = @view u[dofs]
-        proj = el_data.proj 
+        proj = stretch(el_data.proj,Val(3))
         node_ids = el_data.node_ids 
+        hvol     = el_data.hvol
         error = 0.0 
         for i in axes(proj,1)
             du = 0.0 
@@ -56,10 +56,11 @@ function estimate_element_error(
             end  
             du -= uel[i]
             n_count = ceil(Int,i/U)
-            error += du^2 * node_states[node_ids[n_count]]
+            error += du^2 * node_states[node_ids[n_count]] * hvol
         end
         element_error[el_id] = error
     end
+
 
     return element_error
 end
@@ -80,8 +81,9 @@ function estimate_element_error(
         dofs = el_data.dofs
         uel  = @view u[dofs]
         proj = el_data.proj 
+        hvol = el_data.hvol
         diff = stretch((I-proj),Val(3))*uel
-        error = el_data.γ_stab * diff' * diff
+        error = el_data.γ_stab * diff' * diff * hvol
         # error = diff' * diff
         element_error[el_id] = error
     end
@@ -97,8 +99,8 @@ function mark_elements_for_adaption(
     state_changed::AbstractVector{Float64},
     max_ref_level::Int,
     no_coarsening_marker::Vector{Bool};
-    upper_error_bound::Float64 = 4.0,
-    lower_error_bound::Float64 = 1/8
+    upper_error_bound::Float64 = 16.0,
+    lower_error_bound::Float64 = 0.5
     ) where {D,U}
 
     topo = cv.mesh.topo
@@ -107,19 +109,23 @@ function mark_elements_for_adaption(
     ref_marker    = zeros(Bool,length(get_volumes(topo)))
     coarse_marker = copy(ref_marker)
 
-    m_error = median(values(element_error))
+    m_error = mean(values(element_error))
+    @show m_error
+    χ_change_tol = 1e-08
     for (el_id,state_id) in e2s
 
-        n_vertices = length(get_area_node_ids(topo,el_id))
-        lower_error_bound = upper_error_bound/(4*n_vertices)
+        n_vertices = length(get_volume_node_ids(topo,el_id))
+        # lower_error_bound = upper_error_bound/(4*n_vertices)
+        lower_error_bound = 0.5 
+        upper_error_bound = lower_error_bound * 4*n_vertices
         error  = element_error[el_id]
         element = get_volumes(topo)[el_id]
         ref_level = element.refinement_level
         dχi    = state_changed[state_id]
-
+ 
         has_parent = element.parent_id != 0
 #dχi != 0 || 
-        if (dχi != 0 || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
+        if (dχi > 0 || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
             ref_marker[el_id] = true
         elseif error < m_error * lower_error_bound && has_parent && abs(dχi) == 0.0
             (el_id <= length(no_coarsening_marker) && no_coarsening_marker[el_id]) && continue

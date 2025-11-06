@@ -86,8 +86,6 @@ function main(
     elseif b_case == :Bending_Beam_sym
         3.0
     else 
-        @show b_case
-        @show typeof(b_case)
         error("Invalid b_case: $b_case")
     end
 
@@ -168,7 +166,7 @@ function main(
         vtk_folder_name = joinpath(project_root, "Results", "vtk", "Adaptive_Runs", folder_name),
         MAX_OPT_STEPS = MAX_OPT_STEPS,
         MAX_REF_LEVEL = MAX_REF_LEVEL,
-        take_snapshots_at = [1,10,20,30,50,100,200],
+        take_snapshots_at = [4,10,20,30,50,100,200],
         do_adaptivity = do_adaptivity,
         b_case = b_case
     )
