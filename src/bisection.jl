@@ -11,7 +11,7 @@ end
 
 
 function compute_strain_energy(
-    eldata_col::Dict{Int,<:ElData},
+    eldata_col::Dict{Int,<:ElementData},
     u::AbstractVector{Float64},
     states::TopStates, 
     sim_pars::SimParameter
@@ -27,6 +27,8 @@ function compute_strain_energy(
         proj_s = stretch(elem_data.proj_s,Val(3))
         dofs = elem_data.dofs
         u_el = @view u[dofs]
+        # kel = elem_data.kel
+        # Ψ0  = 1/2 * u_el' * kel * u_el * inv(elem_data.volume)
         uπ   = sol_proj(base,u_el,proj_s)
 
         bc   = states.x_vec[state_id]  
@@ -67,7 +69,7 @@ function state_update!(states::TopStates,
     sim_pars::SimParameter, 
     laplace_operator::SparseMatrixCSC,
     u::AbstractVector{Float64},
-    eldata_col::Dict{Int64, <:ElData})
+    eldata_col::Dict{Int64, <:ElementData})
 
 
     χ_min = sim_pars.χmin
@@ -75,15 +77,8 @@ function state_update!(states::TopStates,
 
     MAX_ITER = 1000
 
-    # hmin = Inf 
-    # hmax = -Inf
-    # for eldata in values(eldata_col)
-    #     hmin = min(hmin,eldata.hvol)
-    #     hmax = max(hmax,eldata.hvol)
-    # end
-
     hmin,hmax = extrema(states.h_vec)
-    β0 = 2*hmin^2 * sim_pars.β0
+    β0 = 2*hmax^2 * sim_pars.β0
 
     n_steps = 4*ceil(Int,12/sim_pars.η0 * β0/hmin^2)
     dt = 1.0/n_steps
@@ -96,7 +91,7 @@ function state_update!(states::TopStates,
     hv          = states.h_vec
     Ψvec        = compute_strain_energy(eldata_col,u,states,sim_pars)
 
-    # state_changed = zeros(Bool,length(states.χ_vec))
+
     state_initial = copy(states.χ_vec)
 
     for _ in 1:n_steps
@@ -106,7 +101,7 @@ function state_update!(states::TopStates,
         p_avg = get_avarage_driving_force(states,p_χ,sim_pars) 
     
 
-        βmin = β0 * p_avg
+        # βmin = β0 * p_avg
         η    = sim_pars.η0 * p_avg
         
         iter = 0
@@ -115,7 +110,7 @@ function state_update!(states::TopStates,
         λ_lower, λ_upper = lower_upper_bound(p_χ,η,dt)
         ρ_trial = 1.0
 
-        while abs(sim_pars.ρ_init - ρ_trial) > 1e-12
+        while abs(sim_pars.ρ_init - ρ_trial) > 1e-8
 
             iter += 1
             ∑χ = 0.0  
@@ -123,7 +118,7 @@ function state_update!(states::TopStates,
             
             for (state_id,(χi,area,h,pχi,Δχi)) in enumerate(zip(χv,areav,hv,p_χ,Δχ))
                  
-                β = max(2*h^2,2*hmin^2)*p_avg
+                β = 2*max(h^2,sim_pars.β0*hmin^2)*p_avg
     
                 dχ = dt/η * (pχi - λ_trial + β * Δχi)
                 χv_trial[state_id] = clamp(χi + dχ,χ_min,1.0)
@@ -144,7 +139,7 @@ function state_update!(states::TopStates,
                 break
             end
         end
-        # state_changed .= (χv_trial .!= χv) .|| state_changed
+
         copyto!(states.χ_vec,χv_trial)
     end
     state_changed = (states.χ_vec .- state_initial) 

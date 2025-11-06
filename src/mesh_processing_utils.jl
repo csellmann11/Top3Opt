@@ -34,6 +34,64 @@ function permute_coord_dimensions(mesh::Mesh{D,ET}, perm::SVector{D,Int}) where 
 end
 
 
+function face_area(nodes::AbstractVector{<:SVector{3}})
+    n = length(nodes)
+    area_vec = sum(i -> cross(nodes[i], nodes[mod1(i + 1, n)]), 1:n)
+    return 0.5 * norm(area_vec)
+end
+
+function face_area(node_ids::AbstractVector{Int},topo::Topology{3})
+    nodes = topo.nodes
+    n = length(node_ids)
+    area_vec = sum(i -> cross(nodes[node_ids[i]], nodes[node_ids[mod1(i + 1, n)]]), 1:n)
+    return 0.5 * norm(area_vec)
+end
+
+# function remove_short_edges(mesh::Mesh{2})
+#     topo = mesh.topo
+
+#     edge_to_el = Dict{Int,Vector{Int}}()
+#     for element in RootIterator{3}(topo)
+
+#         Ju3VEM.VEMGeo.iterate_element_edges(
+#             topo,element.id) do _,edge_id,_
+#                 push!(edge_to_el[edge_id], element.id)
+#         end
+#     end
+
+#     for (edge_id,adj_els) in edge_to_el
+#         n1_id,n2_id = get_edge_node_ids(topo, edge_id) 
+#         n1  = topo.nodes[n1_id]
+#         n2  = topo.nodes[n2_id]
+#         len = norm(n1.coords - n2.coords)
+
+#         short_edge = false
+#         for el_id in adj_els 
+#             area_node_ids = get_area_node_ids(topo, el_id) 
+#             if length(area_node_ids) == 3 
+#                 short_edge = false 
+#                 break
+#             end
+#             area = face_area(get_area_node_ids(topo, el_id), topo)
+#             #edge is to short if len^2 < area/8
+#             if len^2 < area/8
+#                 short_edge = true
+#             end
+#         end
+#     end
+
+
+
+#     return Mesh(topo, StandardEl{Ju3VEM.VEMUtils.get_order(mesh)}())
+# end
+
+
+
+
+
+
+
+
 
 function refine_sets(cv::CellValues{3},
     sets_to_refine::T,
@@ -162,6 +220,10 @@ function get_sets_to_refine(b_case::Symbol)
         return (x -> x[1] ≈ 2.0 && (0.4 ≤ x[3] ≤ 0.6) && (0.4 ≤ x[2] ≤ 0.6),)
     elseif b_case == :Bending_Beam_sym
         return (x -> x[1] ≈ 3.0 && x[3] ≈ 0.0,)
+    elseif b_case == :simple_lever
+        return (x -> x[1] ≈ 3.0 && x[3] >= 2.5 && x[2] >= 0.4,)
+    else
+        ()
     end
 end
 
@@ -175,15 +237,15 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol)
         add_face_set!(mesh, "symmetry_bc", x -> x[1] ≈ 0.0)
         add_face_set!(mesh, "symmetry_bc_2", x -> x[2] ≈ 0.5)
         add_node_set!(mesh, "roller_bearing", x -> x[1] ≈ 3.0 && x[3] ≈ 0.0 && x[2] ≈ 0.0)
-        # add_face_set!(mesh, "middle_traction", x -> (0 ≤ x[1] ≤ 0.251) && x[3] ≈ 1.0)
-        add_edge_set!(mesh, "middle_traction", x -> (x[1] ≈ 0.0) && x[3] ≈ 1.0)
+        add_face_set!(mesh, "middle_traction", x -> (0 ≤ x[1] ≤ 0.251) && x[3] ≈ 1.0)
+        # add_edge_set!(mesh, "middle_traction", x -> (x[1] ≈ 0.0) && x[3] ≈ 1.0)
 
         
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc", x -> SA[0.0], c_dofs=SA[1])
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc_2", x -> SA[0.0], c_dofs=SA[2])
         add_dirichlet_bc!(ch, cv.dh, "roller_bearing", x -> SA[0.0, 0.0], c_dofs=SA[2, 3])
-        # add_neumann_bc!(ch, cv.dh, cv.facedata_col, "middle_traction", x -> SA[0.0, 0.0, -1.0])
-        add_neumann_bc!(ch, cv.dh, "middle_traction", x -> SA[0.0, 0.0, -1.0])
+        add_neumann_bc!(ch, cv.dh, cv.facedata_col, "middle_traction", x -> SA[0.0, 0.0, -1.0])
+        # add_neumann_bc!(ch, cv.dh, "middle_traction", x -> SA[0.0, 0.0, -1.0])
 
     elseif b_case == :Cantilever_sym 
 
@@ -205,7 +267,19 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol)
         add_dirichlet_bc!(ch, cv.dh, "left_clamp1", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
         add_dirichlet_bc!(ch, cv.dh, "left_clamp2", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
         add_neumann_bc!(ch, cv.dh, "right_traction", x -> SA[0.0, 0.0, -1.0])
-        # add_neumann_bc!(ch, cv.dh, cv.facedata_col, "right_traction", x -> SA[0.0, 0.0, -100.0])
+        # add_neumann_bc!(ch, cv.dh, cv.facedata_col, "right_traction", x -> SA[0.0, 0.0, -100.0])^
+    elseif b_case == :simple_lever
+        add_node_set!(mesh, "bottom_clamp1", x -> x[1] ≈ 0.0 && x[2] ≈ 0.0 && x[3] ≈ 0.0)
+        add_node_set!(mesh, "bottom_clamp2", x -> x[1] ≈ 1.0 && x[2] ≈ 0.0 && x[3] ≈ 0.0)
+        add_face_set!(mesh, "right_traction", x -> x[1] ≈ 3.0 && x[3] >= 2.5 && x[2] >= 0.4)
+        add_face_set!(mesh, "symmetry_bc", x -> x[2] ≈ 0.5)
+        add_face_set!(mesh, "second_traction", x -> x[1] < 1.0 && x[3] ≈ 3.0)
+
+        add_dirichlet_bc!(ch, cv.dh, "bottom_clamp1", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
+        add_dirichlet_bc!(ch, cv.dh, "bottom_clamp2", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
+        add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc", x -> SA[0.0], c_dofs=SA[2])
+        add_neumann_bc!(ch, cv.dh, cv.facedata_col, "right_traction", x -> SA[0.0, 0.0, -1.0])
+        add_neumann_bc!(ch, cv.dh, cv.facedata_col, "second_traction", x -> SA[0.0, 0.0, -1.0])
     else
         error("Invalid boundary value problem: $b_case")
     end

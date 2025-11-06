@@ -1,7 +1,7 @@
 using Ju3VEM
 
 function project_states_to_nodes(
-    eldata_col::Dict{Int,<:ElData},
+    eldata_col::Dict{Int,<:ElementData},
     cv::CellValues{D,U},
     states::TopStates) where {D,U}
 
@@ -34,7 +34,7 @@ function estimate_element_error(
     u::AbstractVector{Float64},
     states::TopStates,
     cv::CellValues{D,U},
-    eldata_col::Dict{Int,<:ElData}
+    eldata_col::Dict{Int,<:ElementData}
     ) where {D,U}
 
     element_error = Dict{Int,Float64}()
@@ -69,7 +69,7 @@ end
 
 function estimate_element_error(
     u::AbstractVector{Float64},
-    eldata_col::Dict{Int,<:ElData}
+    eldata_col::Dict{Int,<:ElementData}
     ) 
 
     element_error = Dict{Int,Float64}()
@@ -98,9 +98,9 @@ function mark_elements_for_adaption(
     states       ::TopStates,
     state_changed::AbstractVector{Float64},
     max_ref_level::Int,
-    no_coarsening_marker::Vector{Bool};
+    no_coarsening_marker::Vector{Bool},
     upper_error_bound::Float64 = 16.0,
-    lower_error_bound::Float64 = 0.5
+    lower_error_bound::Float64 = 0.25
     ) where {D,U}
 
     topo = cv.mesh.topo
@@ -110,13 +110,13 @@ function mark_elements_for_adaption(
     coarse_marker = copy(ref_marker)
 
     m_error = mean(values(element_error))
-    @show m_error
-    χ_change_tol = 1e-08
+     
+
+
+
     for (el_id,state_id) in e2s
 
         n_vertices = length(get_volume_node_ids(topo,el_id))
-        # lower_error_bound = upper_error_bound/(4*n_vertices)
-        lower_error_bound = 0.5 
         upper_error_bound = lower_error_bound * 4*n_vertices
         error  = element_error[el_id]
         element = get_volumes(topo)[el_id]
@@ -124,10 +124,10 @@ function mark_elements_for_adaption(
         dχi    = state_changed[state_id]
  
         has_parent = element.parent_id != 0
-#dχi != 0 || 
-        if (dχi > 0 || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
+
+        if (dχi > 0.0 || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
             ref_marker[el_id] = true
-        elseif error < m_error * lower_error_bound && has_parent && abs(dχi) == 0.0
+        elseif error < m_error * lower_error_bound && has_parent && dχi == 0.0
             (el_id <= length(no_coarsening_marker) && no_coarsening_marker[el_id]) && continue
             coarse_marker[el_id] = true
         end

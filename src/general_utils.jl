@@ -12,7 +12,7 @@ function parse_commandline()
         "--max_ref_level","-r"
             help = "Maximum refinement level"
             arg_type = Int
-            default  = 4
+            default  = 3
         "--mesh_type","-m"
             help = "Mesh type"
             arg_type = Symbol
@@ -28,7 +28,7 @@ function parse_commandline()
         "--b_case","-c"
             help = "Case name"
             arg_type = Symbol
-            default  = :MBB_sym
+            default  = :MBB_sym #[:simple_lever,:MBB_sym,:Cantilever_sym,:Bending_Beam_sym]
         "--rhs_fun","-f"
             help = "Right hand side function"
             arg_type = Function

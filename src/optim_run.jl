@@ -28,7 +28,7 @@ function run_optimization(
     n_conv_count = 0
     sim_results  = SimulationResults(MAX_REF_LEVEL,
               MAX_OPT_STEPS,sim_pars,Val{D}())
-    eldata_col = Dict{Int,ElData{D}}()
+    eldata_col = Dict{Int,ElementData{D}}()
     if isdir(vtk_folder_name)
         println("Removing existing vtk folder: $vtk_folder_name")
         rm(vtk_folder_name,recursive=true)
@@ -39,11 +39,9 @@ function run_optimization(
     @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
                   cv.mesh.topo,el_neighs,face_to_vols,states,sim_pars)
 
-    Psi0 = 0.0; Psi_step0 = 0.0; u = Float64[]
+    Psi0 = 0.0; Psi_step0 = 0.0; u = Float64[]; state_changed = Float64[]
 
-    # forbid_coarsening = mark_elements_which_are_part_of_sets(cv,ch)
-    t_now = 0.0
-
+    t_now = time()
     for optimization_step in 1:MAX_OPT_STEPS
         @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
         @timeit to "state_update" state_changed = state_update!(
@@ -59,15 +57,14 @@ function run_optimization(
         n_states = length(states.χ_vec) 
         n_dofs   = length(u)  
         update_sim_data!(sim_results,mod,Psi,n_states,n_dofs)
+        improvement = round(Psi_step0/Psi * 100,sigdigits=2)
 
-        if time() - t_now > 1e-10
-            println("Optimization step: $optimization_step, Relative strain energy change: $ΔPsi_rel")
-            improvement = round(Psi_step0/Psi * 100,sigdigits=2)
-            println("Improvement: $improvement %")
-            
-            println("number of states: $n_states, number of dofs: $n_dofs")
-            t_now = time()
-        end
+        run_time = round((time() - t_now)/60.0,sigdigits=2)
+
+        println("Optimization step: $optimization_step, Relative strain energy change: $ΔPsi_rel")
+        println("Improvement: $improvement %")
+        println("number of states: $n_states, number of dofs: $n_dofs")
+        println("Run time: $run_time minutes")
     
 
         if abs(ΔPsi_rel) < tolerance 
@@ -87,15 +84,12 @@ function run_optimization(
             full_name = joinpath(vtk_folder_name, "temp_res_$(optimization_step)")
             el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
             write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
-            # push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
-            # push!(sim_results.topology_nodes_at_snapshots,copy(cv.mesh.topo.nodes))
-            # push!(sim_results.topology_connectivity_at_snapshots,deepcopy(cv.mesh.topo.connectivity))
-            # push!(sim_results.states_at_snapshots,deepcopy(states))
         end
 
         
         @timeit to "adaptivity" begin
             !do_adaptivity && continue
+            # optimization_step % 2 == 0 || continue
             # @timeit to "estimate_element_error" element_error = estimate_element_error(u,eldata_col)
             @timeit to "estimate_element_error" element_error = estimate_element_error(u,states,cv,eldata_col)
             ref_marker, coarse_marker = mark_elements_for_adaption(cv, 
@@ -115,11 +109,7 @@ function run_optimization(
 
     full_name = joinpath(vtk_folder_name, "final_res")
     el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
-    write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v))
-    # push!(sim_results.el_error_at_snapshots,estimate_element_error(u,eldata_col))
-    # push!(sim_results.states_at_snapshots,deepcopy(states))
-    # push!(sim_results.topology_nodes_at_snapshots,copy(cv.mesh.topo.nodes))
-    # push!(sim_results.topology_connectivity_at_snapshots,deepcopy(cv.mesh.topo.connectivity))
+    write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
 
     sim_results.simulation_times.solve_time = TimerOutputs.time(to["compute_displacement"]["solver"])/(1e09)
     sim_results.simulation_times.assembly_time = TimerOutputs.time(to["compute_displacement"]["assembly"])/(1e09)
