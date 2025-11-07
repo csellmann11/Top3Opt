@@ -118,7 +118,7 @@ function assembly(cv::CellValues{D,U,ET},
 
         γ_stab = γ/4 #* χ^3
 
-        @timeit to "local_mat_assembly" proj_s, proj = build_local_kel_and_f_topo!(
+        proj_s, proj = build_local_kel_and_f_topo!(
             k_poly_space,kelement,
             rhs_element,
             cv,element.id,cache1,cache2,γ_stab)
