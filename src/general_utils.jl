@@ -8,11 +8,11 @@ function parse_commandline()
         "--max_opt_steps","-s"
             help = "Maximum number of optimization steps"
             arg_type = Int
-            default  = 200
+            default  = 30
         "--max_ref_level","-r"
             help = "Maximum refinement level"
             arg_type = Int
-            default  = 3
+            default  = 4
         "--mesh_type","-m"
             help = "Mesh type"
             arg_type = Symbol
@@ -24,7 +24,7 @@ function parse_commandline()
         "--do_adaptivity_at_the_start","-b"
             help = "if true, the mesh is refined to the finest level at the start"
             arg_type = Bool
-            default  = false
+            default  = true
         "--b_case","-c"
             help = "Case name"
             arg_type = Symbol

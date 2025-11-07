@@ -1,10 +1,11 @@
-struct ElementData{D}
+using IterativeSolvers, AlgebraicMultigrid
+using Ju3VEM.VEMUtils.Octavian: matmul!
+
+struct ElData{D}
     el_id ::Int 
     proj_s::FixedSizeMatrixDefault{Float64}
     proj  ::FixedSizeMatrixDefault{Float64}
-    kel   ::Matrix{Float64}
     node_ids ::FixedSizeVectorDefault{Int}
-    dofs  ::FixedSizeVectorDefault{Int}
     
     γ_stab ::Float64
     hvol   ::Float64
@@ -37,17 +38,19 @@ function build_k_poly_space(
             k_poly_space[i,j] += ∇mxℂ0 ⋅ ∇nx
         end
     end
-    return k_poly_space
+    return SMatrix(k_poly_space)
 end
 
 
 function build_local_kel_and_f_topo!(
-    k_poly_space::MMatrix{L,L,Float64},
+    k_poly_space::SMatrix{L,L,Float64},
     kelement::CachedMatrix{Float64},
     rhs_element::CachedVector{Float64},
     cv::CellValues{D,U,ET},
     element_id::Int,
-    γ::Float64 = 1/4) where {L,D,U,ET<:ElType{1}}
+    cache1::CachedMatrix{Float64},
+    cache2::CachedMatrix{Float64},
+    γ::Float64) where {L,D,U,ET<:ElType{1}}
 
     hvol = cv.volume_data.hvol
     dΩ   = cv.volume_data.integrals[1]
@@ -55,20 +58,30 @@ function build_local_kel_and_f_topo!(
     proj_s, proj = create_volume_vem_projectors(
         element_id,cv.mesh,cv.volume_data,cv.facedata_col,cv.vnm)
 
-    n_dofs = size(proj,1)*U
+    n_nodes = size(proj,1)
+    n_dofs = n_nodes*U
 
     setsize!(kelement,(n_dofs,n_dofs))
     setsize!(rhs_element,(n_dofs,))
 
 
-    # computes proj_s' * k_poly_space * proj_s
-    _temp = k_poly_space * stretch(proj_s,Val(U)) .* dΩ/(hvol^2)
-    mul!(kelement,stretch(proj_s',Val(U)),_temp)
+    begin # computes proj_s' * k_poly_space * proj_s
+        full_proj_s = FixedSizeMatrix{Float64}(undef,L,n_dofs)
+        Ju3VEM.VEMGeo.destretch!(full_proj_s,stretch(proj_s,Val(U)))
+        setsize!(cache1,(L,n_dofs))
+        matmul!(cache1.array,k_poly_space,full_proj_s)
+        matmul!(kelement.array,full_proj_s',cache1.array)
+    end
+    kelement .*= dΩ/(hvol^2)
+
+    setsize!(cache1,(n_nodes,n_nodes))
+    setsize!(cache2,(n_nodes,n_nodes))
 
 
-    _Δmat = (I-proj)
-    stab       = _Δmat'*_Δmat*hvol*γ
-    kelement .+= stretch(stab,Val(U))
+    cache1 .= I(n_nodes) .- proj
+    matmul!(cache2.array,cache1.array',cache1.array)
+    cache2.array .*= hvol*γ
+    kelement .+= stretch(cache2.array,Val(U))
 
     return proj_s, proj
 end
@@ -82,15 +95,17 @@ function assembly(cv::CellValues{D,U,ET},
     sim_pars::SimParameter) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     mat_law = sim_pars.mat_law
-    ass = Assembler{Float64}(cv)
+    @timeit to "set up assembler" ass = Assembler{Float64}(cv)
 
 
     Is = SMatrix{U,U,Float64}(I)
     γ = Is ⊡₂ eval_hessian(mat_law,Is,(sim_pars.λ,sim_pars.μ,1.0)) ⊡₂ Is
     rhs_element = DefCachedVector{Float64}()
     kelement    = DefCachedMatrix{Float64}()
+    cache1      = DefCachedMatrix{Float64}()
+    cache2      = DefCachedMatrix{Float64}()
 
-    eldata_col  = Dict{Int,ElementData{D}}()
+    eldata_col  = Dict{Int,ElData{D}}()
 
     e2s = states.el_id_to_state_id
 
@@ -103,24 +118,23 @@ function assembly(cv::CellValues{D,U,ET},
 
         γ_stab = γ/4 #* χ^3
 
-        proj_s, proj = build_local_kel_and_f_topo!(
+        @timeit to "local_mat_assembly" proj_s, proj = build_local_kel_and_f_topo!(
             k_poly_space,kelement,
             rhs_element,
-            cv,element.id,γ_stab)
+            cv,element.id,cache1,cache2,γ_stab)
 
-        
-        node_ids = collect_nodes_by_order(cv.vnm.map)
-        cell_dofs = FixedSizeVector{Int}(undef,length(node_ids)*U)
-        get_dofs!(cell_dofs,cv.dh,node_ids)
+    
+        node_ids = FixedSizeVector{Int}(undef,length(cv.vnm.map))
+        copyto!(node_ids,cv.vnm.map.keys)
 
   
         vol_data = cv.volume_data
         bc_vol   = vol_data.vol_bc
         hvol     = vol_data.hvol 
         volume   = vol_data.integrals[1]
-        eldata_col[element.id] = ElementData(
+        eldata_col[element.id] = ElData(
             element.id,proj_s,proj,
-            kelement.array[:,:],node_ids,cell_dofs,
+            node_ids,
             γ_stab*χ^3,hvol,volume,bc_vol)
   
         kelement .*= χ^3
@@ -128,7 +142,6 @@ function assembly(cv::CellValues{D,U,ET},
     end
 
     kglobal, rhsglobal = assemble!(ass)
-
 
     kglobal, rhsglobal, eldata_col
 end
@@ -142,9 +155,33 @@ function compute_displacement(cv::CellValues{D,U,ET},
 
     @timeit to "assembly" k_global,rhs_global, eldata_col = assembly(cv,states,f,sim_pars)
     # @timeit to "assembly" k_global, rhs_global, eldata_col = FEM_assembly(cv,states,sim_pars) #! not working
+
     apply!(k_global,rhs_global,ch)
   
-    @timeit to "solver" u = cholesky(Symmetric(k_global)) \ rhs_global
+    n = size(k_global, 1)
+    @timeit to "solver" u = if n < 60_000
+        cholesky(Symmetric(k_global)) \ rhs_global
+    else
+        @no_escape begin 
+        
+            n_dofs = size(k_global, 1)
+            n_nodes = div(n_dofs, 3)
+
+            # # Create near-null space: constant modes for each DOF component
+            B = FixedSizeMatrix{Float64}(undef,n_dofs,3)
+            # B = zeros(n_dofs, 3)
+            @inbounds for i in 1:n_nodes
+                B[3i-2, 1] = 1.0  # constant x-displacement
+                B[3i-1, 2] = 1.0  # constant y-displacement
+                B[3i,   3] = 1.0  # constant z-displacement
+            end
+
+            # ml = ruge_stuben(Symmetric(k_global))
+            ml = smoothed_aggregation(k_global, Val{1}, B = B)
+            p = aspreconditioner(ml)
+            cg(Symmetric(k_global),rhs_global,Pl=p,maxiter=1000,reltol=1e-6, abstol = 1e-6, verbose=false)
+        end
+    end
 
 
 

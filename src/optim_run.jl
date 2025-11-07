@@ -28,7 +28,7 @@ function run_optimization(
     n_conv_count = 0
     sim_results  = SimulationResults(MAX_REF_LEVEL,
               MAX_OPT_STEPS,sim_pars,Val{D}())
-    eldata_col = Dict{Int,ElementData{D}}()
+    eldata_col = Dict{Int,ElData{D}}()
     if isdir(vtk_folder_name)
         println("Removing existing vtk folder: $vtk_folder_name")
         rm(vtk_folder_name,recursive=true)
@@ -45,7 +45,7 @@ function run_optimization(
     for optimization_step in 1:MAX_OPT_STEPS
         @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
         @timeit to "state_update" state_changed = state_update!(
-            states,sim_pars,laplace_operator,u,eldata_col)
+            states,cv.dh,sim_pars,laplace_operator,u,eldata_col)
 
         Psi = 1/2 * u' * k_global * u
         if optimization_step == 1
@@ -82,15 +82,13 @@ function run_optimization(
         if optimization_step in take_snapshots_at
             println("Writing vtk file for optimization step: $optimization_step")
             full_name = joinpath(vtk_folder_name, "temp_res_$(optimization_step)")
-            el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
+            el_error_v = el_dict_to_state_vec(estimate_element_error(u,states,cv,eldata_col),states)
             write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
         end
 
         
         @timeit to "adaptivity" begin
             !do_adaptivity && continue
-            # optimization_step % 2 == 0 || continue
-            # @timeit to "estimate_element_error" element_error = estimate_element_error(u,eldata_col)
             @timeit to "estimate_element_error" element_error = estimate_element_error(u,states,cv,eldata_col)
             ref_marker, coarse_marker = mark_elements_for_adaption(cv, 
                             element_error,states,state_changed,MAX_REF_LEVEL,no_coarsening_marker)
@@ -108,8 +106,8 @@ function run_optimization(
     end
 
     full_name = joinpath(vtk_folder_name, "final_res")
-    el_error_v = el_dict_to_state_vec(estimate_element_error(u,eldata_col),states)
-    write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
+    el_error_v = el_dict_to_state_vec(estimate_element_error(u,states,cv,eldata_col),states)
+    # write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
 
     sim_results.simulation_times.solve_time = TimerOutputs.time(to["compute_displacement"]["solver"])/(1e09)
     sim_results.simulation_times.assembly_time = TimerOutputs.time(to["compute_displacement"]["assembly"])/(1e09)

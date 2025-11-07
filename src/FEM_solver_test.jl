@@ -66,7 +66,7 @@ function FEM_assembly(cv::CellValues{3},
 
     mesh = cv.mesh; topo = mesh.topo;
 
-    eldata_col  = Dict{Int,ElementData{3}}()
+    eldata_col  = Dict{Int,ElData{3}}()
 
     for element in RootIterator{4}(topo)
 
@@ -120,7 +120,7 @@ function FEM_assembly(cv::CellValues{3},
         local_assembly!(ass,k,rhs_element)
         cell_dofs = Ju3VEM.VEMUtils.get_cell_dofs(cv)
 
-        eldata_col[element.id] = ElementData(
+        eldata_col[element.id] = ElData(
             element.id,proj_s,proj,cell_dofs,1.0,hvol,volume,bc_vol)
   
 

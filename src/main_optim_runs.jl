@@ -142,7 +142,6 @@ function main(
     λ, μ = E_ν_to_lame(E, ν)
     χ = 0.3
     mat_law = Helmholtz{3,3}(Ψlin_totopt, (λ, μ, χ))
-    mat_pars = (λ, μ)
 
     χmin = 1e-03
     η0 = 15.0
@@ -154,8 +153,6 @@ function main(
     cv, no_coarsening_marker = refine_sets(cv, sets_to_refine, MAX_REF_LEVEL)
 
     ch = create_constraint_handler(cv, b_case)
-    write_vtk(cv.mesh.topo, "test")
-
     states = TopStates{U}(cv, ρ_init)
 
 
@@ -178,7 +175,7 @@ function main(
         vtk_folder_name=joinpath(project_root, "Results", "vtk", "Adaptive_Runs", folder_name),
         MAX_OPT_STEPS=MAX_OPT_STEPS,
         MAX_REF_LEVEL=MAX_REF_LEVEL,
-        take_snapshots_at=[1, 10, 20, 30, 50, 100, 200],
+        take_snapshots_at= Int[1, 10, 20, 30, 50, 100, 200],
         do_adaptivity=do_adaptivity,
         b_case=b_case
     )

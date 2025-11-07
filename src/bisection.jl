@@ -11,11 +11,11 @@ end
 
 
 function compute_strain_energy(
-    eldata_col::Dict{Int,<:ElementData},
+    dh::DofHandler{D,U},
+    eldata_col::Dict{Int,<:ElData},
     u::AbstractVector{Float64},
-    states::TopStates, 
-    sim_pars::SimParameter
-    )
+    states::TopStates{D}, 
+    sim_pars::SimParameter) where {D,U}
     mat_law = sim_pars.mat_law
 
     Ψvec = zeros(length(states.χ_vec))
@@ -24,12 +24,15 @@ function compute_strain_energy(
 
     for (el_id,elem_data) in eldata_col
         state_id = e2s[el_id]
-        proj_s = stretch(elem_data.proj_s,Val(3))
-        dofs = elem_data.dofs
-        u_el = @view u[dofs]
-        # kel = elem_data.kel
-        # Ψ0  = 1/2 * u_el' * kel * u_el * inv(elem_data.volume)
-        uπ   = sol_proj(base,u_el,proj_s)
+        proj_s = stretch(elem_data.proj_s,Val(U))
+
+        node_ids = elem_data.node_ids 
+        uπ   = @no_escape begin 
+            dofs = @alloc(Int,length(node_ids)*U)
+            get_dofs!(dofs,dh,node_ids)
+            uel = @view u[dofs]
+            sol_proj(base,uel,proj_s)
+        end
 
         bc   = states.x_vec[state_id]  
         h    = states.h_vec[state_id]
@@ -66,10 +69,11 @@ end
 
 
 function state_update!(states::TopStates,
+    dh::DofHandler,
     sim_pars::SimParameter, 
     laplace_operator::SparseMatrixCSC,
     u::AbstractVector{Float64},
-    eldata_col::Dict{Int64, <:ElementData})
+    eldata_col::Dict{Int64, <:ElData})
 
 
     χ_min = sim_pars.χmin
@@ -89,7 +93,7 @@ function state_update!(states::TopStates,
     χv_trial    = similar(χv)
     areav       = states.area_vec
     hv          = states.h_vec
-    Ψvec        = compute_strain_energy(eldata_col,u,states,sim_pars)
+    Ψvec        = compute_strain_energy(dh,eldata_col,u,states,sim_pars)
 
 
     state_initial = copy(states.χ_vec)

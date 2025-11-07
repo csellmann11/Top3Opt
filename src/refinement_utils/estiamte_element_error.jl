@@ -1,7 +1,7 @@
 using Ju3VEM
 
 function project_states_to_nodes(
-    eldata_col::Dict{Int,<:ElementData},
+    eldata_col::Dict{Int,<:ElData},
     cv::CellValues{D,U},
     states::TopStates) where {D,U}
 
@@ -34,7 +34,7 @@ function estimate_element_error(
     u::AbstractVector{Float64},
     states::TopStates,
     cv::CellValues{D,U},
-    eldata_col::Dict{Int,<:ElementData}
+    eldata_col::Dict{Int,<:ElData}
     ) where {D,U}
 
     element_error = Dict{Int,Float64}()
@@ -43,20 +43,27 @@ function estimate_element_error(
 
     for (el_id,el_data) in eldata_col
 
-        dofs = el_data.dofs
-        uel  = @view u[dofs]
-        proj = stretch(el_data.proj,Val(3))
-        node_ids = el_data.node_ids 
-        hvol     = el_data.hvol
-        error = 0.0 
-        for i in axes(proj,1)
-            du = 0.0 
-            for j in axes(proj,2)
-                du += proj[i,j] * uel[j]
-            end  
-            du -= uel[i]
-            n_count = ceil(Int,i/U)
-            error += du^2 * node_states[node_ids[n_count]] * hvol
+        # dofs = el_data.dofs
+        node_ids = el_data.node_ids
+        error = @no_escape begin 
+            node_ids = el_data.node_ids 
+            dofs = @alloc(Int,length(node_ids)*U)
+            get_dofs!(dofs,cv.dh,node_ids)
+            uel  = @view u[dofs]
+            proj = stretch(el_data.proj,Val(3))
+            node_ids = el_data.node_ids 
+            hvol     = el_data.hvol
+            error = 0.0 
+            for i in axes(proj,1)
+                du = 0.0 
+                for j in axes(proj,2)
+                    du += proj[i,j] * uel[j]
+                end  
+                du -= uel[i]
+                n_count = ceil(Int,i/U)
+                error += du^2 * node_states[node_ids[n_count]] * hvol
+            end
+            error 
         end
         element_error[el_id] = error
     end
@@ -67,29 +74,29 @@ end
 
 
 
-function estimate_element_error(
-    u::AbstractVector{Float64},
-    eldata_col::Dict{Int,<:ElementData}
-    ) 
+# function estimate_element_error(
+#     u::AbstractVector{Float64},
+#     eldata_col::Dict{Int,<:ElData}
+#     ) 
 
-    element_error = Dict{Int,Float64}()
+#     element_error = Dict{Int,Float64}()
 
     
 
-    for (el_id,el_data) in eldata_col
+#     for (el_id,el_data) in eldata_col
 
-        dofs = el_data.dofs
-        uel  = @view u[dofs]
-        proj = el_data.proj 
-        hvol = el_data.hvol
-        diff = stretch((I-proj),Val(3))*uel
-        error = el_data.γ_stab * diff' * diff * hvol
-        # error = diff' * diff
-        element_error[el_id] = error
-    end
+#         dofs = el_data.dofs
+#         uel  = @view u[dofs]
+#         proj = el_data.proj 
+#         hvol = el_data.hvol
+#         diff = stretch((I-proj),Val(3))*uel
+#         error = el_data.γ_stab * diff' * diff * hvol
+#         # error = diff' * diff
+#         element_error[el_id] = error
+#     end
 
-    return element_error
-end
+#     return element_error
+# end
 
 
 function mark_elements_for_adaption(
