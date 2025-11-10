@@ -42,6 +42,22 @@ function build_k_poly_space(
 end
 
 
+function project_matrix!(
+    dest::AbstractMatrix{Float64},
+    g::AbstractMatrix{Float64},
+    proj::AbstractMatrix{Float64}
+    )
+
+    @no_escape begin
+        destretch_cache = @alloc(Float64,size(proj,1),size(proj,2))
+        mul_cache       = @alloc(Float64,size(g,1),size(proj,2))
+        Ju3VEM.VEMGeo.destretch!(destretch_cache,stretch(proj,Val(U)))
+        matmul!(mul_cache,g,destretch_cache)
+        matmul!(dest,destretch_cache',mul_cache)
+    end
+    dest
+end
+
 function build_local_kel_and_f_topo!(
     k_poly_space::SMatrix{L,L,Float64},
     kelement::CachedMatrix{Float64},
@@ -65,10 +81,11 @@ function build_local_kel_and_f_topo!(
     setsize!(rhs_element,(n_dofs,))
 
 
+    # project_matrix!(kelement.array,k_poly_space,stretch(proj_s,Val(U)))
     begin # computes proj_s' * k_poly_space * proj_s
         full_proj_s = FixedSizeMatrix{Float64}(undef,L,n_dofs)
         Ju3VEM.VEMGeo.destretch!(full_proj_s,stretch(proj_s,Val(U)))
-        setsize!(cache1,(L,n_dofs))
+        setsize!(cache1,(L,n_dofs)) 
         matmul!(cache1.array,k_poly_space,full_proj_s)
         matmul!(kelement.array,full_proj_s',cache1.array)
     end
@@ -159,28 +176,45 @@ function compute_displacement(cv::CellValues{D,U,ET},
     apply!(k_global,rhs_global,ch)
   
     n = size(k_global, 1)
-    @timeit to "solver" u = if n < 60_000
+    @timeit to "solver" u = if n < 500_000
         cholesky(Symmetric(k_global)) \ rhs_global
     else
-        @no_escape begin 
-        
-            n_dofs = size(k_global, 1)
-            n_nodes = div(n_dofs, 3)
+        n_dofs = size(k_global, 1)
+        n_nodes = div(n_dofs, 3)
 
-            # # Create near-null space: constant modes for each DOF component
-            B = FixedSizeMatrix{Float64}(undef,n_dofs,3)
-            # B = zeros(n_dofs, 3)
-            @inbounds for i in 1:n_nodes
-                B[3i-2, 1] = 1.0  # constant x-displacement
-                B[3i-1, 2] = 1.0  # constant y-displacement
-                B[3i,   3] = 1.0  # constant z-displacement
-            end
+        # Create near-null space: constant modes for each DOF component
+        B = FixedSizeMatrix{Float64}(undef, n_dofs, 6)
 
-            # ml = ruge_stuben(Symmetric(k_global))
-            ml = smoothed_aggregation(k_global, Val{1}, B = B)
-            p = aspreconditioner(ml)
-            cg(Symmetric(k_global),rhs_global,Pl=p,maxiter=1000,reltol=1e-6, abstol = 1e-6, verbose=false)
+        @inbounds for i in 1:n_nodes
+            x, y, z = cv.mesh.topo.nodes[i].coords
+            
+            # Translations (columns 1-3)
+            B[3i-2, 1] = 1.0
+            B[3i-1, 2] = 1.0
+            B[3i,   3] = 1.0
+            
+            # Rotations (columns 4-6)
+            # Rotation around x-axis: (0, -z, y)
+            B[3i-2, 4] = 0.0
+            B[3i-1, 4] = -z
+            B[3i,   4] = y
+            
+            # Rotation around y-axis: (z, 0, -x)
+            B[3i-2, 5] = z
+            B[3i-1, 5] = 0.0
+            B[3i,   5] = -x
+            
+            # Rotation around z-axis: (-y, x, 0)
+            B[3i-2, 6] = -y
+            B[3i-1, 6] = x
+            B[3i,   6] = 0.0
         end
+
+
+        # ml = ruge_stuben(Symmetric(k_global))
+        ml = smoothed_aggregation(k_global, Val{1}, B = B)
+        p = aspreconditioner(ml)
+        cg(Symmetric(k_global),rhs_global,Pl=p,maxiter=1000,reltol=1e-6, abstol = 1e-6, verbose=false)
     end
 
 

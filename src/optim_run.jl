@@ -8,6 +8,7 @@ function el_dict_to_state_vec(d::Dict{Int},states::TopStates{D}) where D
 end
 
 
+
 function run_optimization(
     cv::CellValues{D,U},
     rhs_fun::F,
@@ -83,7 +84,7 @@ function run_optimization(
             println("Writing vtk file for optimization step: $optimization_step")
             full_name = joinpath(vtk_folder_name, "temp_res_$(optimization_step)")
             el_error_v = el_dict_to_state_vec(estimate_element_error(u,states,cv,eldata_col),states)
-            write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
+            @timeit to "vtk_export" write_vtu_file(cv,eldata_col,full_name,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
         end
 
         
@@ -107,7 +108,7 @@ function run_optimization(
 
     full_name = joinpath(vtk_folder_name, "final_res")
     el_error_v = el_dict_to_state_vec(estimate_element_error(u,states,cv,eldata_col),states)
-    # write_vtk(cv.mesh.topo,full_name,cv.dh,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
+    write_vtu_file(cv,eldata_col,full_name,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
 
     sim_results.simulation_times.solve_time = TimerOutputs.time(to["compute_displacement"]["solver"])/(1e09)
     sim_results.simulation_times.assembly_time = TimerOutputs.time(to["compute_displacement"]["assembly"])/(1e09)

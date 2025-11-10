@@ -33,7 +33,9 @@ include("mesh_processing_utils.jl")
 include("neighbor_search.jl")
 include("refinement_utils/estiamte_element_error.jl")
 include("postprocessing/sim_data.jl")
+include("postprocessing/topopt_vtk_export.jl")
 include("optim_run.jl")
+
 const K = 1
 const U = 3
 
@@ -96,8 +98,16 @@ function main(
         3.0, 0.5, 1.0, 3n, div(n, 2), n, 0.15
     elseif b_case == :simple_lever
         3.0, 0.5, 3.0, 3n, div(n, 2), 3n,0.15
+    elseif b_case == :pressure_plate
+        3.0,3.0,1.0,3n,3n,n,0.15
     else
         error("Invalid b_case: $b_case")
+    end
+
+    dim_permute = if b_case == :pressure_plate
+        SA[1,2,3]
+    else
+        SA[1,3,2]
     end
 
     mesh = if MeshType == :Hexahedra
@@ -113,7 +123,7 @@ function main(
             nx, nz, StandardEl{K}
         )
         _mesh = extrude_to_3d(ny, mesh2d, ly)
-        permute_coord_dimensions(_mesh, SA[1, 3, 2]) #swith y and z
+        permute_coord_dimensions(_mesh, dim_permute) #swith y and z
     end
 
     h_cell = find_maximal_cell_diameter(mesh.topo)
@@ -165,7 +175,7 @@ function main(
     println("="^100)
     println("Starting optimization")
     println("="^100)
-    sim_results = run_optimization(
+    @time sim_results = run_optimization(
         cv,
         rhs_fun,
         states,
