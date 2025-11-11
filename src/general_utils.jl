@@ -8,7 +8,7 @@ function parse_commandline()
         "--max_opt_steps","-s"
             help = "Maximum number of optimization steps"
             arg_type = Int
-            default  = 151
+            default  = 251
         "--max_ref_level","-r"
             help = "Maximum refinement level"
             arg_type = Int
@@ -28,7 +28,7 @@ function parse_commandline()
         "--b_case","-c"
             help = "Case name"
             arg_type = Symbol
-            default  = :pressure_plate #[:simple_lever,:MBB_sym,:Cantilever_sym,:Bending_Beam_sym,:pressure_plate]
+            default  = :MBB_sym #[:simple_lever,:MBB_sym,:Cantilever_sym,:Bending_Beam_sym,:pressure_plate]
         "--rhs_fun","-f"
             help = "Right hand side function"
             arg_type = Function

@@ -83,11 +83,14 @@ function build_local_kel_and_f_topo!(
 
     # project_matrix!(kelement.array,k_poly_space,stretch(proj_s,Val(U)))
     begin # computes proj_s' * k_poly_space * proj_s
-        full_proj_s = FixedSizeMatrix{Float64}(undef,L,n_dofs)
-        Ju3VEM.VEMGeo.destretch!(full_proj_s,stretch(proj_s,Val(U)))
+        # full_proj_s = FixedSizeMatrix{Float64}(undef,L,n_dofs)
+        setsize!(cache2,(L,n_dofs))
+        Ju3VEM.VEMGeo.destretch!(cache2.array,stretch(proj_s,Val(U)))
         setsize!(cache1,(L,n_dofs)) 
-        matmul!(cache1.array,k_poly_space,full_proj_s)
-        matmul!(kelement.array,full_proj_s',cache1.array)
+        matmul!(cache1.array,k_poly_space,cache2.array)
+        matmul!(kelement.array,cache2.array',cache1.array)
+
+        # kelement.array .= full_proj_s' * (k_poly_space .* dΩ/(hvol^2)) * full_proj_s
     end
     kelement .*= dΩ/(hvol^2)
 
@@ -95,9 +98,10 @@ function build_local_kel_and_f_topo!(
     setsize!(cache2,(n_nodes,n_nodes))
 
 
-    cache1 .= I(n_nodes) .- proj
+    cache1 .= I - proj
     matmul!(cache2.array,cache1.array',cache1.array)
     cache2.array .*= hvol*γ
+    # cache2.array .= (I(n_nodes) .- proj)' * (I(n_nodes) .- proj) * hvol*γ
     kelement .+= stretch(cache2.array,Val(U))
 
     return proj_s, proj
@@ -131,11 +135,11 @@ function assembly(cv::CellValues{D,U,ET},
 
     for element in RootIterator{4}(cv.mesh.topo)
         χ = states.χ_vec[e2s[element.id]]
-        reinit!(element.id,cv)
+        @timeit to "reinit" reinit!(element.id,cv)
 
-        γ_stab = γ/4 #* χ^3
+        γ_stab = γ/1 #* χ^3
 
-        proj_s, proj = build_local_kel_and_f_topo!(
+        @timeit to "build_local_kel_and_f" proj_s, proj = build_local_kel_and_f_topo!(
             k_poly_space,kelement,
             rhs_element,
             cv,element.id,cache1,cache2,γ_stab)
@@ -156,10 +160,10 @@ function assembly(cv::CellValues{D,U,ET},
   
         kelement .*= χ^3
 
-        local_assembly!(ass,kelement,rhs_element)
+        @timeit to "local_assembly" local_assembly!(ass,kelement,rhs_element)
     end
 
-    kglobal, rhsglobal = assemble!(ass)
+    @timeit to "assemble_final_k" kglobal, rhsglobal = assemble!(ass)
 
     kglobal, rhsglobal, eldata_col
 end
@@ -174,7 +178,7 @@ function compute_displacement(cv::CellValues{D,U,ET},
     @timeit to "assembly" k_global,rhs_global, eldata_col = assembly(cv,states,f,sim_pars)
     # @timeit to "assembly" k_global, rhs_global, eldata_col = FEM_assembly(cv,states,sim_pars) #! not working
 
-    apply!(k_global,rhs_global,ch)
+    @timeit to "apply" apply!(k_global,rhs_global,ch)
   
     n = size(k_global, 1)
     @timeit to "solver" u = if n < 2_500_000

@@ -36,8 +36,8 @@ function compute_d_mat(
     states::TopStates{D},
     sim_pars::SimPars) where D
 
-    hmin,hmax = extrema(states.h_vec)
-    β = 2*hmax^2 * sim_pars.β0
+    # hmin,hmax = extrema(states.h_vec)
+    # β = 2*hmax^2 * sim_pars.β0
     
     n_neighs  = length(el_neighs)
     h0         = states.h_vec[state_id]

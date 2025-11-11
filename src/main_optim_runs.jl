@@ -92,7 +92,7 @@ function main(
         MAX_REF_LEVEL, MeshType,
         do_adaptivity, do_adaptivity_at_the_start, b_case, rhs_fun))
 
-    n = div(4, 2) * 2
+    n = 4
     l_beam, ly, lz, nx, ny, nz, ρ_init = if b_case == :MBB_sym
         3.0, 0.5, 1.0, 3n, div(n, 2), n, 0.3
     elseif b_case == :Cantilever_sym
@@ -150,7 +150,7 @@ function main(
 
 
     E = 210.e03
-    ν = 0.3
+    ν = 0.33
     λ, μ = E_ν_to_lame(E, ν)
     mat_law = Helmholtz{3,3}(Ψlin_totopt, (λ, μ, 1.0))
 
@@ -186,7 +186,7 @@ function main(
         vtk_folder_name=joinpath(project_root, "Results", "vtk", "Adaptive_Runs", folder_name),
         MAX_OPT_STEPS=MAX_OPT_STEPS,
         MAX_REF_LEVEL=MAX_REF_LEVEL,
-        take_snapshots_at= Int[1, 10, 20, 30, 50, 100, 200],
+        take_snapshots_at= Int[],#Int[1, 10, 20, 30, 50, 100, 200],
         do_adaptivity=do_adaptivity,
         b_case=b_case
     )
