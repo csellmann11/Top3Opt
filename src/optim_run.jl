@@ -15,7 +15,7 @@ function run_optimization(
     states::TopStates{U},
     ch::ConstraintHandler{U},
     no_coarsening_marker::Vector{Bool},
-    sim_pars::SimParameter{H};
+    sim_pars::SimPars{H};
     vtk_folder_name::String,
     MAX_OPT_STEPS::Int = 200,
     MAX_REF_LEVEL::Int = 3,

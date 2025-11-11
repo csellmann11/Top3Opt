@@ -34,10 +34,11 @@ function compute_d_mat(
     face_to_vols ::Dict{Int,Vector{Int}},
     topo::Topology{D},
     states::TopStates{D},
-    sim_pars::SimParameter) where D
+    sim_pars::SimPars) where D
 
-    # β = sim_pars.β0
-    # hmin,hmax = extrema(states.h_vec)
+    hmin,hmax = extrema(states.h_vec)
+    β = 2*hmax^2 * sim_pars.β0
+    
     n_neighs  = length(el_neighs)
     h0         = states.h_vec[state_id]
     bc         = states.x_vec[state_id]
@@ -71,8 +72,7 @@ function compute_d_mat(
         end
 
         dx,dy,dz = λ_scale*(n_bc - bc)
-        hw = n_id > 0 ? h_n : h0
-        w_vec[n_count] = 1.0#weight_factor(norm(n_bc - bc),2*hw^2)
+        w_vec[n_count] = 1.0#weight_factor(norm(n_bc - bc),β)
         A[n_count,:] .= (dx,dy,dz,0.5*dx^2,dx*dy,dx*dz,0.5*dy^2,dy*dz,0.5*dz^2)
     end
 
@@ -106,7 +106,7 @@ function compute_laplace_operator_mat(
     elneighs_col::Dict,
     face_to_vols::Dict{Int,Vector{Int}},
     states::TopStates{D},
-    sim_pars::SimParameter
+    sim_pars::SimPars
     ) where D
 
 

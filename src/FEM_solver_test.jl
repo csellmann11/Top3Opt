@@ -51,7 +51,7 @@ end
 
 function FEM_assembly(cv::CellValues{3},
     states::TopStates{3},
-    sim_pars::SimParameter)
+    sim_pars::SimPars)
 
     ip = FR.Lagrange{FR.RefHexahedron,1}()^3
     qr = FR.QuadratureRule{FR.RefHexahedron}(2)

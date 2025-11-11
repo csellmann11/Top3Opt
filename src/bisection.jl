@@ -15,7 +15,7 @@ function compute_strain_energy(
     eldata_col::Dict{Int,<:ElData},
     u::AbstractVector{Float64},
     states::TopStates{D}, 
-    sim_pars::SimParameter) where {D,U}
+    sim_pars::SimPars) where {D,U}
     mat_law = sim_pars.mat_law
 
     Ψvec = zeros(length(states.χ_vec))
@@ -48,7 +48,7 @@ end
 
 function get_avarage_driving_force(states::TopStates,
     p_χ::Vector{Float64},
-    sim_pars::SimParameter)
+    sim_pars::SimPars)
 
     ∑g_pχ = ∑g = 0.0
     for (χi,area,pχi) in zip(states.χ_vec,states.area_vec,p_χ)
@@ -70,7 +70,7 @@ end
 
 function state_update!(states::TopStates,
     dh::DofHandler,
-    sim_pars::SimParameter, 
+    sim_pars::SimPars, 
     laplace_operator::SparseMatrixCSC,
     u::AbstractVector{Float64},
     eldata_col::Dict{Int64, <:ElData})
@@ -80,10 +80,11 @@ function state_update!(states::TopStates,
     
 
     MAX_ITER = 1000
-
-    hmin,hmax = extrema(states.h_vec)
+ 
+    hmin,hmax = extrema(states.h_vec)#./sqrt(3)
     β0 = 2*hmax^2 * sim_pars.β0
-
+ 
+    #TODO: hmin should be the minimal distance between two nodes --> very large n_steps for voronoi?
     n_steps = 4*ceil(Int,12/sim_pars.η0 * β0/hmin^2)
     dt = 1.0/n_steps
 
@@ -104,8 +105,6 @@ function state_update!(states::TopStates,
         compute_driving_force!(p_χ,Ψvec,states)
         p_avg = get_avarage_driving_force(states,p_χ,sim_pars) 
     
-
-        # βmin = β0 * p_avg
         η    = sim_pars.η0 * p_avg
         
         iter = 0
@@ -122,7 +121,7 @@ function state_update!(states::TopStates,
             
             for (state_id,(χi,area,h,pχi,Δχi)) in enumerate(zip(χv,areav,hv,p_χ,Δχ))
                  
-                β = 2*max(h^2,sim_pars.β0*hmin^2)*p_avg
+                β = 2*max(h^2,hmin^2)*p_avg*sim_pars.β0
     
                 dχ = dt/η * (pχi - λ_trial + β * Δχi)
                 χv_trial[state_id] = clamp(χi + dχ,χ_min,1.0)

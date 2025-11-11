@@ -130,7 +130,7 @@ mat_pars = (λ,μ)
 η0   = 15.0 
 β0   = 2*h_cell_min^2 
 ρ_init = 0.15 
-sim_pars = SimParameter(mat_law,λ,μ,χmin,η0,1.0,ρ_init,h_cell_min)
+sim_pars = SimPars(mat_law,λ,μ,χmin,η0,1.0,ρ_init,h_cell_min)
 
 @time cv = CellValues{U}(mesh);
 

@@ -14,7 +14,7 @@ struct SimulationResults{H<:Helmholtz,D}
     sim_data         ::DateTime
     max_ref_level    ::Int
     max_opt_steps    ::Int
-    sim_pars         ::SimParameter{H}
+    sim_pars         ::SimPars{H}
 
     simulation_times ::SimulationTimes
 
@@ -34,7 +34,7 @@ end
 function SimulationResults(
     max_ref_level::Int,
     max_opt_steps::Int,
-    sim_pars::SimParameter{H},
+    sim_pars::SimPars{H},
     ::Val{D}
 ) where {H<:Helmholtz,D}
 

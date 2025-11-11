@@ -288,7 +288,7 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol)
         add_face_set!(mesh,"symmetry_bc2", x -> x[2] ≈ 3.0)
         add_face_set!(mesh,"pressure", x -> x[1] > 2.8 && x[2] > 2.8 && x[3] ≈ 1.0)
 
-        add_dirichlet_bc!(ch, cv.dh, "bottom_clamp", x -> SA[0.0,0.0,0.0], c_dofs=SA[1,2,3])
+        add_dirichlet_bc!(ch, cv.dh, "bottom_clamp", x -> SA[0.0], c_dofs=SA[3])
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc1", x -> SA[0.0], c_dofs=SA[1])
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc2", x -> SA[0.0], c_dofs=SA[2])
         add_neumann_bc!(ch, cv.dh, cv.facedata_col, "pressure", x -> SA[0.0, 0.0, -1.0])

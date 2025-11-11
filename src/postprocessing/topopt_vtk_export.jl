@@ -14,7 +14,7 @@ end
 function vtk_volume_helper_new(cv::CellValues{D,U}, 
     volume::Volume{D},
     eldata_col::Dict{Int,<:ElData},
-    node_map::Vector{Int}) where D
+    node_map::Vector{Int}) where {D,U}
 
     fdc = cv.facedata_col
     topo = cv.mesh.topo

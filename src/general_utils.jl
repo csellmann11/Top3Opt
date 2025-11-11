@@ -8,7 +8,7 @@ function parse_commandline()
         "--max_opt_steps","-s"
             help = "Maximum number of optimization steps"
             arg_type = Int
-            default  = 51
+            default  = 151
         "--max_ref_level","-r"
             help = "Maximum refinement level"
             arg_type = Int

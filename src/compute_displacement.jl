@@ -109,7 +109,7 @@ end
 function assembly(cv::CellValues{D,U,ET},
     states::TopStates{D},
     f::F,
-    sim_pars::SimParameter) where {D,U,F<:Function,K,ET<:ElType{K}}
+    sim_pars::SimPars) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     mat_law = sim_pars.mat_law
     @timeit to "set up assembler" ass = Assembler{Float64}(cv)
@@ -168,7 +168,7 @@ function compute_displacement(cv::CellValues{D,U,ET},
     ch::ConstraintHandler,
     states::TopStates{D},
     f::F,
-    sim_pars::SimParameter) where {D,U,F<:Function,K,ET<:ElType{K}}
+    sim_pars::SimPars) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     @timeit to "assembly" k_global,rhs_global, eldata_col = assembly(cv,states,f,sim_pars)
     # @timeit to "assembly" k_global, rhs_global, eldata_col = FEM_assembly(cv,states,sim_pars) #! not working

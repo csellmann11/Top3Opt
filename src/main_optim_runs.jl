@@ -99,16 +99,12 @@ function main(
     elseif b_case == :simple_lever
         3.0, 0.5, 3.0, 3n, div(n, 2), 3n,0.15
     elseif b_case == :pressure_plate
-        3.0,3.0,1.0,3n,3n,n,0.15
+        3.0,3.0,1.0,3n,3n,n,0.10
     else
         error("Invalid b_case: $b_case")
     end
 
-    dim_permute = if b_case == :pressure_plate
-        SA[1,2,3]
-    else
-        SA[1,3,2]
-    end
+
 
     mesh = if MeshType == :Hexahedra
         create_rectangular_mesh(
@@ -116,6 +112,11 @@ function main(
             l_beam, ly, lz, StandardEl{K}
         )
     elseif MeshType == :Voronoi
+        dim_permute = if b_case == :pressure_plate
+            SA[1,2,3]
+        else
+            SA[1,3,2]
+        end
 
         mesh2d = create_voronoi_mesh(
             (0.0, 0.0),
@@ -126,8 +127,6 @@ function main(
         permute_coord_dimensions(_mesh, dim_permute) #swith y and z
     end
 
-    h_cell = find_maximal_cell_diameter(mesh.topo)
-    h_cell_min = h_cell * (1 / 2)^(MAX_REF_LEVEL - 1)
     if do_adaptivity_at_the_start || !do_adaptivity
         for _ in 1:(MAX_REF_LEVEL-1)
             for element in RootIterator{4}(mesh.topo)
@@ -148,19 +147,18 @@ function main(
 
 
     E = 210.e03
-    ν = 0.33
+    ν = 0.3
     λ, μ = E_ν_to_lame(E, ν)
-    χ = 0.3
-    mat_law = Helmholtz{3,3}(Ψlin_totopt, (λ, μ, χ))
+    mat_law = Helmholtz{3,3}(Ψlin_totopt, (λ, μ, 1.0))
 
     χmin = 1e-03
     η0 = 15.0
-    sim_pars = SimParameter(mat_law, λ, μ, χmin, η0, 1.0, ρ_init, h_cell_min)
+    sim_pars = SimPars(mat_law, λ, μ, χmin, η0, 1.0, ρ_init)
 
     @time cv = CellValues{U}(mesh)
 
-    sets_to_refine = get_sets_to_refine(b_case)
-    cv, no_coarsening_marker = refine_sets(cv, sets_to_refine, MAX_REF_LEVEL)
+    cv, no_coarsening_marker = refine_sets(cv, 
+        get_sets_to_refine(b_case), MAX_REF_LEVEL)
 
     ch = create_constraint_handler(cv, b_case)
     states = TopStates{U}(cv, ρ_init)

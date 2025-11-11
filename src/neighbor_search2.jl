@@ -10,7 +10,7 @@ using JuVEM.AdaptivMeshes: iterate_element_edges
 function get_adjacent_elements(adjacency_matrix::SparseMatrixCSC, state_id::Int)
     # Get the range of stored elements for this row using colptr
     start_idx = adjacency_matrix.colptr[state_id]
-    end_idx = adjacency_matrix.colptr[state_id + 1] - 1
+    end_idx   = adjacency_matrix.colptr[state_id + 1] - 1
      
     # Return the row indices (neighbors) directly from rowval
     # return view(adjacency_matrix.rowval, start_idx:end_idx)

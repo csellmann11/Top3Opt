@@ -9,7 +9,7 @@ using IterativeSolvers
 using AlgebraicMultigrid
 using IncompleteLU
 
-struct SimParameter
+struct SimPars
     mat_law::Helmholtz
     λ::Float64
     μ::Float64 
@@ -76,7 +76,7 @@ mat_pars = (λ,μ)
 η0   = 15.0 
 β0   = 2*h_cell^2 * 0.5
 ρ_init = 0.3 
-sim_pars = SimParameter(mat_law,λ,μ,χmin,η0,β0,ρ_init,h_cell)
+sim_pars = SimPars(mat_law,λ,μ,χmin,η0,β0,ρ_init,h_cell)
 
 
 # @time el_neighs, face_to_vols = Ju3VEM.VEMGeo.create_element_neighbour_list_fast(mesh.topo;n_neighs_min = 18);

@@ -1,7 +1,7 @@
 using Ju3VEM.VEMGeo: is_active_root
 
 
-struct SimParameter{H<:Helmholtz}
+struct SimPars{H<:Helmholtz}
     mat_law::H
     λ::Float64
     μ::Float64 
@@ -10,7 +10,6 @@ struct SimParameter{H<:Helmholtz}
     η0::Float64 
     β0::Float64
     ρ_init::Float64
-    h_min::Float64
 end
 
 
@@ -268,7 +267,7 @@ end
 
 function measure_of_nondiscreteness(
     states::TopStates,
-    pars::SimParameter)
+    pars::SimPars)
 
 
     ∑Ω  = 0.0 
