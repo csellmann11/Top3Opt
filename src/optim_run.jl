@@ -27,7 +27,7 @@ function run_optimization(
  ) where {D,U,H<:Helmholtz,F<:Function}
 
     n_conv_count = 0
-    sim_results  = SimulationResults(MAX_REF_LEVEL,
+    sim_results  = SimResults(MAX_REF_LEVEL,
               MAX_OPT_STEPS,sim_pars,Val{D}())
     eldata_col = Dict{Int,ElData{D}}()
     if isdir(vtk_folder_name)

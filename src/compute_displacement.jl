@@ -155,6 +155,7 @@ function assembly(cv::CellValues{D,U,ET},
             γ_stab*χ^3,hvol,volume,bc_vol)
   
         kelement .*= χ^3
+
         local_assembly!(ass,kelement,rhs_element)
     end
 
@@ -176,8 +177,13 @@ function compute_displacement(cv::CellValues{D,U,ET},
     apply!(k_global,rhs_global,ch)
   
     n = size(k_global, 1)
-    @timeit to "solver" u = if n < 500_000
-        cholesky(Symmetric(k_global)) \ rhs_global
+    @timeit to "solver" u = if n < 2_500_000
+        # cholesky(Symmetric(k_global)) \ rhs_global
+        ps = MKLPardisoSolver()
+        set_matrixtype!(ps, 2)
+        u = zero(rhs_global)
+        Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
+        u
     else
         n_dofs = size(k_global, 1)
         n_nodes = div(n_dofs, 3)

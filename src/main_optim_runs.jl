@@ -1,3 +1,5 @@
+ENV["OMP_NUM_THREADS"] = Threads.nthreads()
+
 using Ju3VEM
 using Ju3VEM.FixedSizeArrays
 using StaticArrays
@@ -14,6 +16,7 @@ using Bumper
 using JLD2
 using Infiltrator
 using Dates: today
+using Pardiso
 
 const to = TimerOutput()
 

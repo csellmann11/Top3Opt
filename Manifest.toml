@@ -2,7 +2,7 @@
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "796a66f80bd0a3504aaee2ccc72049ff0bf9ca73"
+project_hash = "6245b30bc8f93a6cfa4a5ae56aca3a305ad7a53d"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "27cecae79e5cc9935255f90c53bb831cc3c870d7"
@@ -1053,6 +1053,12 @@ weakdeps = ["StatsBase"]
 
     [deps.PDMats.extensions]
     StatsBaseExt = "StatsBase"
+
+[[deps.Pardiso]]
+deps = ["Libdl", "LinearAlgebra", "MKL_jll", "SparseArrays"]
+git-tree-sha1 = "372a1e36652f91ec587b35e3c23b66f38744ce5e"
+uuid = "46dd5b70-b6fb-5a00-ae2d-e8fea33afaf2"
+version = "1.1.0"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
