@@ -146,55 +146,7 @@ function update_states_after_mesh_adaption!(states::DesignVarInfo,
 end
 
 
-# function handle_state_change_for_refinement!(
-#     parent_id::Int, 
-#     cv::CellValues{D,U},
-#     eldata_col::Dict{Int},
-#     states::DesignVarInfo{D},
-#     χ_vec_old::Vector{Float64},
-#     e2s_old::OrderedDict{Int,Int},
-#     node_states::Dict{Int,Float64}) where {D,U} 
 
-#     parent = get_volumes(cv.mesh.topo)[parent_id]
-#     node_ids = eldata_col[parent_id].node_ids 
-#     χ_nodes_vec = [node_states[node_id] for node_id in node_ids]
-#     proj_s      = stretch(eldata_col[parent_id].proj_s,Val(1))
-#     base        = get_base(BaseInfo{3,1,1}())
-#     χ_π         = sol_proj(base,χ_nodes_vec,proj_s)
-
-#     parent_state_id = e2s_old[parent_id] 
-#     parent_χ        = χ_vec_old[parent_state_id]
-#     parent_vol      = eldata_col[parent_id].volume
-#     parent_mass     = parent_χ * parent_vol
-#     parent_bc       = states.x_vec[parent_state_id]
-#     parent_h        = states.h_vec[parent_state_id]
-#     child_state_ids  = [states.el_id_to_state_id[child_id] for child_id in parent.childs]
-
-#     child_mass = 0.0
-#     iter = 0
-#     λ_trial = 0.0
-#     λ_lower, λ_upper = -100.0,100.0
-
-#     while abs(parent_mass - child_mass) > 1e-8
-#         iter += 1 
-#         child_mass = 0.0 
-
-#         for child_state_id in child_state_ids  
-#             bc = states.x_vec[child_state_id]
-#             chi_pi = χ_π((bc - parent_bc)/parent_h)
-#             χ_child = clamp(chi_pi - λ_trial,1e-03,1.0)
-#             states.χ_vec[child_state_id] = χ_child
-#             child_mass += χ_child * states.area_vec[child_state_id]
-#         end
-
-#         child_mass > parent_mass ? λ_lower = λ_trial : λ_upper = λ_trial 
-#         λ_trial = (λ_lower + λ_upper)/2.0
-#         if iter > 1000
-#             error("Max iterations reached")
-#             break
-#         end
-#     end
-# end
 
 
 function update_states_after_mesh_adaption!(states::DesignVarInfo,
@@ -207,27 +159,6 @@ function update_states_after_mesh_adaption!(states::DesignVarInfo,
     e2s_old   = copy(states.el_id_to_state_id)
     χ_vec_old = copy(states.χ_vec)
     
-    node_sums   = zeros(Float64,length(cv.mesh.topo.nodes))
-    node_states = Dict{Int,Float64}()
-    for (el_id,el_data) in eldata_col
-        sid      = e2s_old[el_id]
-        χ_el     = χ_vec_old[sid]
-        bc       = states.x_vec[sid]
-        node_ids = el_data.node_ids
-        
-        for node_id in node_ids
-            weight =  get!(node_states,node_id,0.0)
-            node    = cv.mesh.topo.nodes[node_id]
-            d       = node.coords - bc
-            weight += χ_el/norm(d)
-            node_states[node_id] = weight
-            node_sums[node_id] += 1/norm(d)
-        end
-    end
-    for node_id in keys(node_states)
-        node_states[node_id] /= node_sums[node_id]
-    end
-
 
     n_states = length(RootIterator{4}(topo))
     resize_states!(states,n_states)
@@ -235,7 +166,9 @@ function update_states_after_mesh_adaption!(states::DesignVarInfo,
 
     e2s = states.el_id_to_state_id
 
-    for element in RootIterator{4}(topo) 
+    # for element in RootIterator{4}(topo) 
+    for (el_id,state_id) in e2s
+        element = get_volumes(topo)[el_id]
         parent_id = element.parent_id 
         child_ids = element.childs 
 
@@ -244,9 +177,7 @@ function update_states_after_mesh_adaption!(states::DesignVarInfo,
             parents_old_state_id = e2s_old[parent_id]
             χ_parent             = χ_vec_old[parents_old_state_id]
             # element gets parent density 
-            states.χ_vec[e2s[element.id]] = χ_parent
-            # handle_state_change_for_refinement!(parent_id,cv,eldata_col,states,χ_vec_old,e2s_old,node_states)
-            # ref_marker[child_ids] .= false
+            states.χ_vec[state_id] = χ_parent
         elseif !isempty(child_ids) && any(coarse_marker[child_ids])
             #Info: element comes from coarseing 
 
@@ -254,21 +185,14 @@ function update_states_after_mesh_adaption!(states::DesignVarInfo,
             for child_id in child_ids 
                 χ_sum += χ_vec_old[e2s_old[child_id]]
             end
-            states.χ_vec[e2s[element.id]] = χ_sum / length(child_ids)
+            states.χ_vec[state_id] = χ_sum / length(child_ids)
 
         else #INFO: element is not new, just state_id changed
-            states.χ_vec[e2s[element.id]] = χ_vec_old[e2s_old[element.id]]
+            states.χ_vec[state_id] = χ_vec_old[e2s_old[el_id]]
         end
     end
     return states
 end
-
-
-
-
-
-
-
 
 
 function measure_of_nondiscreteness(

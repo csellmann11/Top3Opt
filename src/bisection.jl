@@ -21,24 +21,22 @@ function compute_strain_energy(
     Ψvec = zeros(length(states.χ_vec))
     base = get_base(BaseInfo{3,1,3}())
     e2s = states.el_id_to_state_id
+    dofs = CachedVector(Int)
 
     for (el_id,elem_data) in eldata_col
         state_id = e2s[el_id]
         proj_s = stretch(elem_data.proj_s,Val(U))
 
         node_ids = elem_data.node_ids 
-        uπ   = @no_escape begin 
-            dofs = @alloc(Int,length(node_ids)*U)
-            get_dofs!(dofs,dh,node_ids)
-            uel = @view u[dofs]
-            sol_proj(base,uel,proj_s)
-        end
-
         bc   = states.x_vec[state_id]  
         h    = states.h_vec[state_id]
 
+        setsize!(dofs,(length(node_ids)*U,))
+        get_dofs!(dofs.array,dh,node_ids)
+        uel = @view u[dofs]
+        uπ = sol_proj(base,uel,proj_s)
         ∇u   = ∇x(uπ,h,zero(bc))
-        Ψ0   = eval_psi_fun(mat_law,∇u,(sim_pars.λ,sim_pars.μ,1.0)) 
+        Ψ0 = eval_psi_fun(mat_law,∇u,(sim_pars.λ,sim_pars.μ,1.0)) 
 
         Ψvec[state_id]    = Ψ0 
     end
