@@ -61,7 +61,7 @@ function estimate_element_error(
                 end  
                 du -= uel[i]
                 n_count = ceil(Int,i/U)
-                error += du^2 * node_states[node_ids[n_count]] #* hvol
+                error += du^2 * node_states[node_ids[n_count]] * hvol
             end
             error 
         end
@@ -141,20 +141,20 @@ function mark_elements_for_adaption(
         end
     end
 
-    for (state_id,neighs) in enumerate(state_neights_col)
-        el_id = get_el_id(states,state_id)
-        coarse_marker[el_id] || continue
-        for neigh_id in neighs
-            if neigh_id < 0
-                continue
-            end
-            neight_el_id = get_el_id(states,neigh_id)
-            if ref_marker[neight_el_id]
-                coarse_marker[el_id] = false
-                break
-            end
-        end
-    end
+    # for (state_id,neighs) in enumerate(state_neights_col)
+    #     el_id = get_el_id(states,state_id)
+    #     coarse_marker[el_id] || continue
+    #     for neigh_id in neighs
+    #         if neigh_id < 0
+    #             continue
+    #         end
+    #         neight_el_id = get_el_id(states,neigh_id)
+    #         if ref_marker[neight_el_id]
+    #             coarse_marker[el_id] = false
+    #             break
+    #         end
+    #     end
+    # end
 
     # remove coarse marker from children, if not all childs are marked for coarseing 
     for el_id in eachindex(coarse_marker)

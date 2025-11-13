@@ -162,7 +162,7 @@ function assembly(cv::CellValues{D,U,ET},
         eldata_col[element.id] = ElData(
             element.id,proj_s,proj,
             node_ids,
-            γ_stab*hvol,hvol,volume,bc_vol)
+            γ_stab,hvol,volume,bc_vol)
   
 
         @timeit to "local_assembly" FR.assemble!(ass,dofs,kelement.array,rhs_element.array)
@@ -188,10 +188,10 @@ function compute_displacement(cv::CellValues{D,U,ET},
     n = size(k_global, 1)
     @timeit to "solver" u = if n < 2_500_000
         # cholesky(Symmetric(k_global)) \ rhs_global
-        ps = MKLPardisoSolver()
-        set_matrixtype!(ps, 2)
+        
         u = zero(rhs_global)
         Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
+        # Pardiso.set_phase!(ps, Pardiso.RELEASE_ALL)
         u
     else
         n_dofs = size(k_global, 1)

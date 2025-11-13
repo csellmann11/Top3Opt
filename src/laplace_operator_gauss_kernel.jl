@@ -102,13 +102,21 @@ function get_location(
         mirror_across_face(bc_vol_normal, p0, n)
     else
         
-        _x = states.x_vec[n_id]
-        e0id = get_el_id(states,state_id) 
-        e1id = get_el_id(states,n_id) 
-        rd1  = find_distance_to_boundary(e0id,topo,x0,_x - x0)
-        rd2  = find_distance_to_boundary(e1id,topo,_x,x0 - _x)
-        gap_rel = (1 - rd1 - rd2)
-        (2rd1+gap_rel) * (_x - x0) + x0
+        _x  = states.x_vec[n_id]
+        if norm(_x - x0) < eps(Float64)
+            _x 
+        else
+            h0  = states.h_vec[state_id] 
+            _xx = _x - x0
+            _xx/norm(_xx)*h0 + x0
+        end
+        # e0id = get_el_id(states,state_id) 
+        # e1id = get_el_id(states,n_id) 
+        # rd1  = find_distance_to_boundary(e0id,topo,x0,_x - x0)
+        # rd2  = find_distance_to_boundary(e1id,topo,_x,x0 - _x)
+        # gap_rel = (1 - rd1 - rd2)
+        # (2rd1+gap_rel) * (_x - x0) + x0
+        # _x
     end
     return x
 end
@@ -128,7 +136,8 @@ function compute_d_mat_gauss!(
     n_neighs  = length(local_neighs) 
     x0        = states.x_vec[state_id]
 
-    hmin = minimum(states.h_vec[ni] for ni in local_neighs if ni > 0)
+    # hmin = minimum(states.h_vec[ni] for ni in local_neighs if ni > 0)
+    h0 = states.h_vec[state_id]
 
     setsize!(res_cache,(n_neighs,))
 
@@ -142,13 +151,13 @@ function compute_d_mat_gauss!(
             A[i,i] = 1.0
             
             x = get_location(ni_id,state_id,x0,topo,b_face_id_to_state_id,states)
-            b[i] = laplacian_gauss_kernel(x,x0;shape_parameter = inv(2*sqrt(hmin)))
+            b[i] = laplacian_gauss_kernel(x,x0;shape_parameter = inv(2*sqrt(h0)))
 
             for j in (i+1):n_neighs
                 nj_id = local_neighs[j]
 
                 y = get_location(nj_id,state_id,x0,topo,b_face_id_to_state_id,states)
-                A[i,j] = gauss_kernel(x,y;shape_parameter = inv(2*sqrt(hmin)))
+                A[i,j] = gauss_kernel(x,y;shape_parameter = inv(2*sqrt(h0)))
                 A[j,i] = A[i,j]
             end
         end

@@ -20,7 +20,8 @@ using Dates: today
 using Pardiso
 
 const to = TimerOutput()
-
+const ps = MKLPardisoSolver()
+set_matrixtype!(ps, 2)
 
 function def_rhs_fun(x)
     SA[0.0, 0.0, 0.0]
