@@ -9,7 +9,7 @@ using Ju3VEM.FixedSizeArrays
 end
 
 
-struct SimResults{H<:Helmholtz,D}
+struct SimulationResults{H<:Helmholtz,D}
 
     sim_data         ::DateTime
     max_ref_level    ::Int
@@ -24,14 +24,14 @@ struct SimResults{H<:Helmholtz,D}
     number_of_dofs   ::Vector{Int}  
 
     el_error_at_snapshots::Vector{Dict{Int,Float64}}
-    states_at_snapshots::Vector{TopStates{D}}
+    states_at_snapshots::Vector{DesignVarInfo{D}}
     topology_nodes_at_snapshots::Vector{Vector{SVector{D,Float64}}}
     topology_connectivity_at_snapshots::Vector{Matrix{Vector{FixedSizeVectorDefault{Int}}}}
 
 end
 
 
-function SimResults(
+function SimulationResults(
     max_ref_level::Int,
     max_opt_steps::Int,
     sim_pars::SimPars{H},
@@ -44,20 +44,20 @@ function SimResults(
     number_of_states    = Int[]
     number_of_dofs      = Int[]
     el_error_at_snapshots = Vector{Dict{Int,Float64}}()
-    states_at_snapshots   = Vector{TopStates{D}}()
+    states_at_snapshots   = Vector{DesignVarInfo{D}}()
     topology_nodes_at_snapshots = Vector{Vector{SVector{D,Float64}}}()
     topology_connectivity_at_snapshots = Vector{Matrix{Vector{FixedSizeVectorDefault{Int}}}}()
 
     simulation_times = SimulationTimes()
 
-    SimResults(sim_data,max_ref_level,
+    SimulationResults(sim_data,max_ref_level,
         max_opt_steps,sim_pars,simulation_times,mod, 
         strain_energy,number_of_states,number_of_dofs,
         el_error_at_snapshots,states_at_snapshots,topology_nodes_at_snapshots,topology_connectivity_at_snapshots)
 end
 
 function update_sim_data!(
-    sim_data::SimResults,
+    sim_data::SimulationResults,
     mod::Float64,
     strain_energy::Float64,
     number_of_states::Int,
@@ -70,13 +70,13 @@ function update_sim_data!(
 end
 
 """
-    export_sim_data_for_latex(sim_data::SimResults, filepath::String)
+    export_sim_data_for_latex(sim_data::SimulationResults, filepath::String)
 
 Export simulation results to a CSV file for use with LaTeX/pgfplots.
 The CSV file contains columns: step, mod, relative_strain_energy, number_of_states, number_of_dofs
 Strain energy is normalized by dividing all values by the first value.
 """
-function export_sim_data_for_latex(sim_data::SimResults, filepath::String)
+function export_sim_data_for_latex(sim_data::SimulationResults, filepath::String)
     n_steps = length(sim_data.mod)
     
     # Get the first strain energy value for normalization

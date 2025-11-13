@@ -3,7 +3,7 @@ using Ju3VEM
 function project_states_to_nodes(
     eldata_col::Dict{Int,<:ElData},
     cv::CellValues{D,U},
-    states::TopStates) where {D,U}
+    states::DesignVarInfo) where {D,U}
 
     node_sums   = zeros(Float64,length(cv.mesh.topo.nodes))
     node_states = Dict{Int,Float64}()
@@ -32,7 +32,7 @@ end
 
 function estimate_element_error(
     u::AbstractVector{Float64},
-    states::TopStates,
+    states::DesignVarInfo,
     cv::CellValues{D,U},
     eldata_col::Dict{Int,<:ElData}
     ) where {D,U}
@@ -61,7 +61,7 @@ function estimate_element_error(
                 end  
                 du -= uel[i]
                 n_count = ceil(Int,i/U)
-                error += du^2 * node_states[node_ids[n_count]] * hvol
+                error += du^2 * node_states[node_ids[n_count]] #* hvol
             end
             error 
         end
@@ -102,10 +102,11 @@ end
 function mark_elements_for_adaption(
     cv::CellValues{D,U},
     element_error::Dict{Int,Float64},
-    states       ::TopStates,
+    states       ::DesignVarInfo,
     state_changed::AbstractVector{Float64},
     max_ref_level::Int,
     no_coarsening_marker::Vector{Bool},
+    state_neights_col::AbstractVector{Vector{Int32}},
     upper_error_bound::Float64 = 16.0,
     lower_error_bound::Float64 = 0.25
     ) where {D,U}
@@ -137,6 +138,21 @@ function mark_elements_for_adaption(
         elseif error < m_error * lower_error_bound && has_parent && dχi == 0.0
             (el_id <= length(no_coarsening_marker) && no_coarsening_marker[el_id]) && continue
             coarse_marker[el_id] = true
+        end
+    end
+
+    for (state_id,neighs) in enumerate(state_neights_col)
+        el_id = get_el_id(states,state_id)
+        coarse_marker[el_id] || continue
+        for neigh_id in neighs
+            if neigh_id < 0
+                continue
+            end
+            neight_el_id = get_el_id(states,neigh_id)
+            if ref_marker[neight_el_id]
+                coarse_marker[el_id] = false
+                break
+            end
         end
     end
 

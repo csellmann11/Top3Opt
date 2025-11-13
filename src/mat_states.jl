@@ -20,7 +20,7 @@ end
 end
 
 """
-    TopStates{D}
+    DesignVarInfo{D}
 
 A struct representing the states of elements in a topology optimization problem.
 
@@ -37,18 +37,24 @@ A struct representing the states of elements in a topology optimization problem.
 - Only the coordinates of inner states are stored in `x_vec`.
 - The `el_id_to_state_id` dictionary allows for quick lookup of state IDs given an element ID.
 """
-struct TopStates{D}
+struct DesignVarInfo{D}
     χ_vec::Vector{Float64} 
     x_vec::Vector{SVector{D,Float64}}
     area_vec::Vector{Float64} #TODO: rename to elsize_vec
     h_vec::Vector{Float64} 
 
-    el_id_to_state_id::Dict{Int,Int}
+    el_id_to_state_id::OrderedDict{Int,Int}
+end
+
+function get_el_id(states::DesignVarInfo,state_id::Integer)
+    return states.el_id_to_state_id.keys[state_id]
+end
+function get_state_id(states::DesignVarInfo,el_id::Integer)
+    return states.el_id_to_state_id[el_id]
 end
 
 
-
-function fill_states!(states::TopStates{D},cv::CellValues{D,U},ρ_init) where {D,U}
+function fill_states!(states::DesignVarInfo{D},cv::CellValues{D,U},ρ_init) where {D,U}
 
     topo = cv.mesh.topo 
     for (state_id,element) in enumerate(RootIterator{D+1}(topo))
@@ -65,7 +71,7 @@ function fill_states!(states::TopStates{D},cv::CellValues{D,U},ρ_init) where {D
     end
 end
 
-function resize_states!(states::TopStates{D},
+function resize_states!(states::DesignVarInfo{D},
     n_states::Int) where {D}
     
     resize!(states.χ_vec,n_states)
@@ -76,7 +82,7 @@ function resize_states!(states::TopStates{D},
 end
 
 
-function TopStates{D}(cv::CellValues{D,U},ρ_init) where {D,U}
+function DesignVarInfo{D}(cv::CellValues{D,U},ρ_init) where {D,U}
 
 
     mesh = cv.mesh
@@ -88,9 +94,9 @@ function TopStates{D}(cv::CellValues{D,U},ρ_init) where {D,U}
     x_vec              = Vector{SVector{D,Float64}}(undef, n_states)
     area_vec           = Vector{Float64}(undef,n_states)
     h_vec              = Vector{Float64}(undef,n_states)
-    el_id_to_state_id  = Dict{Int,Int}()
+    el_id_to_state_id  = OrderedDict{Int,Int}()
 
-    states = TopStates(χ_vec,x_vec,area_vec,h_vec,el_id_to_state_id)
+    states = DesignVarInfo(χ_vec,x_vec,area_vec,h_vec,el_id_to_state_id)
     fill_states!(states,cv,ρ_init)
 
     return states
@@ -98,100 +104,100 @@ end
 
 
 
-# function update_states_after_mesh_adaption!(states::TopStates,
-#     cv::CellValues{D,U},
-#     ref_marker::Vector{Bool},
-#     coarse_marker::Vector{Bool}) where {D,U}	
-
-#     topo      = cv.mesh.topo
-#     e2s_old   = copy(states.el_id_to_state_id)
-#     χ_vec_old = copy(states.χ_vec)
-
-#     n_states = length(RootIterator{4}(topo))
-#     resize_states!(states,n_states)
-#     fill_states!(states,cv,0.0) # here rho init is just a dummy
-
-#     e2s = states.el_id_to_state_id
-
-#     for element in RootIterator{4}(topo) 
-#         parent_id = element.parent_id 
-#         child_ids = element.childs 
-
-#         #Info: element comes from refinement
-#         if parent_id != 0 && ref_marker[parent_id]
-#             parents_old_state_id = e2s_old[parent_id]
-#             χ_parent             = χ_vec_old[parents_old_state_id]
-#             # element gets parent density 
-#             states.χ_vec[e2s[element.id]] = χ_parent
-#         elseif !isempty(child_ids) && all(coarse_marker[child_ids])
-#             #Info: element comes from coarseing 
-
-#             χ_sum = 0.0 
-#             for child_id in child_ids 
-#                 χ_sum += χ_vec_old[e2s_old[child_id]]
-#             end
-#             states.χ_vec[e2s[element.id]] = χ_sum / length(child_ids)
-
-#         else #INFO: element is not new, just state_id changed
-#             states.χ_vec[e2s[element.id]] = χ_vec_old[e2s_old[element.id]]
-#         end
-#     end
-#     return states
-# end
-
-
-function handle_state_change_for_refinement!(
-    parent_id::Int, 
+function update_states_after_mesh_adaption!(states::DesignVarInfo,
     cv::CellValues{D,U},
-    eldata_col::Dict{Int},
-    states::TopStates{D},
-    χ_vec_old::Vector{Float64},
-    e2s_old::Dict{Int,Int},
-    node_states::Dict{Int,Float64}) where {D,U} 
+    ref_marker::Vector{Bool},
+    coarse_marker::Vector{Bool}) where {D,U}	
 
-    parent = get_volumes(cv.mesh.topo)[parent_id]
-    node_ids = eldata_col[parent_id].node_ids 
-    χ_nodes_vec = [node_states[node_id] for node_id in node_ids]
-    proj_s      = stretch(eldata_col[parent_id].proj_s,Val(1))
-    base        = get_base(BaseInfo{3,1,1}())
-    χ_π         = sol_proj(base,χ_nodes_vec,proj_s)
+    topo      = cv.mesh.topo
+    e2s_old   = copy(states.el_id_to_state_id)
+    χ_vec_old = copy(states.χ_vec)
 
-    parent_state_id = e2s_old[parent_id] 
-    parent_χ        = χ_vec_old[parent_state_id]
-    parent_vol      = eldata_col[parent_id].volume
-    parent_mass     = parent_χ * parent_vol
-    parent_bc       = states.x_vec[parent_state_id]
-    parent_h        = states.h_vec[parent_state_id]
-    child_state_ids  = [states.el_id_to_state_id[child_id] for child_id in parent.childs]
+    n_states = length(RootIterator{4}(topo))
+    resize_states!(states,n_states)
+    fill_states!(states,cv,0.0) # here rho init is just a dummy
 
-    child_mass = 0.0
-    iter = 0
-    λ_trial = 0.0
-    λ_lower, λ_upper = -100.0,100.0
+    e2s = states.el_id_to_state_id
 
-    while abs(parent_mass - child_mass) > 1e-8
-        iter += 1 
-        child_mass = 0.0 
+    for element in RootIterator{4}(topo) 
+        parent_id = element.parent_id 
+        child_ids = element.childs 
 
-        for child_state_id in child_state_ids  
-            bc = states.x_vec[child_state_id]
-            chi_pi = χ_π((bc - parent_bc)/parent_h)
-            χ_child = clamp(chi_pi - λ_trial,1e-03,1.0)
-            states.χ_vec[child_state_id] = χ_child
-            child_mass += χ_child * states.area_vec[child_state_id]
-        end
+        #Info: element comes from refinement
+        if parent_id != 0 && ref_marker[parent_id]
+            parents_old_state_id = e2s_old[parent_id]
+            χ_parent             = χ_vec_old[parents_old_state_id]
+            # element gets parent density 
+            states.χ_vec[e2s[element.id]] = χ_parent
+        elseif !isempty(child_ids) && all(coarse_marker[child_ids])
+            #Info: element comes from coarseing 
 
-        child_mass > parent_mass ? λ_lower = λ_trial : λ_upper = λ_trial 
-        λ_trial = (λ_lower + λ_upper)/2.0
-        if iter > 1000
-            error("Max iterations reached")
-            break
+            χ_sum = 0.0 
+            for child_id in child_ids 
+                χ_sum += χ_vec_old[e2s_old[child_id]]
+            end
+            states.χ_vec[e2s[element.id]] = χ_sum / length(child_ids)
+
+        else #INFO: element is not new, just state_id changed
+            states.χ_vec[e2s[element.id]] = χ_vec_old[e2s_old[element.id]]
         end
     end
+    return states
 end
 
 
-function update_states_after_mesh_adaption!(states::TopStates,
+# function handle_state_change_for_refinement!(
+#     parent_id::Int, 
+#     cv::CellValues{D,U},
+#     eldata_col::Dict{Int},
+#     states::DesignVarInfo{D},
+#     χ_vec_old::Vector{Float64},
+#     e2s_old::OrderedDict{Int,Int},
+#     node_states::Dict{Int,Float64}) where {D,U} 
+
+#     parent = get_volumes(cv.mesh.topo)[parent_id]
+#     node_ids = eldata_col[parent_id].node_ids 
+#     χ_nodes_vec = [node_states[node_id] for node_id in node_ids]
+#     proj_s      = stretch(eldata_col[parent_id].proj_s,Val(1))
+#     base        = get_base(BaseInfo{3,1,1}())
+#     χ_π         = sol_proj(base,χ_nodes_vec,proj_s)
+
+#     parent_state_id = e2s_old[parent_id] 
+#     parent_χ        = χ_vec_old[parent_state_id]
+#     parent_vol      = eldata_col[parent_id].volume
+#     parent_mass     = parent_χ * parent_vol
+#     parent_bc       = states.x_vec[parent_state_id]
+#     parent_h        = states.h_vec[parent_state_id]
+#     child_state_ids  = [states.el_id_to_state_id[child_id] for child_id in parent.childs]
+
+#     child_mass = 0.0
+#     iter = 0
+#     λ_trial = 0.0
+#     λ_lower, λ_upper = -100.0,100.0
+
+#     while abs(parent_mass - child_mass) > 1e-8
+#         iter += 1 
+#         child_mass = 0.0 
+
+#         for child_state_id in child_state_ids  
+#             bc = states.x_vec[child_state_id]
+#             chi_pi = χ_π((bc - parent_bc)/parent_h)
+#             χ_child = clamp(chi_pi - λ_trial,1e-03,1.0)
+#             states.χ_vec[child_state_id] = χ_child
+#             child_mass += χ_child * states.area_vec[child_state_id]
+#         end
+
+#         child_mass > parent_mass ? λ_lower = λ_trial : λ_upper = λ_trial 
+#         λ_trial = (λ_lower + λ_upper)/2.0
+#         if iter > 1000
+#             error("Max iterations reached")
+#             break
+#         end
+#     end
+# end
+
+
+function update_states_after_mesh_adaption!(states::DesignVarInfo,
     cv::CellValues{D,U},
     eldata_col::Dict{Int},
     ref_marker::Vector{Bool},
@@ -201,26 +207,26 @@ function update_states_after_mesh_adaption!(states::TopStates,
     e2s_old   = copy(states.el_id_to_state_id)
     χ_vec_old = copy(states.χ_vec)
     
-    # node_sums   = zeros(Float64,length(cv.mesh.topo.nodes))
-    # node_states = Dict{Int,Float64}()
-    # for (el_id,el_data) in eldata_col
-    #     sid      = e2s_old[el_id]
-    #     χ_el     = χ_vec_old[sid]
-    #     bc       = states.x_vec[sid]
-    #     node_ids = el_data.node_ids
+    node_sums   = zeros(Float64,length(cv.mesh.topo.nodes))
+    node_states = Dict{Int,Float64}()
+    for (el_id,el_data) in eldata_col
+        sid      = e2s_old[el_id]
+        χ_el     = χ_vec_old[sid]
+        bc       = states.x_vec[sid]
+        node_ids = el_data.node_ids
         
-    #     for node_id in node_ids
-    #         weight =  get!(node_states,node_id,0.0)
-    #         node    = cv.mesh.topo.nodes[node_id]
-    #         d       = node.coords - bc
-    #         weight += χ_el/norm(d)
-    #         node_states[node_id] = weight
-    #         node_sums[node_id] += 1/norm(d)
-    #     end
-    # end
-    # for node_id in keys(node_states)
-    #     node_states[node_id] /= node_sums[node_id]
-    # end
+        for node_id in node_ids
+            weight =  get!(node_states,node_id,0.0)
+            node    = cv.mesh.topo.nodes[node_id]
+            d       = node.coords - bc
+            weight += χ_el/norm(d)
+            node_states[node_id] = weight
+            node_sums[node_id] += 1/norm(d)
+        end
+    end
+    for node_id in keys(node_states)
+        node_states[node_id] /= node_sums[node_id]
+    end
 
 
     n_states = length(RootIterator{4}(topo))
@@ -266,7 +272,7 @@ end
 
 
 function measure_of_nondiscreteness(
-    states::TopStates,
+    states::DesignVarInfo,
     pars::SimPars)
 
 

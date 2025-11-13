@@ -1,7 +1,7 @@
 function compute_driving_force!(
     pχv::Vector{Float64},
     Ψvec::Vector{Float64},
-    states::TopStates) 
+    states::DesignVarInfo) 
 
     for (state_id,(χ,Ψ0)) in enumerate(zip(states.χ_vec,Ψvec))
         pχv[state_id]    = -3χ^2 * Ψ0
@@ -14,7 +14,7 @@ function compute_strain_energy(
     dh::DofHandler{D,U},
     eldata_col::Dict{Int,<:ElData},
     u::AbstractVector{Float64},
-    states::TopStates{D}, 
+    states::DesignVarInfo{D}, 
     sim_pars::SimPars) where {D,U}
     mat_law = sim_pars.mat_law
 
@@ -46,7 +46,7 @@ function compute_strain_energy(
 end
 
 
-function get_avarage_driving_force(states::TopStates,
+function get_avarage_driving_force(states::DesignVarInfo,
     p_χ::Vector{Float64},
     sim_pars::SimPars)
 
@@ -68,7 +68,7 @@ function lower_upper_bound(p_χ::Vector{Float64},η::Float64,dt::Float64)
 end
 
 
-function state_update!(states::TopStates,
+function state_update!(states::DesignVarInfo,
     dh::DofHandler,
     sim_pars::SimPars, 
     laplace_operator::SparseMatrixCSC,
@@ -113,7 +113,7 @@ function state_update!(states::TopStates,
         λ_lower, λ_upper = lower_upper_bound(p_χ,η,dt)
         ρ_trial = 1.0
 
-        while abs(sim_pars.ρ_init - ρ_trial) > 1e-12
+        while abs(sim_pars.ρ_init - ρ_trial) > 1e-8
 
             iter += 1
             ∑χ = 0.0  

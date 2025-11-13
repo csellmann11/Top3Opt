@@ -11,6 +11,7 @@ using Statistics
 using Random
 using Bumper
 using TimerOutputs
+using OrderedCollections
 using Dates
 using Bumper
 using JLD2
@@ -28,6 +29,7 @@ end
 
 include("general_utils.jl")
 args = parse_commandline()
+# include("ferrite_assembler.jl")
 include("mat_states.jl")
 include("laplace_operator.jl")
 include("compute_displacement.jl")
@@ -38,6 +40,7 @@ include("refinement_utils/estiamte_element_error.jl")
 include("postprocessing/sim_data.jl")
 include("postprocessing/topopt_vtk_export.jl")
 include("optim_run.jl")
+include("get_sparsity_pattern.jl")
 
 const K = 1
 const U = 3
@@ -164,7 +167,7 @@ function main(
         get_sets_to_refine(b_case), MAX_REF_LEVEL)
 
     ch = create_constraint_handler(cv, b_case)
-    states = TopStates{U}(cv, ρ_init)
+    states = DesignVarInfo{U}(cv, ρ_init)
 
 
     

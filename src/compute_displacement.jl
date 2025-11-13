@@ -66,7 +66,8 @@ function build_local_kel_and_f_topo!(
     element_id::Int,
     cache1::CachedMatrix{Float64},
     cache2::CachedMatrix{Float64},
-    γ::Float64) where {L,D,U,ET<:ElType{1}}
+    γ::Float64,
+    χ::Float64) where {L,D,U,ET<:ElType{1}}
 
     hvol = cv.volume_data.hvol
     dΩ   = cv.volume_data.integrals[1]
@@ -92,7 +93,7 @@ function build_local_kel_and_f_topo!(
 
         # kelement.array .= full_proj_s' * (k_poly_space .* dΩ/(hvol^2)) * full_proj_s
     end
-    kelement .*= dΩ/(hvol^2)
+    kelement .*= dΩ/(hvol^2) * χ^3
 
     setsize!(cache1,(n_nodes,n_nodes))
     setsize!(cache2,(n_nodes,n_nodes))
@@ -111,12 +112,15 @@ end
 
 
 function assembly(cv::CellValues{D,U,ET},
-    states::TopStates{D},
+    states::DesignVarInfo{D},
     f::F,
     sim_pars::SimPars) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     mat_law = sim_pars.mat_law
-    @timeit to "set up assembler" ass = Assembler{Float64}(cv)
+    # @timeit to "set up assembler" ass = Assembler{Float64}(cv)
+    @timeit to "set up assembler" k_global = get_sparsity_pattern(cv)
+    ass = FR.start_assemble(Symmetric(k_global),zeros(size(k_global,1)))
+
 
 
     Is = SMatrix{U,U,Float64}(I)
@@ -137,17 +141,19 @@ function assembly(cv::CellValues{D,U,ET},
         χ = states.χ_vec[e2s[element.id]]
         @timeit to "reinit" reinit!(element.id,cv)
 
-        γ_stab = γ/1 #* χ^3
+        γ_stab = γ/4 * χ^3
 
         @timeit to "build_local_kel_and_f" proj_s, proj = build_local_kel_and_f_topo!(
-            k_poly_space,kelement,
+            k_poly_space,kelement, 
             rhs_element,
-            cv,element.id,cache1,cache2,γ_stab)
+            cv,element.id,cache1,cache2,γ_stab,χ)
 
     
         node_ids = FixedSizeVector{Int}(undef,length(cv.vnm.map))
         copyto!(node_ids,cv.vnm.map.keys)
 
+        dofs = FixedSizeVector{Int}(undef,length(node_ids)*U)
+        get_dofs!(dofs,cv.dh,node_ids)
   
         vol_data = cv.volume_data
         bc_vol   = vol_data.vol_bc
@@ -156,14 +162,13 @@ function assembly(cv::CellValues{D,U,ET},
         eldata_col[element.id] = ElData(
             element.id,proj_s,proj,
             node_ids,
-            γ_stab*χ^3,hvol,volume,bc_vol)
+            γ_stab*hvol,hvol,volume,bc_vol)
   
-        kelement .*= χ^3
 
-        @timeit to "local_assembly" local_assembly!(ass,kelement,rhs_element)
+        @timeit to "local_assembly" FR.assemble!(ass,dofs,kelement.array,rhs_element.array)
     end
 
-    @timeit to "assemble_final_k" kglobal, rhsglobal = assemble!(ass)
+    kglobal, rhsglobal = FR.finish_assemble(ass)
 
     kglobal, rhsglobal, eldata_col
 end
@@ -171,14 +176,14 @@ end
 
 function compute_displacement(cv::CellValues{D,U,ET},
     ch::ConstraintHandler,
-    states::TopStates{D},
+    states::DesignVarInfo{D},
     f::F,
     sim_pars::SimPars) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     @timeit to "assembly" k_global,rhs_global, eldata_col = assembly(cv,states,f,sim_pars)
     # @timeit to "assembly" k_global, rhs_global, eldata_col = FEM_assembly(cv,states,sim_pars) #! not working
 
-    @timeit to "apply" apply!(k_global,rhs_global,ch)
+    @timeit to "apply" apply!(k_global.data,rhs_global,ch)
   
     n = size(k_global, 1)
     @timeit to "solver" u = if n < 2_500_000

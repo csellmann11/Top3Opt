@@ -50,7 +50,7 @@ function order_node_to_ferrite_hex_order(nodes::AbstractVector)
 end
 
 function FEM_assembly(cv::CellValues{3},
-    states::TopStates{3},
+    states::DesignVarInfo{3},
     sim_pars::SimPars)
 
     ip = FR.Lagrange{FR.RefHexahedron,1}()^3

@@ -1,4 +1,4 @@
-function el_dict_to_state_vec(d::Dict{Int},states::TopStates{D}) where D 
+function el_dict_to_state_vec(d::Dict{Int},states::DesignVarInfo{D}) where D 
     e2s = states.el_id_to_state_id
     vec = zeros(length(states.χ_vec))
     for (el_id,el_data) in d
@@ -12,7 +12,7 @@ end
 function run_optimization(
     cv::CellValues{D,U},
     rhs_fun::F,
-    states::TopStates{U},
+    states::DesignVarInfo{U},
     ch::ConstraintHandler{U},
     no_coarsening_marker::Vector{Bool},
     sim_pars::SimPars{H};
@@ -27,7 +27,7 @@ function run_optimization(
  ) where {D,U,H<:Helmholtz,F<:Function}
 
     n_conv_count = 0
-    sim_results  = SimResults(MAX_REF_LEVEL,
+    sim_results  = SimulationResults(MAX_REF_LEVEL,
               MAX_OPT_STEPS,sim_pars,Val{D}())
     eldata_col = Dict{Int,ElData{D}}()
     if isdir(vtk_folder_name)
@@ -36,9 +36,10 @@ function run_optimization(
     end
     mkdir(vtk_folder_name)
 
-    @timeit to "create_neighbor_list" el_neighs, face_to_vols, edge_to_vols = create_neighbor_list(cv);
+    # @timeit to "create_neighbor_list" el_neighs, face_to_vols, _ = create_neighbor_list(cv);
+    @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh2_list(states,cv);
     @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
-                  cv.mesh.topo,el_neighs,face_to_vols,states,sim_pars)
+                  cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states,sim_pars)
 
     Psi0 = 0.0; Psi_step0 = 0.0; u = Float64[]; state_changed = Float64[]
 
@@ -47,6 +48,8 @@ function run_optimization(
         @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
         @timeit to "state_update" state_changed = state_update!(
             states,cv.dh,sim_pars,laplace_operator,u,eldata_col)
+
+
 
         Psi = 1/2 * u' * k_global * u
         if optimization_step == 1
@@ -92,17 +95,19 @@ function run_optimization(
             !do_adaptivity && continue
             @timeit to "estimate_element_error" element_error = estimate_element_error(u,states,cv,eldata_col)
             ref_marker, coarse_marker = mark_elements_for_adaption(cv, 
-                            element_error,states,state_changed,MAX_REF_LEVEL,no_coarsening_marker)
+                            element_error,states,state_changed,MAX_REF_LEVEL,no_coarsening_marker,state_neights_col)
 
-            @timeit to "mesh_clearing" clear_up_mesh(cv.mesh.topo,face_to_vols,edge_to_vols)
+            # @timeit to "mesh_clearing" clear_up_mesh(cv.mesh.topo,face_to_vols,edge_to_vols)
+            @timeit to "mesh_clearing" clear_up_topo!(cv.mesh.topo)
             @timeit to "adapt_mesh" cv = adapt_mesh(cv,coarse_marker,ref_marker)
             @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
             @timeit to "update_states_after_mesh_adaption" states = update_states_after_mesh_adaption!(states,cv,eldata_col,ref_marker,coarse_marker)
 
-            @timeit to "create_neighbor_list" el_neighs, face_to_vols, edge_to_vols = create_neighbor_list(cv);
+            # @timeit to "create_neighbor_list" el_neighs, face_to_vols, _ = create_neighbor_list(cv);
+            @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh2_list(states,cv);
 
             @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
-                  cv.mesh.topo,el_neighs,face_to_vols,states,sim_pars)
+                  cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states,sim_pars)
         end
     end
 

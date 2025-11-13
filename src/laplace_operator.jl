@@ -28,74 +28,131 @@ end
 @inline weight_factor(d,β) = exp(-0.5*(4d/√(β))^2)
 
 
-function compute_d_mat(
+function find_distance_to_boundary(
+    vol_id, 
+    topo, 
+    x0::SVector{3,Float64}, 
+    d::SVector{3,Float64}
+)
+    min_rel_dist = typemax(Float64)
+
+    face_ids = get_volume_area_ids(topo, vol_id)
+    
+    @inbounds for face_id in face_ids
+        node_ids = get_area_node_ids(topo, face_id)
+        
+        length(node_ids) < 3 && continue
+        
+        p1 = topo.nodes[node_ids[1]]
+        p2 = topo.nodes[node_ids[2]]
+        p3 = topo.nodes[node_ids[3]]
+        
+        e1 = p2 - p1
+        e2 = p3 - p1
+        n = e1 × e2
+        
+        denom = n ⋅ d
+        abs(denom) < eps(Float64) && continue
+        
+        t = (n ⋅ (p1 - x0)) / denom
+        
+        # Accept both positive AND negative t, take minimum absolute value
+        abs_t = abs(t)
+        if abs_t > eps(Float64) && abs_t < min_rel_dist
+            min_rel_dist = abs_t
+        end
+    end
+    
+    return min_rel_dist
+end
+
+
+function compute_d_mat!(
+    res_cache::CachedVector{Float64},
     state_id  ::Int,
-    el_neighs ::AbstractVector{Int},
-    face_to_vols ::Dict{Int,Vector{Int}},
+    local_neighs ::AbstractVector{Int32},
+    b_face_id_to_state_id ::Dict{Int32,Int32},
     topo::Topology{D},
-    states::TopStates{D},
+    states::DesignVarInfo{D},
     sim_pars::SimPars) where D
 
-    # hmin,hmax = extrema(states.h_vec)
+    hmin,hmax = extrema(states.h_vec)
     # β = 2*hmax^2 * sim_pars.β0
     
-    n_neighs  = length(el_neighs)
+    n_neighs  = length(local_neighs)
     h0         = states.h_vec[state_id]
     bc         = states.x_vec[state_id]
-    e2s        = states.el_id_to_state_id
 
-    A          =  FixedSizeMatrix{Float64}(undef,n_neighs,9)
+    setsize!(res_cache,(n_neighs,))
 
-    w_vec     = FixedSizeVector{Float64}(undef,n_neighs)
-    n_state_ids = FixedSizeVector{Int}(undef,n_neighs)
+    @no_escape begin
+        A     = @alloc(Float64,n_neighs,6)
+        w_vec = @alloc(Float64,n_neighs)
+        W_A   = @alloc(Float64,n_neighs,6)
 
-    for (n_count,n_id) in enumerate(el_neighs) 
-         
-         
-        if n_id < 0 # we are on the boundary 
-            face_node_ids = get_area_node_ids(topo,abs(n_id))
-            face_el_id = face_to_vols[abs(n_id)] |> only 
-            state_id_face = e2s[face_el_id]
-            bc_vol_normal = states.x_vec[state_id_face]
-            n_state_ids[n_count] = state_id_face
+        for (n_count,n_id) in enumerate(local_neighs) 
+            
+            
+            if n_id < 0 # we are on the boundary 
+                face_node_ids = get_area_node_ids(topo,abs(n_id))
+                state_id_face = b_face_id_to_state_id[n_id]
+                bc_vol_normal = states.x_vec[state_id_face]
 
-            _,_,n_unsigned,_,p0 = Ju3VEM.VEMGeo.get_plane_parameters(@view(topo.nodes[face_node_ids]))
-            n = Ju3VEM.VEMGeo.get_outward_normal(bc_vol_normal,n_unsigned,p0)
-            # Compute the mirrored neighbor barycenter
-            n_bc = mirror_across_face(bc_vol_normal, p0, n)
-            λ_scale = 1.0
-        else
-            n_state_id = e2s[n_id]
-            h_n = states.h_vec[n_state_id]
-            n_bc = states.x_vec[n_state_id]
-            λ_scale = h0*inv(0.5*(h0+h_n))
+                _,_,n_unsigned,_,p0 = Ju3VEM.VEMGeo.get_plane_parameters(@view(topo.nodes[face_node_ids]))
+                n = Ju3VEM.VEMGeo.get_outward_normal(bc_vol_normal,n_unsigned,p0)
+                # Compute the mirrored neighbor barycenter
+                n_bc = mirror_across_face(bc_vol_normal, p0, n)
+                dist_vec = n_bc - bc
+            else
+                # n_state_id = e2s[n_id]
+                h_n = states.h_vec[n_id]
+                n_bc = states.x_vec[n_id]
+                el0id = get_el_id(states,state_id)
+                el1id = get_el_id(states,n_id)
+
+                rel_min_dist1 = find_distance_to_boundary(el0id,topo,bc,n_bc - bc) #pos value
+                rel_min_dist2 = find_distance_to_boundary(el1id,topo,n_bc,bc-n_bc) 
+                gap_rel = (1 - rel_min_dist1 - rel_min_dist2)
+                dist_vec = (2rel_min_dist1+gap_rel) * (n_bc - bc)
+
+                # @infiltrate
+                # @assert rel_min_dist1 > 0.0 && rel_min_dist2 > 0.0
+                # @assert gap_rel >= -eps() "got negative gap_rel: $gap_rel and rel_min_dist1: $rel_min_dist1 and rel_min_dist2: $rel_min_dist2"
+
+                dist_vec = (n_bc - bc)#*h0/(0.5*(h0+h_n))
+                
+            end
+
+            dx,dy,dz = dist_vec/h0
+            w_vec[n_count] = weight_factor(norm(dist_vec),2*hmin^2)
+            # A[n_count,:] .= (dx,dy,dz,0.5*dx^2,dx*dy,dx*dz,0.5*dy^2,dy*dz,0.5*dz^2)
+            # A[n_count,:] .= (dx,dy,dz,0.5*dx^2,0.5*dy^2,0.5*dz^2)
+            A[n_count,:] .= (dx,dy,dz,0.5*dx^2,0.5*dy^2,0.5*dz^2)
         end
 
-        dx,dy,dz = λ_scale*(n_bc - bc)
-        w_vec[n_count] = 1.0#weight_factor(norm(n_bc - bc),β)
-        A[n_count,:] .= (dx,dy,dz,0.5*dx^2,dx*dy,dx*dz,0.5*dy^2,dy*dz,0.5*dz^2)
-    end
+
+        W_A .= w_vec .*A
+        AT_A = static_matmul(A',W_A,Val((6,6)))
+
+        invAT_A = inv(AT_A)
+        res = res_cache.array
+
+        # rhs = zeros(6)
+        # rhs[4] = 1.0
+        # rhs[5] = 1.0
+        # rhs[6] = 1.0
 
 
-    W_A = w_vec .*A
-    AT_A = static_matmul(A',W_A,Val((9,9)))
 
-    # if cond(AT_A) > 1e9 
-    #     display(bc)
-    #     throw("Condition number of AT_A is too high")
-
-    # end
-
-    invAT_A = inv(AT_A)
-    res  = FixedSizeVector{Float64}(undef,n_neighs)
-
-    for i in axes(A, 1)
-        res[i] = zero(eltype(res))
-        for j in axes(A, 2)
-            res[i] += (invAT_A[4,j] + invAT_A[7,j] + invAT_A[9,j]) * W_A[i,j]
+        for i in axes(A, 1)
+            res[i] = zero(eltype(res))
+            for j in axes(A, 2)
+                # res[i] += (invAT_A[4,j] + invAT_A[7,j] + invAT_A[9,j]) * W_A[i,j] / h0^2
+                res[i] += (invAT_A[4,j] + invAT_A[5,j] + invAT_A[6,j]) * W_A[i,j] / h0^2
+            end
         end
     end
-    return res, n_state_ids
+    return res_cache
 end
 
 
@@ -103,36 +160,39 @@ end
 
 function compute_laplace_operator_mat(
     topo::Topology{D},
-    elneighs_col::Dict,
-    face_to_vols::Dict{Int,Vector{Int}},
-    states::TopStates{D},
+    state_neights_col::FixedSizeVector{Vector{Int32}},
+    b_face_id_to_state_id::Dict{Int32,Int32},
+    states::DesignVarInfo{D},
     sim_pars::SimPars
     ) where D
 
 
-    n_entries = sum(1 + length(local_neighs) for local_neighs in values(elneighs_col))
+    n_entries = sum(1 + length(local_neighs) for local_neighs in values(state_neights_col))
 
     e2s = states.el_id_to_state_id
 
     rows     = Vector{Int}(undef,n_entries)
     cols     = Vector{Int}(undef,n_entries)
     vals     = Vector{Float64}(undef,n_entries)
+    res_cache = CachedVector(Float64)
 
     sparse_mat_counter = 1 
 
 
-    for element in RootIterator{D+1}(topo)
-        state_id = e2s[element.id]
-        local_neighs = elneighs_col[element.id]
+    # for element in RootIterator{D+1}(topo)
+    for element_id in e2s.keys
+        # state_id = e2s[element.id]
+        state_id = get_state_id(states,element_id)
+        local_neighs = state_neights_col[state_id]
 
-        d_row, n_state_ids = compute_d_mat(
-            state_id,local_neighs,face_to_vols,topo,states,sim_pars)
+        compute_d_mat!(res_cache,
+            state_id,local_neighs,b_face_id_to_state_id,topo,states,sim_pars)
 
         dΔ_sum =  0.0 
 
-        for (n_count,(n_id,d_row_i)) in enumerate(zip(local_neighs,d_row))
+        for (n_id,d_row_i) in zip(local_neighs,res_cache.array)
             rows[sparse_mat_counter] = state_id
-            cols[sparse_mat_counter] = n_id < 0 ? n_state_ids[n_count] : e2s[n_id]
+            cols[sparse_mat_counter] = n_id < 0 ? b_face_id_to_state_id[n_id] : n_id
             vals[sparse_mat_counter] = d_row_i
 
             dΔ_sum += d_row_i

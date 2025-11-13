@@ -127,7 +127,7 @@ sim_pars = SimPars(mat_law,λ,μ,χmin,η0,1.0,ρ_init,h_cell_min)
 
 @time cv = CellValues{U}(mesh);
 
-states = TopStates{U}(cv,ρ_init)
+states = DesignVarInfo{U}(cv,ρ_init)
 
 ch = create_constraint_handler(cv,:Cantilever_sym);
 

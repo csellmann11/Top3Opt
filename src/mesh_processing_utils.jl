@@ -349,6 +349,7 @@ function clear_up_mesh(topo::Topology{3},
     end
 
 
+    
     for edge in RootIterator{2}(topo)
 
         parent_id = edge.parent_id
@@ -384,5 +385,49 @@ function clear_up_mesh(topo::Topology{3},
             end
         end
         all_equal && _coarsen!(edge, topo)
+    end
+end
+
+
+
+
+
+function clear_up_topo!(
+    topo::Topology{3}
+    )
+
+    do_face_coarse_markers = ones(Bool,length(get_areas(topo)))
+    do_edge_coarse_markers = ones(Bool,length(get_edges(topo)))
+    for element in RootIterator{4}(topo)
+
+        Ju3VEM.VEMGeo.iterate_volume_areas(
+            topo,element.id) do face 
+
+                face_ref_level = face.refinement_level
+                do_coarse = do_face_coarse_markers[face.id] && (face_ref_level > element.refinement_level)
+
+                do_face_coarse_markers[face.id] = do_coarse
+                
+
+                Ju3VEM.VEMGeo.iterate_element_edges(
+                    topo,face.id) do _,edge_id,_ 
+
+                        edge_ref_level = get_edges(topo)[edge_id].refinement_level
+                        do_coarse = do_edge_coarse_markers[edge_id] && (edge_ref_level > element.refinement_level)
+                        do_edge_coarse_markers[edge_id] = do_coarse
+                        
+                end   
+        end
+    end
+
+    for face in RootIterator{3}(topo)
+        do_coarse = do_face_coarse_markers[face.id]
+        do_coarse || continue
+        _coarsen!(face, topo)
+    end
+    for edge in RootIterator{2}(topo)
+        do_coarse = do_edge_coarse_markers[edge.id]
+        do_coarse || continue
+        _coarsen!(edge, topo)
     end
 end
