@@ -29,9 +29,8 @@ end
 
 include("general_utils.jl")
 args = parse_commandline()
-# include("ferrite_assembler.jl")
 include("mat_states.jl")
-include("laplace_operator.jl")
+include("laplace_operator_gauss_kernel.jl")
 include("compute_displacement.jl")
 include("bisection.jl")
 include("mesh_processing_utils.jl")
@@ -189,7 +188,7 @@ function main(
         vtk_folder_name=joinpath(project_root, "Results", "vtk", "Adaptive_Runs", folder_name),
         MAX_OPT_STEPS=MAX_OPT_STEPS,
         MAX_REF_LEVEL=MAX_REF_LEVEL,
-        take_snapshots_at= Int[],#Int[1, 10, 20, 30, 50, 100, 200],
+        take_snapshots_at= Int[1, 10, 20, 30, 50, 100, 200],
         do_adaptivity=do_adaptivity,
         b_case=b_case
     )

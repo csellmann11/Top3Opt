@@ -36,7 +36,7 @@ function MBB_rhs(x)
 end
 
 n = div(2,2)*2
-n = 30
+n = 20 
 
 mesh = create_rectangular_mesh(
     n,n,n,
@@ -112,7 +112,7 @@ f = x -> cos(pi*x[1])*cos(pi*x[2])*cos(pi*x[3])#-1/3*x[1]^3 + 1/2*x[1]^2
 
 import Ju3VEM.FR.ForwardDiff as FD
 
-@show FD.hessian(f,states.x_vec[state_id]) |> tr
+
 @show FD.hessian(f,SA[0.0,0.0,0.0]) |> tr
 @show FD.hessian(f,SA[0.5,0.0,0.0]) |> tr
 

@@ -44,63 +44,45 @@ function create_neigh_list(
             vertex_ids = fd.face_node_ids |> get_first
             b_face_id_to_state_id[-face_id] = state_id
 
-            for (counter,v_id) in enumerate(vertex_ids) 
-                counter_p1  = get_next_idx(vertex_ids,counter)
-                v_id_p1     = vertex_ids[counter_p1]
-                edge_id     = get_edge(v_id,v_id_p1,topo) |> get_id
+            # for (counter,v_id) in enumerate(vertex_ids) 
+            #     counter_p1  = get_next_idx(vertex_ids,counter)
+            #     v_id_p1     = vertex_ids[counter_p1]
+            #     edge_id     = get_edge(v_id,v_id_p1,topo) |> get_id
 
-                push!(ste_cols,edge_id)
-                push!(ste_rows,state_id)
-            end
+            #     push!(ste_cols,edge_id)
+            #     push!(ste_rows,state_id)
+            # end
+
+            push!(ste_cols,face_id)
+            push!(ste_rows,state_id)
         
             is_boundary_face[face_id] = !is_boundary_face[face_id]
         end
     end
 
-    # _ste_mat = spzeros(Bool,ste_rows,ste_cols)
-    # # add second row neighs 
-    # for node in cv.mesh.nodes
-    #     is_active(node) || continue
-        
-    #     adj_states = get_adjacent_elements(_ste_mat,node.id)
-    #     for adj_state in adj_states
-    #         Ju3VEM.VEMGeo.iterate_volume_areas(
-    #             fdcol,topo,Int(adj_state)) do _,fd,_ 
-
-    #             vertex_ids = fd.face_node_ids |> get_first
-    #             for v_id in vertex_ids
-    #                 for adj_state_inner in adj_states
-    #                     adj_state_inner == adj_state && continue
-    #                     push!(ste_cols,v_id)
-    #                     push!(ste_rows,adj_state_inner)
-    #                 end
-    #             end
-    #         end
-    #     end
-    # end
-
+ 
     boundary_counter = 1
     boundary_state_map = Dict{Int32,Int32}()
     
     # loops all boundary faces, adds to every edge of the 
     # boundary faces an imaginary state_id
-    for face in RootIterator{3}(topo)
-        face_id = face.id
-        is_boundary_face[face_id] || continue 
-        # we have a boundary face
+    # for face in RootIterator{3}(topo)
+    #     face_id = face.id
+    #     is_boundary_face[face_id] || continue 
+    #     # we have a boundary face
 
-        fd = fdcol[face_id]
-        vertex_ids = fd.face_node_ids |> get_first
-        for (counter,v_id) in enumerate(vertex_ids) 
-            counter_p1  = get_next_idx(vertex_ids,counter)
-            v_id_p1     = vertex_ids[counter_p1]
-            edge_id     = get_edge(v_id,v_id_p1,topo) |> get_id
-            push!(ste_cols,edge_id)
-            push!(ste_rows,n_states + boundary_counter)
-            boundary_state_map[n_states + boundary_counter] = face_id
-        end
-        boundary_counter += 1
-    end
+    #     fd = fdcol[face_id]
+    #     vertex_ids = fd.face_node_ids |> get_first
+    #     for (counter,v_id) in enumerate(vertex_ids) 
+    #         counter_p1  = get_next_idx(vertex_ids,counter)
+    #         v_id_p1     = vertex_ids[counter_p1]
+    #         edge_id     = get_edge(v_id,v_id_p1,topo) |> get_id
+    #         push!(ste_cols,edge_id)
+    #         push!(ste_rows,n_states + boundary_counter)
+    #         boundary_state_map[n_states + boundary_counter] = face_id
+    #     end
+    #     boundary_counter += 1
+    # end
 
     
     ste_mat = spzeros(Bool,ste_rows,ste_cols)
@@ -118,13 +100,33 @@ function create_neigh_list(
         neighs = Vector{Int32}(undef,len)
         for adj_state in adj_states
             # adj_state == state_id && continue
-            if adj_state > n_states 
-                adj_state = -boundary_state_map[adj_state]
-                # b_face_id_to_state_id[adj_state] = state_id
-            end
+            # if adj_state > n_states 
+            #     adj_state = -boundary_state_map[adj_state]
+            #     # b_face_id_to_state_id[adj_state] = state_id
+            # end
             neighs[n_count] = adj_state
             n_count += 1
         end
+
+        el_id = get_el_id(states,state_id)
+        face_ids = get_volume_area_ids(topo,el_id)
+        for face_id in face_ids
+            is_boundary_face[face_id] || continue
+            push!(neighs,-face_id)
+        end
+        # Ju3VEM.VEMGeo.iterate_volume_areas(
+        #     fdcol,topo,el_id) do face,fd,_ 
+
+        #     face_id = face.id 
+            
+        #     is_boundary_face[face_id] || return nothing
+        #     b_face_id_to_state_id[-face_id] = state_id
+        #     push!(neighs,-face_id)
+        #     nothing
+        # end
+
+
+        
         state_neights_col[state_id] = neighs
     end
 

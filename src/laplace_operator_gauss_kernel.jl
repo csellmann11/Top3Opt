@@ -55,6 +55,8 @@ function find_distance_to_boundary(
     min_rel_dist = typemax(Float64)
 
     face_ids = get_volume_area_ids(topo, vol_id)
+
+    norm(d) ≈ 0.0 && return 0.0
     
     @inbounds for face_id in face_ids
         node_ids = get_area_node_ids(topo, face_id)
@@ -66,7 +68,7 @@ function find_distance_to_boundary(
         p3 = topo.nodes[node_ids[3]]
 
         n = (p2 - p1) × (p3 - p1)
-
+ 
         denom = n ⋅ d
         abs(denom) < eps(Float64) && continue
         
@@ -83,6 +85,8 @@ end
 
 function get_location(
     n_id::Integer,
+    state_id::Integer,
+    x0::SVector{3,Float64},
     topo::Topology{3},
     b_face_id_to_state_id::Dict{Int32,Int32},
     states::DesignVarInfo{3}
@@ -97,7 +101,14 @@ function get_location(
         # Compute the mirrored neighbor barycenter
         mirror_across_face(bc_vol_normal, p0, n)
     else
-        states.x_vec[n_id]
+        
+        _x = states.x_vec[n_id]
+        e0id = get_el_id(states,state_id) 
+        e1id = get_el_id(states,n_id) 
+        rd1  = find_distance_to_boundary(e0id,topo,x0,_x - x0)
+        rd2  = find_distance_to_boundary(e1id,topo,_x,x0 - _x)
+        gap_rel = (1 - rd1 - rd2)
+        (2rd1+gap_rel) * (_x - x0) + x0
     end
     return x
 end
@@ -114,9 +125,10 @@ function compute_d_mat_gauss!(
 
 
     
-    n_neighs  = length(local_neighs)
-    h0        = states.h_vec[state_id]
+    n_neighs  = length(local_neighs) 
     x0        = states.x_vec[state_id]
+
+    hmin = minimum(states.h_vec[ni] for ni in local_neighs if ni > 0)
 
     setsize!(res_cache,(n_neighs,))
 
@@ -129,20 +141,19 @@ function compute_d_mat_gauss!(
             
             A[i,i] = 1.0
             
-            x = get_location(ni_id,topo,b_face_id_to_state_id,states)
-            b[i] = laplacian_gauss_kernel(x,x0;shape_parameter = 1/sqrt(h0))
+            x = get_location(ni_id,state_id,x0,topo,b_face_id_to_state_id,states)
+            b[i] = laplacian_gauss_kernel(x,x0;shape_parameter = inv(2*sqrt(hmin)))
 
             for j in (i+1):n_neighs
                 nj_id = local_neighs[j]
 
-                y = get_location(nj_id,topo,b_face_id_to_state_id,states)
-                A[i,j] = gauss_kernel(x,y;shape_parameter = 1/sqrt(h0))
+                y = get_location(nj_id,state_id,x0,topo,b_face_id_to_state_id,states)
+                A[i,j] = gauss_kernel(x,y;shape_parameter = inv(2*sqrt(hmin)))
                 A[j,i] = A[i,j]
-                # @infiltrate
             end
         end
 
-        @infiltry res_cache.array .= A\b
+        res_cache.array .= A\b
     end
     return res_cache
 end
@@ -169,7 +180,7 @@ function compute_laplace_operator_mat_gauss(
 
     sparse_mat_counter = 1 
 
-    for element_id in e2s.keys
+    for element_id in e2s.keys 
         state_id = get_state_id(states,element_id)
         local_neighs = state_neights_col[state_id]
 
