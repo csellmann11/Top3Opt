@@ -17,8 +17,6 @@ using Infiltrator
 using Dates: today
 using Pardiso
 
-using KernelInterpolation
-
 include("../src/mat_states.jl")
 include("../src/laplace_operator.jl")
 include("../src/compute_displacement.jl")
@@ -36,8 +34,7 @@ function MBB_rhs(x)
 end
 
 n = div(2,2)*2
-n = 20 
-
+n = 20
 mesh = create_rectangular_mesh(
     n,n,n,
     1.0,1.0,1.0,StandardEl{K}
@@ -53,7 +50,7 @@ mesh = extrude_to_3d(n,mesh2d,1.0);
 
 # for i in 1:2
 #     for element in RootIterator{4}(mesh.topo)
-#         _refine!(element,mesh.topo)
+#         Ju3VEM.VEMGeo._refine!(element,mesh.topo)
 #     end
 # end
 # mesh = Mesh(mesh.topo,StandardEl{1}())
@@ -97,15 +94,15 @@ min_dist = find_distance_to_boundary(1,mesh.topo,x0,d)
 
 
 
-@time state_neights_col, b_face_id_to_state_id = create_neigh_list(states,cv);
-@time laplace_operator = compute_laplace_operator_mat_gauss(
+@time state_neights_col, b_face_id_to_state_id = create_neigh2_list(states,cv);
+@time laplace_operator = compute_laplace_operator_mat(
                   cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states)
 
 # @time laplace_operator = compute_laplace_operator_mat(
 #     cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states,sim_pars)                
 
 state_neights_col[5] |> display 
-# [b_face_id_to_state_id[key] for key in state_neights_col[37][4:11]]
+# [b_face_id_to_state_id[key] for key in state_neights_col[5][15:end]]
 
 
 f = x -> cos(pi*x[1])*cos(pi*x[2])*cos(pi*x[3])#-1/3*x[1]^3 + 1/2*x[1]^2
@@ -149,7 +146,7 @@ function kernel_matrix(state_ids, x_vec, χ_vec)
         for j in (i+1):n
             x = x_vec[state_ids[i]]
             y = x_vec[state_ids[j]]
-            A[i,j] = gauss_kernel(x, y)
+            A[i,j] = gauss_kernel(x, y;shape_parameter = 0.01)
             A[j,i] = A[i,j]  # symmetric
         end
     end
@@ -227,39 +224,23 @@ n_ids = state_neights_col[state_id]
 
 
 n_ids = n_ids[n_ids .> 0]
-node_set = NodeSet(states.x_vec[n_ids])
+
 f_vals = states.χ_vec[n_ids]
-kernel = GaussKernel{dim(node_set)}(shape_parameter = 1/h0)
-itp = interpolate(node_set,f_vals,kernel)
-kernel_coefficients(itp)
+
+
 f_true = f(states.x_vec[state_id])
-f_k = itp(states.x_vec[state_id] |> MVector)
-lap_k = Laplacian()(itp,states.x_vec[state_id] |> MVector)
+
+
 
 # teststing custom kernel interpolation 
 
 
 
 
-coeffs = kernel_matrix(n_ids, states.x_vec, states.χ_vec)
-f_k_custom = get_ip(states.x_vec[state_id], coeffs, n_ids, states.x_vec)
-lap_k_custom = get_laplacian(states.x_vec[state_id], coeffs, n_ids, states.x_vec)
-
-
-lap_weights = laplacian_weights(states.x_vec[state_id], n_ids, states.x_vec; shape_parameter = 4)
-
-xvloc = states.x_vec[state_id]
-@b laplacian_weights($xvloc, $n_ids, $states.x_vec)
-
-@show lap_weights' * f_vals
-
-@show f_true,f_k,f_k_custom
-
-
-
 lap = laplace_operator * states.χ_vec
-lap_true = FD.hessian(f,states.x_vec[state_id]) |> tr
-@show lap[state_id],lap_k,lap_k_custom,lap_true
+
+
+
 
 
 for element in RootIterator{4}(mesh.topo)
@@ -271,3 +252,4 @@ end
 write_vtk(cv.mesh.topo,"Results/vtk/lap_test";cell_data_col = (states.χ_vec,))
 
 
+ 
