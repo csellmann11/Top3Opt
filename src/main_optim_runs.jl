@@ -31,7 +31,7 @@ end
 include("general_utils.jl")
 args = parse_commandline()
 include("mat_states.jl")
-include("laplace_operator_gauss_kernel.jl")
+# include("laplace_operator_gauss_kernel.jl")
 include("laplace_operator.jl")
 include("compute_displacement.jl")
 include("bisection.jl")
@@ -42,6 +42,7 @@ include("postprocessing/sim_data.jl")
 include("postprocessing/topopt_vtk_export.jl")
 include("optim_run.jl")
 include("get_sparsity_pattern.jl")
+include("../Tests/lap_comp_b.jl")
 
 const K = 1
 const U = 3
@@ -130,6 +131,8 @@ function main(
             (l_beam, lz),
             nx, nz, StandardEl{K}
         )
+        # topo2d = Ju3VEM.VEMGeo.remove_short_edges(mesh2d.topo,factor=1/8)
+        # mesh2d = Mesh(topo2d,StandardEl{1}())
         _mesh = extrude_to_3d(ny, mesh2d, ly)
         permute_coord_dimensions(_mesh, dim_permute) #swith y and z
     end

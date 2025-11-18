@@ -69,8 +69,10 @@ function create_neigh_list(
         adj_states = get_adjacent_elements(ste_adj_mat,state_id)
 
         neighs = Vector{Int32}(undef,length(adj_states))
+        counter = 1
         for (i,adj_state) in enumerate(adj_states)
-            neighs[i] = adj_state
+            neighs[counter] = adj_state
+            counter += 1
         end
 
         el_id = get_el_id(states,state_id)

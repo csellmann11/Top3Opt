@@ -32,8 +32,8 @@ function find_distance_to_boundary(
     vol_id, 
     topo, 
     x0::SVector{3,Float64}, 
-    d::SVector{3,Float64}
-)
+    d::SVector{3,Float64})
+    
     min_rel_dist = typemax(Float64)
 
     face_ids = get_volume_area_ids(topo, vol_id)
@@ -108,8 +108,6 @@ function compute_d_mat!(
     topo::Topology{D},
     states::DesignVarInfo{D}) where D
 
-    # hmin,hmax = extrema(states.h_vec)
-    # β = 2*hmax^2 * sim_pars.β0
     
     n_neighs   = length(local_neighs)
     h0         = states.h_vec[state_id]
@@ -125,40 +123,10 @@ function compute_d_mat!(
         for (n_count,n_id) in enumerate(local_neighs) 
             
             y = get_location(n_id,state_id,bc,topo,b_face_id_to_state_id,states)
-            # if n_id < 0 # we are on the boundary 
-            #     face_node_ids = get_area_node_ids(topo,abs(n_id))
-            #     state_id_face = b_face_id_to_state_id[n_id]
-            #     bc_vol_normal = states.x_vec[state_id_face]
-
-            #     _,_,n_unsigned,_,p0 = Ju3VEM.VEMGeo.get_plane_parameters(@view(topo.nodes[face_node_ids]))
-            #     n = Ju3VEM.VEMGeo.get_outward_normal(bc_vol_normal,n_unsigned,p0)
-            #     # Compute the mirrored neighbor barycenter
-            #     n_bc = mirror_across_face(bc_vol_normal, p0, n)
-            #     dist_vec = n_bc - bc
-            # else
-            #     # n_state_id = e2s[n_id]
-            #     h_n = states.h_vec[n_id]
-            #     n_bc = states.x_vec[n_id]
-            #     el0id = get_el_id(states,state_id)
-            #     el1id = get_el_id(states,n_id)
-
-            #     rel_min_dist1 = find_distance_to_boundary(el0id,topo,bc,n_bc - bc) #pos value
-            #     rel_min_dist2 = find_distance_to_boundary(el1id,topo,n_bc,bc-n_bc) 
-            #     gap_rel = (1 - rel_min_dist1 - rel_min_dist2)
-            #     dist_vec = (2rel_min_dist1+gap_rel) * (n_bc - bc)
-
-            #     # @infiltrate
-            #     # @assert rel_min_dist1 > 0.0 && rel_min_dist2 > 0.0
-            #     # @assert gap_rel >= -eps() "got negative gap_rel: $gap_rel and rel_min_dist1: $rel_min_dist1 and rel_min_dist2: $rel_min_dist2"
-
-            #     # dist_vec = (n_bc - bc)#*h0/(0.5*(h0+h_n))
-                
-            # end
 
             dx,dy,dz = (y-bc)/h0
             w_vec[n_count] = 1.0#weight_factor(norm(dist_vec),2*hmin^2)
-            # A[n_count,:] .= (dx,dy,dz,0.5*dx^2,dx*dy,dx*dz,0.5*dy^2,dy*dz,0.5*dz^2)
-            # A[n_count,:] .= (dx,dy,dz,0.5*dx^2,0.5*dy^2,0.5*dz^2)
+     
             A[n_count,:] .= (dx,dy,dz,0.5*dx^2,0.5*dy^2,0.5*dz^2)
         end
 
@@ -166,8 +134,10 @@ function compute_d_mat!(
         W_A .= w_vec .*A
         AT_A = static_matmul(A',W_A,Val((6,6)))
 
-        invAT_A = inv(AT_A)
-        res = res_cache.array
+ 
+        reg_α   = 1e-04*sum(AT_A[i,i] for i in 1:6)
+        invAT_A = inv(AT_A + reg_α*I)
+        res     = res_cache.array
 
         for i in axes(A, 1)
             res[i] = zero(eltype(res))

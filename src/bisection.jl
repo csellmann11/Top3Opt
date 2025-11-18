@@ -67,20 +67,21 @@ end
 
 
 function state_update!(states::DesignVarInfo,
-    dh::DofHandler,
+    cv::CellValues,
     sim_pars::SimPars, 
     laplace_operator::SparseMatrixCSC,
     u::AbstractVector{Float64},
     eldata_col::Dict{Int64, <:ElData})
 
 
+    dh = cv.dh
     χ_min = sim_pars.χmin
     
 
     MAX_ITER = 1000
  
     hmin,hmax = extrema(states.h_vec)#./sqrt(3)
-    β0 = 2*hmax^2 * sim_pars.β0
+    β0 = 2*hmin^2 * sim_pars.β0
  
     #TODO: hmin should be the minimal distance between two nodes --> very large n_steps for voronoi?
     n_steps = 4*ceil(Int,12/sim_pars.η0 * β0/hmin^2)

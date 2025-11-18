@@ -27,7 +27,7 @@ end
 
 @inline weight_factor(d,β) = exp(-0.5*(4d/√(β))^2)
 
-@inline @fastmath function gauss_kernel(
+@inline function gauss_kernel(
     x::StaticVector{D,Float64},
     y::StaticVector{D,Float64};
     shape_parameter = 0.1) where D
@@ -80,13 +80,122 @@ Base.@propagate_inbounds function polynomial_laplacian_kernel(h::Float64,idx::In
     end
 end
 
-@inline @fastmath function laplacian_gauss_kernel(x::StaticVector{D,Float64}, 
+@inline function laplacian_gauss_kernel(x::StaticVector{D,Float64}, 
     y::StaticVector{D,Float64}; shape_parameter=0.1) where D
     r = norm(x - y)
     ε = shape_parameter
     return ε^2 * (4*ε^2*r^2 - 2*D) * exp(-ε^2 * r^2)
 end
 
+
+Base.@kwdef struct LaplaceKernelSettings
+    # Kernel identifier. Supported: :gaussian, :polyharmonic, :wendland
+    kind::Symbol = :polyharmonic
+    # Scaling factor used to derive the Gaussian inverse length scale from the local spacing.
+    scale_factor::Float64 = 1 / 32
+    # Support radius multiplier for compact kernels such as Wendland.
+    support_factor::Float64 = 1300.5
+    # Relative smoothing radius used by the polyharmonic kernel to keep the matrix well-conditioned.
+    polyharmonic_epsilon::Float64 = 1e-3
+    # Diagonal Tikhonov regularisation that stabilises very small neighborhood systems.
+    diag_regularization::Float64 = 1e-10
+end
+
+@inline function _estimate_reference_length(
+    nodes::Vector{SVector{D,Float64}},
+    x0::SVector{D,Float64},
+    hmin::Float64,
+    h0::Float64
+) where D
+    total = 0.0
+    count = 0
+    for node in nodes
+        dist = norm(node - x0)
+        dist <= eps(Float64) && continue
+        total += dist
+        count += 1
+    end
+
+    if count == 0
+        return max(h0, hmin)
+    end
+
+    avg = total / count
+    return max(avg, hmin)
+end
+
+@inline function _kernel_parameters(
+    settings::LaplaceKernelSettings,
+    reference_length::Float64
+)
+    ref = max(reference_length, eps(Float64))
+    if settings.kind === :gaussian
+        ε = settings.scale_factor / ref
+        return (; ε = ε)
+    elseif settings.kind === :polyharmonic
+        δ = max(settings.polyharmonic_epsilon * ref, eps(Float64))
+        return (; δ = δ)
+    elseif settings.kind === :wendland
+        ρ = max(settings.support_factor * ref, eps(Float64))
+        return (; ρ = ρ)
+    else
+        throw(ArgumentError("Unsupported kernel kind $(settings.kind). Available kinds are :gaussian, :polyharmonic and :wendland."))
+    end
+end
+
+@inline function _kernel_value(
+    settings::LaplaceKernelSettings,
+    r::Float64,
+    params
+)
+    if settings.kind === :gaussian
+        ε = params.ε
+        return exp(-(ε * r)^2)
+    elseif settings.kind === :polyharmonic
+        δ = params.δ
+        return (r^2 + δ^2)^(1.5)
+    elseif settings.kind === :wendland
+        ρ = params.ρ
+        if r >= ρ
+            return 0.0
+        end
+        q = r / ρ
+        s = 1 - q
+        return s^4 * (4q + 1)
+    else
+        throw(ArgumentError("Unsupported kernel kind $(settings.kind)."))
+    end
+end
+
+@inline function _kernel_laplacian(
+    settings::LaplaceKernelSettings,
+    r::Float64,
+    D::Int,
+    params
+)
+    if settings.kind === :gaussian
+        ε = params.ε
+        return ε^2 * (4 * ε^2 * r^2 - 2 * D) * exp(-ε^2 * r^2)
+    elseif settings.kind === :polyharmonic
+        δ = params.δ
+        s = sqrt(r^2 + δ^2)
+        if r <= eps(Float64)
+            return 3 * D * δ
+        end
+        fpp = 3 * (2r^2 + δ^2) / s
+        return fpp + (D - 1) / r * (3r * s)
+    elseif settings.kind === :wendland
+        ρ = params.ρ
+        if r >= ρ
+            return 0.0
+        end
+        q = r / ρ
+        s = 1 - q
+        return (-20 / ρ^2) * s^2 * (D - (D + 3) * q)
+    else
+        throw(ArgumentError("Unsupported kernel kind $(settings.kind)."))
+    end
+end
 
 
 function find_distance_to_boundary(
@@ -99,7 +208,7 @@ function find_distance_to_boundary(
 
     face_ids = get_volume_area_ids(topo, vol_id)
 
-    norm(d) ≈ 0.0 && return 0.0
+    norm(d) < eps(Float64) && return 0.0
     
     @inbounds for face_id in face_ids
         node_ids = get_area_node_ids(topo, face_id)
@@ -142,26 +251,27 @@ function get_location(
         _,_,n_unsigned,_,p0 = Ju3VEM.VEMGeo.get_plane_parameters(@view(topo.nodes[face_node_ids]))
         n = Ju3VEM.VEMGeo.get_outward_normal(bc_vol_normal,n_unsigned,p0)
         # Compute the mirrored neighbor barycenter
-        mirror_across_face(bc_vol_normal, p0, n)
+        mirror_across_face(bc_vol_normal, p0, n)  
     else
         
         _x  = states.x_vec[n_id]
-        if norm(_x - x0) < eps(Float64)
-            _x
-        else
-            h0  = states.h_vec[state_id] 
-            h1  = states.h_vec[n_id]
-            _xx = _x - x0
-            2*h0*_xx/(h0+h1) + x0
-        end
+        # if norm(_x - x0) < eps(Float64)
+        #     _x
+        # else
+        #     h0  = states.h_vec[state_id] 
+        #     h1  = states.h_vec[n_id]
+        #     _xx = _x - x0
+        #     2*h0*_xx/(h0+h1) + x0
+        # end
 
+        e0id = get_el_id(states,state_id) 
+        e1id = get_el_id(states,n_id) 
+        rd1  = find_distance_to_boundary(e0id,topo,x0,_x - x0)
+        rd2  = find_distance_to_boundary(e1id,topo,_x,x0 - _x)
+        gap_rel = (1 - rd1 - rd2)
+        (2rd1+gap_rel) * (_x - x0) + x0       
+        
         _x
-        # e0id = get_el_id(states,state_id) 
-        # e1id = get_el_id(states,n_id) 
-        # rd1  = find_distance_to_boundary(e0id,topo,x0,_x - x0)
-        # rd2  = find_distance_to_boundary(e1id,topo,_x,x0 - _x)
-        # gap_rel = (1 - rd1 - rd2)
-        # (2rd1+gap_rel) * (_x - x0) + x0        
     end
     return x
 end
@@ -210,54 +320,72 @@ end
 
 
 
+@inline function _min_neighbor_spacing(
+    local_neighs::AbstractVector{Int32},
+    states::DesignVarInfo,
+    state_id::Int
+)
+    min_h = states.h_vec[state_id]
+    for ni in local_neighs
+        ni > 0 || continue
+        min_h = min(min_h, states.h_vec[ni])
+    end
+    return min_h
+end
+
 function compute_d_mat_gauss!(
     res_cache::CachedVector{Float64},
     state_id  ::Int,
     local_neighs ::AbstractVector{Int32},
     b_face_id_to_state_id ::Dict{Int32,Int32},
     topo::Topology{D},
-    states::DesignVarInfo{D}
+    states::DesignVarInfo{D},
+    kernel_settings::LaplaceKernelSettings = LaplaceKernelSettings()
     ) where D
 
+    n_neighs = length(local_neighs)
+    setsize!(res_cache, (n_neighs,))
 
     
-    n_neighs  = length(local_neighs) 
-    x0        = states.x_vec[state_id]
+    n_neighs == 0 && return res_cache
 
-    hmin = minimum(states.h_vec[ni] for ni in local_neighs if ni > 0)
+    x0 = states.x_vec[state_id]
     h0 = states.h_vec[state_id]
+    hmin = _min_neighbor_spacing(local_neighs, states, state_id)
+    kernel_settings = LaplaceKernelSettings(kind=:polyharmonic,scale_factor=1/16,polyharmonic_epsilon = 1)
 
-    setsize!(res_cache,(n_neighs,))
-
-    nodes = Vector{SVector{D,Float64}}(undef,n_neighs)
+    nodes = Vector{SVector{D,Float64}}(undef, n_neighs)
 
     @no_escape begin
-        A     = @alloc(Float64,n_neighs,n_neighs)
-        b     = @alloc(Float64,n_neighs)
-        
+        A = @alloc(Float64, n_neighs, n_neighs)
+        b = @alloc(Float64, n_neighs)
 
-        for (i,ni_id) in enumerate(local_neighs) 
-            
-            A[i,i] = 1.0
-            
-            x = get_location(ni_id,state_id,x0,topo,b_face_id_to_state_id,states)
-            nodes[i] = x
-
-            @infiltrate ni_id < 0
-            b[i] = laplacian_gauss_kernel(x,x0;shape_parameter = 1/(16h0))
-
-            for j in (i+1):n_neighs
-                nj_id = local_neighs[j]
-
-                y = get_location(nj_id,state_id,x0,topo,b_face_id_to_state_id,states)
-                A[i,j] = gauss_kernel(x,y;shape_parameter = 1/(16h0))
-                A[j,i] = A[i,j]
-            end
+        for (i, ni_id) in enumerate(local_neighs)
+            nodes[i] = get_location(ni_id, state_id, x0, topo, b_face_id_to_state_id, states)
         end
 
+        reference_length = _estimate_reference_length(nodes, x0, hmin, h0)
+        kernel_params = _kernel_parameters(kernel_settings, reference_length)
+        diag_entry = _kernel_value(kernel_settings, 0.0, kernel_params) + 0*kernel_settings.diag_regularization
 
-        @infiltry res_cache.array .= A\b
+        for i in 1:n_neighs
+            xi = nodes[i]
+            A[i, i] = diag_entry
+            b[i] = _kernel_laplacian(kernel_settings, norm(xi - x0), D, kernel_params)
+
+            @inbounds for j in (i+1):n_neighs
+                val = _kernel_value(kernel_settings, norm(xi - nodes[j]), kernel_params)
+                A[i, j] = val
+                A[j, i] = val
+            end
+        end
+        if state_id == 1
+            @show cond(A)
+        end
+
+        res_cache.array .= A \ b
     end
+
     return res_cache
 end
 
@@ -267,7 +395,8 @@ function compute_laplace_operator_mat_gauss(
     topo::Topology{D},
     state_neights_col::FixedSizeVector{Vector{Int32}},
     b_face_id_to_state_id::Dict{Int32,Int32},
-    states::DesignVarInfo{D}
+    states::DesignVarInfo{D};
+    kernel_settings::LaplaceKernelSettings = LaplaceKernelSettings()
     ) where D
 
 
@@ -286,8 +415,8 @@ function compute_laplace_operator_mat_gauss(
         state_id = get_state_id(states,element_id)
         local_neighs = state_neights_col[state_id]
 
-        compute_d_mat_poly!(res_cache,
-                state_id,local_neighs,b_face_id_to_state_id,topo,states)
+        compute_d_mat_gauss!(res_cache,
+                state_id,local_neighs,b_face_id_to_state_id,topo,states,kernel_settings)
 
 
         for (n_id,d_row_i) in zip(local_neighs,res_cache.array)

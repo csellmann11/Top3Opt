@@ -37,7 +37,7 @@ function run_optimization(
     mkdir(vtk_folder_name)
 
     @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh2_list(states,cv);
-    @timeit to "compute_laplace_operator_mat_gauss" laplace_operator = compute_laplace_operator_mat(
+    @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
                   cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states)
 
     Psi0 = 0.0; Psi_step0 = 0.0; u = Float64[]; state_changed = Float64[]
@@ -46,7 +46,7 @@ function run_optimization(
     for optimization_step in 1:MAX_OPT_STEPS
         @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
         @timeit to "state_update" state_changed = state_update!(
-            states,cv.dh,sim_pars,laplace_operator,u,eldata_col)
+            states,cv,sim_pars,laplace_operator,u,eldata_col)
 
 
 
@@ -105,7 +105,7 @@ function run_optimization(
  
             @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh2_list(states,cv);
 
-            @timeit to "compute_laplace_operator_mat_gauss" laplace_operator = compute_laplace_operator_mat(
+            @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
                   cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states)
         end
     end
