@@ -33,7 +33,7 @@ function find_distance_to_boundary(
     topo, 
     x0::SVector{3,Float64}, 
     d::SVector{3,Float64})
-    
+
     min_rel_dist = typemax(Float64)
 
     face_ids = get_volume_area_ids(topo, vol_id)
@@ -74,7 +74,8 @@ function get_location(
     x0::SVector{3,Float64},
     topo::Topology{3},
     b_face_id_to_state_id::Dict{Int32,Int32},
-    states::DesignVarInfo{3}
+    states::DesignVarInfo{3},
+    laplace_rescale::Bool = true
     )
     x = if n_id < 0 # we are on the boundary 
         face_node_ids = get_area_node_ids(topo,abs(n_id))
@@ -88,12 +89,16 @@ function get_location(
     else
         
         _x  = states.x_vec[n_id]
-        e0id = get_el_id(states,state_id) 
-        e1id = get_el_id(states,n_id) 
-        rd1  = find_distance_to_boundary(e0id,topo,x0,_x - x0)
-        rd2  = find_distance_to_boundary(e1id,topo,_x,x0 - _x)
-        gap_rel = (1 - rd1 - rd2)
-        (2rd1+gap_rel) * (_x - x0) + x0        
+        _x = if laplace_rescale
+            e0id = get_el_id(states,state_id) 
+            e1id = get_el_id(states,n_id) 
+            rd1  = find_distance_to_boundary(e0id,topo,x0,_x - x0)
+            rd2  = find_distance_to_boundary(e1id,topo,_x,x0 - _x)
+            gap_rel = (1 - rd1 - rd2)
+            (2rd1+gap_rel) * (_x - x0) + x0   
+        else    
+            _x
+        end
     end
     return x
 end
@@ -106,7 +111,8 @@ function compute_d_mat!(
     local_neighs ::AbstractVector{Int32},
     b_face_id_to_state_id ::Dict{Int32,Int32},
     topo::Topology{D},
-    states::DesignVarInfo{D}) where D
+    states::DesignVarInfo{D},
+    laplace_rescale::Bool = true) where D
 
     
     n_neighs   = length(local_neighs)
@@ -122,7 +128,7 @@ function compute_d_mat!(
 
         for (n_count,n_id) in enumerate(local_neighs) 
             
-            y = get_location(n_id,state_id,bc,topo,b_face_id_to_state_id,states)
+            y = get_location(n_id,state_id,bc,topo,b_face_id_to_state_id,states,laplace_rescale)
 
             dx,dy,dz = (y-bc)/h0
             w_vec[n_count] = 1.0#weight_factor(norm(dist_vec),2*hmin^2)
@@ -157,7 +163,8 @@ function compute_laplace_operator_mat(
     topo::Topology{D},
     state_neights_col::FixedSizeVector{Vector{Int32}},
     b_face_id_to_state_id::Dict{Int32,Int32},
-    states::DesignVarInfo{D}
+    states::DesignVarInfo{D},
+    laplace_rescale::Bool = true
     ) where D
 
 
@@ -180,7 +187,7 @@ function compute_laplace_operator_mat(
         local_neighs = state_neights_col[state_id]
 
         compute_d_mat!(res_cache,
-            state_id,local_neighs,b_face_id_to_state_id,topo,states)
+            state_id,local_neighs,b_face_id_to_state_id,topo,states,laplace_rescale)
 
         dΔ_sum =  0.0 
 

@@ -22,6 +22,7 @@ using Pardiso
 const to = TimerOutput()
 const ps = MKLPardisoSolver()
 set_matrixtype!(ps, 2)
+set_nprocs!(ps, Threads.nthreads()) # Sets the number of threads to use
 
 function def_rhs_fun(x)
     SA[0.0, 0.0, 0.0]
@@ -31,7 +32,6 @@ end
 include("general_utils.jl")
 args = parse_commandline()
 include("mat_states.jl")
-# include("laplace_operator_gauss_kernel.jl")
 include("laplace_operator.jl")
 include("compute_displacement.jl")
 include("bisection.jl")
@@ -54,6 +54,8 @@ do_adaptivity = args["do_adaptivity"]
 do_adaptivity_at_the_start = args["do_adaptivity_at_the_start"]
 b_case = args["b_case"]
 rhs_fun = args["rhs_fun"]
+density_marking = args["density_marking"]
+laplace_rescale = args["laplace_rescale"]
 
 
 
@@ -75,11 +77,11 @@ println("do_adaptivity: $do_adaptivity")
 println("do_adaptivity_at_the_start: $do_adaptivity_at_the_start")
 println("b_case: $b_case")
 println("rhs_fun: $rhs_fun")
-
+println("density_marking: $density_marking")
+println("laplace_rescale: $laplace_rescale")
 println("Number of threads: $(Threads.nthreads())")
 println("Number of BLAS threads: $(BLAS.get_num_threads())")
-println("Sysimage: ", unsafe_string(Base.JLOptions().image_file))
-println("Compile mode: ", Base.JLOptions().compile_enabled)
+println("Number of Paridso threads: $(get_nprocs(ps))")
 println("Active project: ", Base.active_project())
 
 
@@ -89,6 +91,8 @@ function main(
     MeshType::Symbol,
     do_adaptivity::Bool,
     do_adaptivity_at_the_start::Bool,
+    density_marking::Bool,
+    laplace_rescale::Bool,
     rhs_fun::F,
     b_case::Symbol) where {F<:Function}
 
@@ -131,13 +135,15 @@ function main(
             (l_beam, lz),
             nx, nz, StandardEl{K}
         )
-        # topo2d = Ju3VEM.VEMGeo.remove_short_edges(mesh2d.topo,factor=1/8)
-        # mesh2d = Mesh(topo2d,StandardEl{1}())
+
         _mesh = extrude_to_3d(ny, mesh2d, ly)
         permute_coord_dimensions(_mesh, dim_permute) #swith y and z
+    else
+        error("Invalid MeshType: $MeshType")
     end
 
     if do_adaptivity_at_the_start || !do_adaptivity
+        println("Refining mesh to the finest level")
         for _ in 1:(MAX_REF_LEVEL-1)
             for element in RootIterator{4}(mesh.topo)
                 _refine!(element, mesh.topo)
@@ -165,16 +171,6 @@ function main(
     η0 = 15.0
     sim_pars = SimPars(mat_law, λ, μ, χmin, η0, 1.0, ρ_init)
 
-    @time cv = CellValues{U}(mesh)
-
-    cv, no_coarsening_marker = refine_sets(cv, 
-        get_sets_to_refine(b_case), MAX_REF_LEVEL)
-
-    ch = create_constraint_handler(cv, b_case)
-    states = DesignVarInfo{U}(cv, ρ_init)
-
-
-    
     # Get project root directory (robust to where script is called from)
     project_root = dirname(@__DIR__)
     folder_name = "$(string(b_case))_$(today())_$(string(setting_hash,base = 16))"
@@ -184,15 +180,14 @@ function main(
     println("Starting optimization")
     println("="^100)
     @time sim_results = run_optimization(
-        cv,
+        mesh, 
         rhs_fun,
-        states,
-        ch,
-        no_coarsening_marker,
         sim_pars,
         vtk_folder_name=joinpath(project_root, "Results", "vtk", "Adaptive_Runs", folder_name),
         MAX_OPT_STEPS=MAX_OPT_STEPS,
         MAX_REF_LEVEL=MAX_REF_LEVEL,
+        density_marking=density_marking,
+        laplace_rescale=laplace_rescale,
         take_snapshots_at= Int[1, 10, 20, 30, 50, 100, 200],
         do_adaptivity=do_adaptivity,
         b_case=b_case
@@ -214,4 +209,6 @@ main(
     MAX_OPT_STEPS, MAX_REF_LEVEL,
     MeshType, do_adaptivity,
     do_adaptivity_at_the_start,
-    rhs_fun, b_case)
+    density_marking,
+    laplace_rescale,
+    rhs_fun, b_case) 

@@ -34,45 +34,15 @@ function permute_coord_dimensions(mesh::Mesh{D,ET}, perm::SVector{D,Int}) where 
 end
 
 
-function face_area(nodes::AbstractVector{<:SVector{3}})
-    n = length(nodes)
-    area_vec = sum(i -> cross(nodes[i], nodes[mod1(i + 1, n)]), 1:n)
-    return 0.5 * norm(area_vec)
-end
-
-function face_area(node_ids::AbstractVector{Int}, topo::Topology{3})
-    nodes = topo.nodes
-    n = length(node_ids)
-    area_vec = sum(i -> cross(nodes[node_ids[i]], nodes[node_ids[mod1(i + 1, n)]]), 1:n)
-    return 0.5 * norm(area_vec)
-end
-
-function face_area(node_ids::AbstractVector{Int}, topo::Topology{2})
-    nodes = topo.nodes
-    n = length(node_ids)
-    area_sum = sum(i -> nodes[node_ids[i]][1] * nodes[node_ids[mod1(i + 1, n)]][2] -
-                        nodes[node_ids[i]][2] * nodes[node_ids[mod1(i + 1, n)]][1], 1:n)
-    return 0.5 * abs(area_sum)
-end
 
 
 
-
-
-
-
-
-
-
-
-function refine_sets(cv::CellValues{3},
+function refine_sets(mesh::Mesh{3},
     sets_to_refine::T,
     MAX_REF_LEVEL::Int) where T<:Tuple
 
-    mesh = cv.mesh
     topo = mesh.topo
 
-    fdc = cv.facedata_col
 
     ref_marker = zeros(Bool, length(get_volumes(topo)))
 
@@ -81,48 +51,16 @@ function refine_sets(cv::CellValues{3},
     for element in RootIterator{4}(topo)
 
         Ju3VEM.VEMGeo.iterate_volume_areas(
-            fdc, topo, element.id) do face, fd, _
+            topo, element.id) do face, _
 
-            vertex_ids = fd.face_node_ids |> get_first
-            for set_func in sets_to_refine
-                if any(set_func(topo.nodes[vid]) for vid in vertex_ids)
-                    ref_marker[element.id] = true
-                    return nothing
-                end
-            end
-
-            # ref_marker[element.id] && return nothing
-            # for set_name in sets_to_refine 
-            #     set = get(mesh.face_sets,set_name,nothing)
-
-            #     set === nothing && continue 
-            #     if face.id in set
-            #         ref_marker[element.id] = true
-            #         return nothing
-            #     end
-            # end
-
-            # vertex_ids = fd.face_node_ids |> get_first
-            # for (i,vid) in enumerate(vertex_ids)
-            #     i_p1 = get_next_idx(vertex_ids,i)
-            #     vid_p1 = vertex_ids[i_p1]
-            #     edge = get_edge(vid,vid_p1,topo)
-            #     for set_name in sets_to_refine 
-            #         set = get(mesh.edge_sets,set_name,nothing)
-
-
-            #         if set !== nothing && edge.id in set
-            #             ref_marker[element.id] = true
-            #             return nothing
-            #         end
-
-            #         set = get(mesh.node_sets,set_name,nothing)
-            #         if set !== nothing && vid in set
-            #             ref_marker[element.id] = true
-            #             return nothing
-            #         end
-            #     end
-            # end
+            Ju3VEM.VEMGeo.iterate_element_edges(
+                topo, face.id) do n1_id,_,_
+                    node = topo.nodes[n1_id]
+                    if any(set_func(node) for set_func in sets_to_refine)
+                        ref_marker[element.id] = true
+                    end
+                    nothing
+                end 
         end
     end
 
@@ -148,9 +86,8 @@ function refine_sets(cv::CellValues{3},
     end
 
     mesh = Mesh(topo, StandardEl{1}())
-    cv = CellValues{3}(mesh)
 
-    return cv, ref_marker
+    return mesh, ref_marker
 end
 
 
@@ -296,7 +233,7 @@ function clear_up_topo!(
                 do_edge_coarse_markers[edge_id] = do_coarse
 
             end
-        end
+        end 
     end
 
     for face in RootIterator{3}(topo)

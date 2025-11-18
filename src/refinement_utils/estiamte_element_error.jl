@@ -74,29 +74,7 @@ end
 
 
 
-# function estimate_element_error(
-#     u::AbstractVector{Float64},
-#     eldata_col::Dict{Int,<:ElData}
-#     ) 
 
-#     element_error = Dict{Int,Float64}()
-
-    
-
-#     for (el_id,el_data) in eldata_col
-
-#         dofs = el_data.dofs
-#         uel  = @view u[dofs]
-#         proj = el_data.proj 
-#         hvol = el_data.hvol
-#         diff = stretch((I-proj),Val(3))*uel
-#         error = el_data.γ_stab * diff' * diff * hvol
-#         # error = diff' * diff
-#         element_error[el_id] = error
-#     end
-
-#     return element_error
-# end
 
 
 function mark_elements_for_adaption(
@@ -106,7 +84,7 @@ function mark_elements_for_adaption(
     state_changed::AbstractVector{Float64},
     max_ref_level::Int,
     no_coarsening_marker::Vector{Bool},
-    state_neights_col::AbstractVector{Vector{Int32}},
+    density_marking::Bool,
     upper_error_bound::Float64 = 16.0,
     lower_error_bound::Float64 = 0.25
     ) where {D,U}
@@ -133,29 +111,15 @@ function mark_elements_for_adaption(
  
         has_parent = element.parent_id != 0
 
-        #dχi > 0.0 || 
-        if (error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
+        # is true if density is growing and density marking is enabled
+        density_growth = dχi > 0.0 && density_marking
+        if (density_growth || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
             ref_marker[el_id] = true
         elseif error < m_error * lower_error_bound && has_parent && dχi == 0.0
             (el_id <= length(no_coarsening_marker) && no_coarsening_marker[el_id]) && continue
             coarse_marker[el_id] = true
         end
     end
-
-    # for (state_id,neighs) in enumerate(state_neights_col)
-    #     el_id = get_el_id(states,state_id)
-    #     coarse_marker[el_id] || continue
-    #     for neigh_id in neighs
-    #         if neigh_id < 0
-    #             continue
-    #         end
-    #         neight_el_id = get_el_id(states,neigh_id)
-    #         if ref_marker[neight_el_id]
-    #             coarse_marker[el_id] = false
-    #             break
-    #         end
-    #     end
-    # end
 
     # remove coarse marker from children, if not all childs are marked for coarseing 
     for el_id in eachindex(coarse_marker)

@@ -10,21 +10,20 @@ end
 
 
 function run_optimization(
-    cv::CellValues{D,U},
+    mesh::Mesh{D},
     rhs_fun::F,
-    states::DesignVarInfo{U},
-    ch::ConstraintHandler{U},
-    no_coarsening_marker::Vector{Bool},
     sim_pars::SimPars{H};
     vtk_folder_name::String,
     MAX_OPT_STEPS::Int = 200,
     MAX_REF_LEVEL::Int = 3,
+    density_marking::Bool = true,
+    laplace_rescale::Bool = true,
     tolerance::Float64 = 1e-4,
     n_conv_until_stop::Int = 2,
     take_snapshots_at::AbstractVector{Int} = 1:30:MAX_OPT_STEPS,
     do_adaptivity::Bool = true,
     b_case::Symbol = :MBB_sym,
- ) where {D,U,H<:Helmholtz,F<:Function}
+ ) where {D,H<:Helmholtz,F<:Function}
 
     n_conv_count = 0
     sim_results  = SimulationResults(MAX_REF_LEVEL,
@@ -36,14 +35,33 @@ function run_optimization(
     end
     mkdir(vtk_folder_name)
 
-    @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh2_list(states,cv);
-    @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
-                  cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states)
+
+    mesh, no_coarsening_marker = refine_sets(mesh, 
+                  get_sets_to_refine(b_case), MAX_REF_LEVEL)
+
+
+    cv = CellValues{U}(mesh)
+
+    
+    states = DesignVarInfo{U}(cv, sim_pars.ρ_init)
+
+
+
 
     Psi0 = 0.0; Psi_step0 = 0.0; u = Float64[]; state_changed = Float64[]
 
     t_now = time()
     for optimization_step in 1:MAX_OPT_STEPS
+
+        @timeit to "adaptivity" if optimization_step == 1 || do_adaptivity 
+
+            @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
+            @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh_list(states,cv);
+            @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
+                          cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states,laplace_rescale)
+
+        end 
+
         @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
         @timeit to "state_update" state_changed = state_update!(
             states,cv,sim_pars,laplace_operator,u,eldata_col)
@@ -94,19 +112,20 @@ function run_optimization(
             !do_adaptivity && continue
             @timeit to "estimate_element_error" element_error = estimate_element_error(u,states,cv,eldata_col)
             ref_marker, coarse_marker = mark_elements_for_adaption(cv, 
-                            element_error,states,state_changed,MAX_REF_LEVEL,no_coarsening_marker,state_neights_col)
+                            element_error,states,state_changed,
+                            MAX_REF_LEVEL,no_coarsening_marker,density_marking)
 
 
             @timeit to "mesh_clearing" clear_up_topo!(cv.mesh.topo)
             @timeit to "adapt_mesh" cv = adapt_mesh(cv,coarse_marker,ref_marker)
-            @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
+            # @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
             @timeit to "update_states_after_mesh_adaption" states = update_states_after_mesh_adaption!(states,cv,eldata_col,ref_marker,coarse_marker)
 
  
-            @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh2_list(states,cv);
+            # @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh_list(states,cv);
 
-            @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
-                  cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states)
+            # @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
+            #       cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states)
         end
     end
 
