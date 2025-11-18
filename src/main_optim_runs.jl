@@ -30,6 +30,7 @@ end
 
 
 include("general_utils.jl")
+include("hash_output.jl")
 args = parse_commandline()
 include("mat_states.jl")
 include("laplace_operator.jl")
@@ -97,9 +98,7 @@ function main(
     b_case::Symbol) where {F<:Function}
 
 
-    setting_hash = hash((MAX_OPT_STEPS,
-        MAX_REF_LEVEL, MeshType,
-        do_adaptivity, do_adaptivity_at_the_start, b_case, rhs_fun))
+    setting_hash = generate_setting_hash()
 
     n = 4
     l_beam, ly, lz, nx, ny, nz, ρ_init = if b_case == :MBB_sym
@@ -173,7 +172,7 @@ function main(
 
     # Get project root directory (robust to where script is called from)
     project_root = dirname(@__DIR__)
-    folder_name = "$(string(b_case))_$(today())_$(string(setting_hash,base = 16))"
+    folder_name = "$(string(b_case))_$(today())_$(setting_hash)"
     println("The folder name is $folder_name")
 
     println("="^100)
@@ -198,10 +197,10 @@ function main(
     show(to)
 
 
-    println("The folder hash is $(string(setting_hash,base = 16))")
+    println("The folder hash is $(setting_hash)")
     jld2_path = joinpath(project_root, "Results", "SimData", folder_name * ".jld2")
 
-    @save jld2_path sim_results
+    @save jld2_path sim_results ARGS
     export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", folder_name * ".csv"))
 end
 
