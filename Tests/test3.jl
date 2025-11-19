@@ -23,8 +23,7 @@ include("../src/compute_displacement.jl")
 include("../src/bisection.jl")
 include("../src/mesh_processing_utils.jl")
 include("../src/neighbor_search.jl")
-include("../src/laplace_operator_gauss_kernel.jl")
-include("lap_comp_b.jl")
+
 
 const K = 1
 const U = 3
@@ -34,7 +33,7 @@ function MBB_rhs(x)
 end
 
 n = div(2,2)*2
-n = 5
+n = 4
 mesh = create_rectangular_mesh(
     n,n,n,
     1.0,1.0,1.0,StandardEl{K}
@@ -42,12 +41,35 @@ mesh = create_rectangular_mesh(
 
 mesh2d = create_voronoi_mesh(
     (0.0,0.0),
-    (1.0,1.0),
-    n,n,StandardEl{K}
+    (3.0,1.0),
+    3n,n,StandardEl{K}
 )
 
+n_orig_nodes = length(mesh2d.topo.nodes)
+println("n_orig_nodes: $n_orig_nodes")
+topo = mesh2d.topo
+topo = remove_short_edges(mesh2d.topo)
+topo = remove_short_edges(topo)
+n_new_nodes = length(topo.nodes)
+println("n_new_nodes: $n_new_nodes")
+n_active_nodes = count(is_active,topo.nodes)
+println("n_active_nodes: $n_active_nodes")
+# topo = remove_short_edges(topo)
+mesh2d = Mesh(topo,StandardEl{1}())
 
 
+
+
+mesh = extrude_to_3d(1,mesh2d,0.1);
+n_active_nodes = count(is_active,mesh.topo.nodes)
+cv = CellValues{1}(mesh);
+
+k = get_sparsity_pattern(cv)
+dk = diag(k)
+
+length(keys(cv.dh.dof_mapping))
+
+write_vtk(mesh.topo,"Results/vtk/lap_test")
 
 # mesh2d = remove_short_edges(mesh2d)
 # topo2d = Ju3VEM.VEMGeo.remove_short_edges(mesh2d.topo,factor=1/8)

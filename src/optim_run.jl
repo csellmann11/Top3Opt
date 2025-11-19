@@ -51,6 +51,8 @@ function run_optimization(
     Psi0 = 0.0; Psi_step0 = 0.0; u = Float64[]; state_changed = Float64[]
 
     t_now = time()
+
+    ch = nothing; state_neights_col = nothing; b_face_id_to_state_id = nothing; laplace_operator = nothing
     for optimization_step in 1:MAX_OPT_STEPS
 
         @timeit to "adaptivity" if optimization_step == 1 || do_adaptivity 

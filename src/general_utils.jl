@@ -1,6 +1,9 @@
 using ArgParse 
 
 
+function def_rhs_fun(x)
+    SA[0.0, 0.0, 0.0]
+end
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -16,7 +19,7 @@ function parse_commandline()
         "--mesh_type","-m"
             help = "Mesh type"
             arg_type = Symbol
-            default  = :Hexahedra # :Voronoi
+            default  = :Voronoi # :Voronoi
         "--do_adaptivity","-a"
             help = "Boolean to determine if adaptivity is enabled"
             arg_type = Bool

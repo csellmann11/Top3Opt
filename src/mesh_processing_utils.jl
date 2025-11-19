@@ -36,7 +36,6 @@ end
 
 
 
-
 function refine_sets(mesh::Mesh{3},
     sets_to_refine::T,
     MAX_REF_LEVEL::Int) where T<:Tuple
@@ -54,13 +53,13 @@ function refine_sets(mesh::Mesh{3},
             topo, element.id) do face, _
 
             Ju3VEM.VEMGeo.iterate_element_edges(
-                topo, face.id) do n1_id,_,_
-                    node = topo.nodes[n1_id]
-                    if any(set_func(node) for set_func in sets_to_refine)
-                        ref_marker[element.id] = true
-                    end
-                    nothing
-                end 
+                topo, face.id) do n1_id, _, _
+                node = topo.nodes[n1_id]
+                if any(set_func(node) for set_func in sets_to_refine)
+                    ref_marker[element.id] = true
+                end
+                nothing
+            end
         end
     end
 
@@ -209,15 +208,14 @@ end
 
 
 function clear_up_topo!(
-    topo::Topology{3}
-)
+    topo::Topology{3})
 
     do_face_coarse_markers = ones(Bool, length(get_areas(topo)))
     do_edge_coarse_markers = ones(Bool, length(get_edges(topo)))
     for element in RootIterator{4}(topo)
 
         Ju3VEM.VEMGeo.iterate_volume_areas(
-            topo, element.id) do face,_
+            topo, element.id) do face, _
 
             face_ref_level = face.refinement_level
             do_coarse = do_face_coarse_markers[face.id] && (face_ref_level > element.refinement_level)
@@ -233,7 +231,7 @@ function clear_up_topo!(
                 do_edge_coarse_markers[edge_id] = do_coarse
 
             end
-        end 
+        end
     end
 
     for face in RootIterator{3}(topo)
@@ -246,4 +244,157 @@ function clear_up_topo!(
         do_coarse || continue
         _coarsen!(edge, topo)
     end
+end
+
+
+
+
+
+
+function face_area(node_ids::AbstractVector{Int}, topo::Topology{2})
+    nodes = topo.nodes
+    n = length(node_ids)
+    area_sum = sum(i -> nodes[node_ids[i]][1] * nodes[node_ids[mod1(i + 1, n)]][2] -
+                        nodes[node_ids[i]][2] * nodes[node_ids[mod1(i + 1, n)]][1], 1:n)
+    return 0.5 * abs(area_sum)
+end
+
+
+using Ju3VEM.VEMGeo: get_area_edge_ids
+
+function create_dense_node_id_map(topo::Topology{D}) where {D}
+    node_id_map = FixedSizeVector{Int32}(undef,length(topo.nodes))
+    dense_node_id = 1
+    for node in topo.nodes
+        is_active(node) || continue
+        node_id_map[node.id] = dense_node_id
+        dense_node_id += 1
+    end
+    return node_id_map
+end
+
+
+function remove_short_edges(topo::Topology{2})
+
+    edge_to_faces   = Dict{Int,Vector{Int}}()
+    node_to_faces   = Dict{Int,Vector{Int}}() 
+    are_short_edges = ones(Bool,length(get_edges(topo)))
+
+    for element in RootIterator{3}(topo)
+
+        vertex_ids = get_area_node_ids(topo,element.id)
+        area       = face_area(vertex_ids,topo)
+
+        last_edge_marked = Ref(false)
+        last_edge_seen   = Ref(0)
+        first_edge_seen  = Ref(0)
+
+        Ju3VEM.VEMGeo.iterate_element_edges(
+            topo, element.id
+        ) do _n1_id, edge_id, _
+
+            push!(get!(edge_to_faces,edge_id,Int[]),element.id)
+            push!(get!(node_to_faces,_n1_id,Int[]),element.id)
+
+            if first_edge_seen[] == 0
+                first_edge_seen[] = edge_id
+            end
+            last_edge_seen[] = edge_id
+
+            n1_id,n2_id = get_edge_node_ids(topo,edge_id)
+
+            n1 = topo.nodes[n1_id]; n2 = topo.nodes[n2_id]
+            edge_len = norm(n1-n2)
+
+            is_short_edge = edge_len^2 < 1/8 * area
+            if last_edge_marked[] || length(vertex_ids) <= 3
+                is_short_edge = false 
+            end
+            last_edge_marked[] = is_short_edge
+            are_short_edges[edge_id] = (are_short_edges[edge_id] && is_short_edge)
+        end
+
+
+        if are_short_edges[first_edge_seen[]] && are_short_edges[last_edge_seen[]]
+            are_short_edges[first_edge_seen[]] = false
+        end
+    end
+
+    n_removed_edges = sum(are_short_edges)
+    println("will remove $n_removed_edges")
+
+    is_boundary_node = zeros(Bool,length(topo.nodes))
+    for (edge_id,adj_faces) in edge_to_faces
+        length(adj_faces) == 2 && continue 
+        n1_id,n2_id = get_edge_node_ids(topo,edge_id)
+        is_boundary_node[n1_id] = true 
+        is_boundary_node[n2_id] = true
+    end
+
+    counter = 0
+    removed_nodes = Int64[]
+    for (edge_id,adj_faces) in edge_to_faces
+        are_short_edges[edge_id] || continue
+
+        counter += 1
+        
+        n1_id,n2_id = get_edge_node_ids(topo,edge_id)
+        
+        if is_boundary_node[n1_id] 
+            n1_id,n2_id = n2_id,n1_id 
+        end
+
+        push!(removed_nodes,n1_id)
+
+
+        # remove n1_id from face nodes 
+        # remove edge from face edges 
+        for adj_face_id in adj_faces
+            node_ids = get_area_node_ids(topo,adj_face_id) |> collect
+            idx_node      = findfirst(id -> id == n1_id, node_ids)
+
+            if idx_node === nothing 
+                @show n1_id,n2_id,adj_face_id
+                @show topo.nodes[n1_id]
+                continue 
+            end
+            popat!(node_ids,idx_node)
+            topo.connectivity[1,3][adj_face_id] = FixedSizeVector(node_ids)
+
+        end
+        
+
+        # remove n1 from elements whihc dont share the edge, just the node 
+        # add n2 to those elements #
+        for adj_face_id in unique!(node_to_faces[n1_id])
+            adj_face_id in adj_faces && continue # face shares an edge 
+            node_ids = get_area_node_ids(topo,adj_face_id)
+
+            idx = findfirst(id -> id == n1_id, node_ids)
+            idx === nothing && continue 
+            node_ids[idx] = n2_id
+        end
+
+        Ju3VEM.VEMGeo.deactivate!(topo.nodes[n1_id])
+    end
+
+    node_id_map = create_dense_node_id_map(topo)
+    
+    topo_new = Topology{2}()
+
+    # add_node!.(topo.nodes,Ref(topo_new))
+    # append!(topo_new.nodes,topo.nodes)
+    for node in topo.nodes
+        is_active(node) || continue
+        add_node!(node.coords,topo_new)
+    end
+
+    for element in RootIterator{3}(topo)
+        node_ids = get_area_node_ids(topo,element.id)
+        new_node_ids = node_id_map[node_ids] .|> Int64
+        add_area!(new_node_ids,topo_new)
+    end
+
+    topo_new
+
 end

@@ -24,9 +24,7 @@ const ps = MKLPardisoSolver()
 set_matrixtype!(ps, 2)
 set_nprocs!(ps, Threads.nthreads()) # Sets the number of threads to use
 
-function def_rhs_fun(x)
-    SA[0.0, 0.0, 0.0]
-end
+
 
 
 include("general_utils.jl")
@@ -43,7 +41,6 @@ include("postprocessing/sim_data.jl")
 include("postprocessing/topopt_vtk_export.jl")
 include("optim_run.jl")
 include("get_sparsity_pattern.jl")
-include("../Tests/lap_comp_b.jl")
 
 const K = 1
 const U = 3
@@ -134,8 +131,11 @@ function main(
             (l_beam, lz),
             nx, nz, StandardEl{K}
         )
+        topo = remove_short_edges(mesh2d.topo)
+        topo = remove_short_edges(topo)
+        topo = remove_short_edges(topo)
 
-        _mesh = extrude_to_3d(ny, mesh2d, ly)
+        _mesh = extrude_to_3d(ny, Mesh(topo,StandardEl{K}()), ly)
         permute_coord_dimensions(_mesh, dim_permute) #swith y and z
     else
         error("Invalid MeshType: $MeshType")
