@@ -107,12 +107,12 @@ end
 
 function compute_d_mat!(
     res_cache::CachedVector{Float64},
-    state_id  ::Int,
-    local_neighs ::AbstractVector{Int32},
+    state_id  ::Integer,
+    local_neighs ::FixedSizeVector{Int32},
     b_face_id_to_state_id ::Dict{Int32,Int32},
     topo::Topology{D},
     states::DesignVarInfo{D},
-    laplace_rescale::Bool = true) where D
+    laplace_rescale::Bool = true) where {D}
 
     
     n_neighs   = length(local_neighs)
@@ -161,14 +161,14 @@ end
 
 function compute_laplace_operator_mat(
     topo::Topology{D},
-    state_neights_col::FixedSizeVector{Vector{Int32}},
+    state_neights_col::FixedSizeVector{FixedSizeVector{Int32}},
     b_face_id_to_state_id::Dict{Int32,Int32},
     states::DesignVarInfo{D},
     laplace_rescale::Bool = true
     ) where D
 
 
-    n_entries = sum(1 + length(local_neighs) for local_neighs in values(state_neights_col))
+    n_entries = sum(1 + length(local_neighs) for local_neighs in state_neights_col)
 
     e2s = states.el_id_to_state_id
 

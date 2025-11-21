@@ -1,12 +1,12 @@
 using Ju3VEM
 
 function project_states_to_nodes(
-    eldata_col::Dict{Int,<:ElData},
+    eldata_col::Dict{<:Integer,<:ElData},
     cv::CellValues{D,U},
     states::DesignVarInfo) where {D,U}
 
     node_sums   = zeros(Float64,length(cv.mesh.topo.nodes))
-    node_states = Dict{Int,Float64}()
+    node_states = Dict{Int32,Float64}()
     e2s = states.el_id_to_state_id
     for (el_id,el_data) in eldata_col
         sid      = e2s[el_id]
@@ -34,10 +34,10 @@ function estimate_element_error(
     u::AbstractVector{Float64},
     states::DesignVarInfo,
     cv::CellValues{D,U},
-    eldata_col::Dict{Int,<:ElData}
+    eldata_col::Dict{<:Integer,<:ElData}
     ) where {D,U}
 
-    element_error = Dict{Int,Float64}()
+    element_error = Dict{Int32,Float64}()
 
     node_states = project_states_to_nodes(eldata_col,cv,states)
 
@@ -47,7 +47,7 @@ function estimate_element_error(
         node_ids = el_data.node_ids
         error = @no_escape begin 
             node_ids = el_data.node_ids 
-            dofs = @alloc(Int,length(node_ids)*U)
+            dofs = @alloc(Int32,length(node_ids)*U)
             get_dofs!(dofs,cv.dh,node_ids)
             uel  = @view u[dofs]
             proj = stretch(el_data.proj,Val(3))
@@ -60,7 +60,7 @@ function estimate_element_error(
                     du += proj[i,j] * uel[j]
                 end  
                 du -= uel[i]
-                n_count = ceil(Int,i/U)
+                n_count = ceil(Int32,i/U)
                 error += du^2 * node_states[node_ids[n_count]] * hvol
             end
             error 
@@ -79,10 +79,10 @@ end
 
 function mark_elements_for_adaption(
     cv::CellValues{D,U},
-    element_error::Dict{Int,Float64},
+    element_error::Dict{<:Integer,Float64},
     states       ::DesignVarInfo,
     state_changed::AbstractVector{Float64},
-    max_ref_level::Int,
+    max_ref_level::Integer,
     no_coarsening_marker::Vector{Bool},
     density_marking::Bool,
     upper_error_bound::Float64 = 16.0,
@@ -124,7 +124,7 @@ function mark_elements_for_adaption(
     # remove coarse marker from children, if not all childs are marked for coarseing 
     for el_id in eachindex(coarse_marker)
         element = get_volumes(topo)[el_id] 
-        is_root(element) && continue 
+        is_root(element,topo) && continue 
 
         child_ids = element.childs
         if any(id -> !coarse_marker[id], child_ids)

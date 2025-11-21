@@ -2,6 +2,7 @@ ENV["OMP_NUM_THREADS"] = Threads.nthreads()
 
 using Ju3VEM
 using Ju3VEM.FixedSizeArrays
+using Ju3VEM.VEMGeo
 using StaticArrays
 using LinearAlgebra
 using SparseArrays
@@ -84,8 +85,8 @@ println("Active project: ", Base.active_project())
 
 
 function main(
-    MAX_OPT_STEPS::Int,
-    MAX_REF_LEVEL::Int,
+    MAX_OPT_STEPS::Integer,
+    MAX_REF_LEVEL::Integer,
     MeshType::Symbol,
     do_adaptivity::Bool,
     do_adaptivity_at_the_start::Bool,
@@ -131,9 +132,10 @@ function main(
             (l_beam, lz),
             nx, nz, StandardEl{K}
         )
-        topo = remove_short_edges(mesh2d.topo)
-        topo = remove_short_edges(topo)
-        topo = remove_short_edges(topo)
+        topo = mesh2d.topo
+        # topo = remove_short_edges(topo)
+        # topo = remove_short_edges(topo)
+        # topo = remove_short_edges(topo)
 
         _mesh = extrude_to_3d(ny, Mesh(topo,StandardEl{K}()), ly)
         permute_coord_dimensions(_mesh, dim_permute) #swith y and z
@@ -154,9 +156,11 @@ function main(
 
 
 
-    n_els = count(is_active_root, get_volumes(mesh.topo))
+    # n_els = count(x -> is_active_root(x,mesh.topo), get_volumes(mesh.topo))
+    n_els = get_num_active_root_volumes(mesh.topo)
     println("Number of elements: $n_els")
-    n_nodes = count(is_active, get_nodes(mesh.topo))
+    # n_nodes = count(x -> is_active(x,mesh.topo), get_nodes(mesh.topo))
+    n_nodes = get_num_active_nodes(mesh.topo)
     println("Number of nodes: $n_nodes")
 
 

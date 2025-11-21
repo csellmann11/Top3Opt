@@ -52,7 +52,7 @@ topo = remove_short_edges(mesh2d.topo)
 topo = remove_short_edges(topo)
 n_new_nodes = length(topo.nodes)
 println("n_new_nodes: $n_new_nodes")
-n_active_nodes = count(is_active,topo.nodes)
+n_active_nodes = count(x -> is_active(x,topo),topo.nodes)
 println("n_active_nodes: $n_active_nodes")
 # topo = remove_short_edges(topo)
 mesh2d = Mesh(topo,StandardEl{1}())
@@ -61,7 +61,7 @@ mesh2d = Mesh(topo,StandardEl{1}())
 
 
 mesh = extrude_to_3d(1,mesh2d,0.1);
-n_active_nodes = count(is_active,mesh.topo.nodes)
+n_active_nodes = count(x -> is_active(x,mesh.topo),mesh.topo.nodes)
 cv = CellValues{1}(mesh);
 
 k = get_sparsity_pattern(cv)

@@ -23,7 +23,7 @@ function find_minimal_cell_diameter(topo::Topology{3})
 end
 
 
-function permute_coord_dimensions(mesh::Mesh{D,ET}, perm::SVector{D,Int}) where {D,ET}
+function permute_coord_dimensions(mesh::Mesh{D,ET}, perm::SVector{D,<:Integer}) where {D,ET}
 
     nodes = mesh.topo.nodes
     for i in eachindex(nodes)
@@ -38,7 +38,7 @@ end
 
 function refine_sets(mesh::Mesh{3},
     sets_to_refine::T,
-    MAX_REF_LEVEL::Int) where T<:Tuple
+    MAX_REF_LEVEL::Integer) where T<:Tuple
 
     topo = mesh.topo
 
@@ -251,7 +251,7 @@ end
 
 
 
-function face_area(node_ids::AbstractVector{Int}, topo::Topology{2})
+function face_area(node_ids::AbstractVector{<:Integer}, topo::Topology{2})
     nodes = topo.nodes
     n = length(node_ids)
     area_sum = sum(i -> nodes[node_ids[i]][1] * nodes[node_ids[mod1(i + 1, n)]][2] -
@@ -266,7 +266,7 @@ function create_dense_node_id_map(topo::Topology{D}) where {D}
     node_id_map = FixedSizeVector{Int32}(undef,length(topo.nodes))
     dense_node_id = 1
     for node in topo.nodes
-        is_active(node) || continue
+        is_active(node,topo) || continue
         node_id_map[node.id] = dense_node_id
         dense_node_id += 1
     end
@@ -276,8 +276,8 @@ end
 
 function remove_short_edges(topo::Topology{2})
 
-    edge_to_faces   = Dict{Int,Vector{Int}}()
-    node_to_faces   = Dict{Int,Vector{Int}}() 
+    edge_to_faces   = Dict{Int32,Vector{Int32}}()
+    node_to_faces   = Dict{Int32,Vector{Int32}}() 
     are_short_edges = ones(Bool,length(get_edges(topo)))
 
     for element in RootIterator{3}(topo)
@@ -293,8 +293,8 @@ function remove_short_edges(topo::Topology{2})
             topo, element.id
         ) do _n1_id, edge_id, _
 
-            push!(get!(edge_to_faces,edge_id,Int[]),element.id)
-            push!(get!(node_to_faces,_n1_id,Int[]),element.id)
+            push!(get!(edge_to_faces,edge_id,Int32[]),element.id)
+            push!(get!(node_to_faces,_n1_id,Int32[]),element.id)
 
             if first_edge_seen[] == 0
                 first_edge_seen[] = edge_id
@@ -332,7 +332,7 @@ function remove_short_edges(topo::Topology{2})
     end
 
     counter = 0
-    removed_nodes = Int64[]
+    removed_nodes = Int32[]
     for (edge_id,adj_faces) in edge_to_faces
         are_short_edges[edge_id] || continue
 
@@ -385,13 +385,13 @@ function remove_short_edges(topo::Topology{2})
     # add_node!.(topo.nodes,Ref(topo_new))
     # append!(topo_new.nodes,topo.nodes)
     for node in topo.nodes
-        is_active(node) || continue
+        is_active(node,topo) || continue
         add_node!(node.coords,topo_new)
     end
 
     for element in RootIterator{3}(topo)
         node_ids = get_area_node_ids(topo,element.id)
-        new_node_ids = node_id_map[node_ids] .|> Int64
+        new_node_ids = node_id_map[node_ids] 
         add_area!(new_node_ids,topo_new)
     end
 
