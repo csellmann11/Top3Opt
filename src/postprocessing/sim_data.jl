@@ -32,8 +32,8 @@ end
 
 
 function SimulationResults(
-    max_ref_level::Integer,
-    max_opt_steps::Integer,
+    max_ref_level::Int,
+    max_opt_steps::Int,
     sim_pars::SimPars{H},
     ::Val{D}
 ) where {H<:Helmholtz,D}

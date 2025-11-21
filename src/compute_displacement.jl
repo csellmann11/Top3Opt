@@ -2,10 +2,10 @@ using IterativeSolvers, AlgebraicMultigrid
 using Ju3VEM.VEMUtils.Octavian: matmul!
 
 struct ElData{D}
-    el_id ::Int32 
+    el_id ::Int 
     proj_s::FixedSizeMatrixDefault{Float64}
     proj  ::FixedSizeMatrixDefault{Float64}
-    node_ids ::FixedSizeVectorDefault{Int32}
+    node_ids ::FixedSizeVectorDefault{Int}
     
     γ_stab ::Float64
     hvol   ::Float64
@@ -63,7 +63,7 @@ function build_local_kel_and_f_topo!(
     kelement::CachedMatrix{Float64},
     rhs_element::CachedVector{Float64},
     cv::CellValues{D,U,ET},
-    element_id::Integer,
+    element_id::Int,
     cache1::CachedMatrix{Float64},
     cache2::CachedMatrix{Float64},
     γ::Float64,
@@ -130,7 +130,7 @@ function assembly(cv::CellValues{D,U,ET},
     cache1      = DefCachedMatrix{Float64}()
     cache2      = DefCachedMatrix{Float64}()
 
-    eldata_col  = Dict{Int32,ElData{D}}()
+    eldata_col  = Dict{Int,ElData{D}}()
 
     e2s = states.el_id_to_state_id
 
@@ -149,10 +149,10 @@ function assembly(cv::CellValues{D,U,ET},
             cv,element.id,cache1,cache2,γ_stab,χ)
 
     
-        node_ids = FixedSizeVector{Int32}(undef,length(cv.vnm.map))
+        node_ids = FixedSizeVector{Int}(undef,length(cv.vnm.map))
         copyto!(node_ids,cv.vnm.map.keys)
 
-        dofs = FixedSizeVector{Int64}(undef,length(node_ids)*U)
+        dofs = FixedSizeVector{Int}(undef,length(node_ids)*U)
         get_dofs!(dofs,cv.dh,node_ids)
   
         vol_data = cv.volume_data

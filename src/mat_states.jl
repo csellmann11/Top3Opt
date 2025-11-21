@@ -27,7 +27,7 @@ A struct representing the states of elements in a topology optimization problem.
 # Fields
 - `χ_vec::FlattenVecs{2,Float64}`: A flattened vector storing the state values (χ) for both inner and ghost states.
 - `x_vec::Vector{SVector{D,Float64}}`: A vector storing the coordinates of the centroids for inner states.
-- `el_id_to_state_id::Dict{Int32,Int32}`: A dictionary mapping element IDs to their corresponding state IDs.
+- `el_id_to_state_id::Dict{Int,Int}`: A dictionary mapping element IDs to their corresponding state IDs.
 
 # Type Parameters
 - `D`: The dimension of the problem (e.g., 2 for 2D problems).
@@ -43,7 +43,7 @@ struct DesignVarInfo{D}
     area_vec::Vector{Float64} #TODO: rename to elsize_vec
     h_vec::Vector{Float64} 
 
-    el_id_to_state_id::OrderedDict{Int32,Int32}
+    el_id_to_state_id::OrderedDict{Int,Int}
 end
 
 function get_el_id(states::DesignVarInfo,state_id::Integer)
@@ -72,7 +72,7 @@ function fill_states!(states::DesignVarInfo{D},cv::CellValues{D,U},ρ_init) wher
 end
 
 function resize_states!(states::DesignVarInfo{D},
-    n_states::Integer) where {D}
+    n_states::Int) where {D}
     
     resize!(states.χ_vec,n_states)
     resize!(states.x_vec,n_states)
@@ -94,7 +94,7 @@ function DesignVarInfo{D}(cv::CellValues{D,U},ρ_init) where {D,U}
     x_vec              = Vector{SVector{D,Float64}}(undef, n_states)
     area_vec           = Vector{Float64}(undef,n_states)
     h_vec              = Vector{Float64}(undef,n_states)
-    el_id_to_state_id  = OrderedDict{Int32,Int32}()
+    el_id_to_state_id  = OrderedDict{Int,Int}()
 
     states = DesignVarInfo(χ_vec,x_vec,area_vec,h_vec,el_id_to_state_id)
     fill_states!(states,cv,ρ_init)
@@ -117,7 +117,57 @@ function update_states_after_mesh_adaption!(states::DesignVarInfo,
     resize_states!(states,n_states)
     fill_states!(states,cv,0.0) # here rho init is just a dummy
 
-    for (el_id,state_id) in states.el_id_to_state_id
+    e2s = states.el_id_to_state_id
+
+    for element in RootIterator{4}(topo) 
+        parent_id = element.parent_id 
+        child_ids = element.childs 
+
+        #Info: element comes from refinement
+        if parent_id != 0 && ref_marker[parent_id]
+            parents_old_state_id = e2s_old[parent_id]
+            χ_parent             = χ_vec_old[parents_old_state_id]
+            # element gets parent density 
+            states.χ_vec[e2s[element.id]] = χ_parent
+        elseif !isempty(child_ids) && all(coarse_marker[child_ids])
+            #Info: element comes from coarseing 
+
+            χ_sum = 0.0 
+            for child_id in child_ids 
+                χ_sum += χ_vec_old[e2s_old[child_id]]
+            end
+            states.χ_vec[e2s[element.id]] = χ_sum / length(child_ids)
+
+        else #INFO: element is not new, just state_id changed
+            states.χ_vec[e2s[element.id]] = χ_vec_old[e2s_old[element.id]]
+        end
+    end
+    return states
+end
+
+
+
+
+
+function update_states_after_mesh_adaption!(states::DesignVarInfo,
+    cv::CellValues{D,U},
+    eldata_col::Dict{Int},
+    ref_marker::Vector{Bool},
+    coarse_marker::Vector{Bool}) where {D,U}	
+
+    topo      = cv.mesh.topo
+    e2s_old   = copy(states.el_id_to_state_id)
+    χ_vec_old = copy(states.χ_vec)
+    
+
+    n_states = length(RootIterator{4}(topo))
+    resize_states!(states,n_states)
+    fill_states!(states,cv,0.0) # here rho init is just a dummy
+
+    e2s = states.el_id_to_state_id
+
+    # for element in RootIterator{4}(topo) 
+    for (el_id,state_id) in e2s
         element = get_volumes(topo)[el_id]
         parent_id = element.parent_id 
         child_ids = element.childs 
@@ -138,16 +188,11 @@ function update_states_after_mesh_adaption!(states::DesignVarInfo,
             states.χ_vec[state_id] = χ_sum / length(child_ids)
 
         else #INFO: element is not new, just state_id changed
-            states.χ_vec[state_id] = χ_vec_old[e2s_old[element.id]] #!FIX
+            states.χ_vec[state_id] = χ_vec_old[e2s_old[el_id]]
         end
     end
     return states
 end
-
-
-
-
-
 
 
 function measure_of_nondiscreteness(

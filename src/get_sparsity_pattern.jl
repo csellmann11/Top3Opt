@@ -6,7 +6,7 @@ function create_dense_node_id_map(mesh::Mesh{D}) where {D}
     node_id_map = FixedSizeVector{Int32}(undef,length(mesh.nodes))
     dense_node_id = 1
     for node in mesh.nodes
-        is_active(node,mesh) || continue
+        is_active(node) || continue
         node_id_map[node.id] = dense_node_id
         dense_node_id += 1
     end

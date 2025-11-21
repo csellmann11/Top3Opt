@@ -1,6 +1,6 @@
-function el_dict_to_state_vec(d::Dict{<:Integer,T},states::DesignVarInfo{D}) where {D,T}
+function el_dict_to_state_vec(d::Dict{Int},states::DesignVarInfo{D}) where D 
     e2s = states.el_id_to_state_id
-    vec = zeros(T,length(states.χ_vec))
+    vec = zeros(length(states.χ_vec))
     for (el_id,el_data) in d
         vec[e2s[el_id]] = el_data
     end
@@ -14,13 +14,13 @@ function run_optimization(
     rhs_fun::F,
     sim_pars::SimPars{H};
     vtk_folder_name::String,
-    MAX_OPT_STEPS::Integer = 200,
-    MAX_REF_LEVEL::Integer = 3,
+    MAX_OPT_STEPS::Int = 200,
+    MAX_REF_LEVEL::Int = 3,
     density_marking::Bool = true,
     laplace_rescale::Bool = true,
     tolerance::Float64 = 1e-4,
-    n_conv_until_stop::Integer = 2,
-    take_snapshots_at::AbstractVector{<:Integer} = 1:30:MAX_OPT_STEPS,
+    n_conv_until_stop::Int = 2,
+    take_snapshots_at::AbstractVector{Int} = 1:30:MAX_OPT_STEPS,
     do_adaptivity::Bool = true,
     b_case::Symbol = :MBB_sym,
  ) where {D,H<:Helmholtz,F<:Function}
@@ -28,7 +28,7 @@ function run_optimization(
     n_conv_count = 0
     sim_results  = SimulationResults(MAX_REF_LEVEL,
               MAX_OPT_STEPS,sim_pars,Val{D}())
-    eldata_col = Dict{Int32,ElData{D}}()
+    eldata_col = Dict{Int,ElData{D}}()
     if isdir(vtk_folder_name)
         println("Removing existing vtk folder: $vtk_folder_name")
         rm(vtk_folder_name,recursive=true)
@@ -121,7 +121,7 @@ function run_optimization(
             @timeit to "mesh_clearing" clear_up_topo!(cv.mesh.topo)
             @timeit to "adapt_mesh" cv = adapt_mesh(cv,coarse_marker,ref_marker)
             # @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
-            @timeit to "update_states_after_mesh_adaption" states = update_states_after_mesh_adaption!(states,cv,ref_marker,coarse_marker)
+            @timeit to "update_states_after_mesh_adaption" states = update_states_after_mesh_adaption!(states,cv,eldata_col,ref_marker,coarse_marker)
 
  
             # @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh_list(states,cv);

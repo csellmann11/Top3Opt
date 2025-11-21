@@ -13,12 +13,12 @@ end
 
 function vtk_volume_helper_new(cv::CellValues{D,U}, 
     volume::Volume{D},
-    eldata_col::Dict{<:Integer,<:ElData},
-    node_map::Vector{<:Integer}) where {D,U}
+    eldata_col::Dict{Int,<:ElData},
+    node_map::Vector{Int}) where {D,U}
 
     fdc = cv.facedata_col
     topo = cv.mesh.topo
-    area_ids  = Int32[]
+    area_ids  = Int[]
     iterate_volume_areas(fdc,topo,volume.id) do area, _ ,_
         push!(area_ids, area.id)
     end
@@ -31,14 +31,14 @@ function vtk_volume_helper_new(cv::CellValues{D,U},
 end
 
 @inline function write_vtk_polyhedron(
-    node_ids,faces_node_ids::AbstractVector{<:AbstractVector{<:Integer}}
+    node_ids,faces_node_ids::AbstractVector{<:AbstractVector{Int}}
 )
     VTKPolyhedron(node_ids,faces_node_ids...)
 end
 
 function create_volume_cells(cv::CellValues{D,U},
-    eldata_col::Dict{<:Integer,<:ElData},
-    node_map::Vector{<:Integer}) where {D,U}
+    eldata_col::Dict{Int,<:ElData},
+    node_map::Vector{Int}) where {D,U}
 
     topo = cv.mesh.topo
     vol_data = Dict(
@@ -60,7 +60,7 @@ function create_volume_cells(cv::CellValues{D,U},
 end
 
 function write_vtu_file(cv::CellValues{D,U},
-    eldata_col::Dict{<:Integer,<:ElData},
+    eldata_col::Dict{Int,<:ElData},
     filename::String = "vtk/sol_to_vtk",
     u::Union{AbstractVector,Nothing} = nothing;
     cell_data_col::P = ()
@@ -69,7 +69,7 @@ function write_vtu_file(cv::CellValues{D,U},
     dh = cv.dh
     topo = cv.mesh.topo
 
-    raw_points = filter(x -> is_active(x,topo),get_nodes(topo))
+    raw_points = filter(is_active,get_nodes(topo))
 
 
 
@@ -81,7 +81,7 @@ function write_vtu_file(cv::CellValues{D,U},
 
 
 
-    node_map = zeros(Int32,get_nodes(topo) |> length)
+    node_map = zeros(Int,get_nodes(topo) |> length)
     for (i,node) in enumerate(raw_points)
         node_map[get_id(node)] = i
     end
@@ -95,7 +95,6 @@ function write_vtu_file(cv::CellValues{D,U},
         u_processed = Vector{SVector{3,Float64}}(undef,length(dh.dof_mapping))
         for (n_id,n_dofs) in dh.dof_mapping
             idx = node_map[n_id]
-
 
             u_processed[idx] = trail_zeros3(u[n_dofs])
         end

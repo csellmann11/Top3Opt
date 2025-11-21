@@ -12,7 +12,7 @@ end
 
 function compute_strain_energy(
     dh::DofHandler{D,U},
-    eldata_col::Dict{<:Integer,<:ElData},
+    eldata_col::Dict{Int,<:ElData},
     u::AbstractVector{Float64},
     states::DesignVarInfo{D}, 
     sim_pars::SimPars) where {D,U}
@@ -21,7 +21,7 @@ function compute_strain_energy(
     Ψvec = zeros(length(states.χ_vec))
     base = get_base(BaseInfo{3,1,3}())
     e2s = states.el_id_to_state_id
-    dofs = CachedVector(Int32)
+    dofs = CachedVector(Int)
 
     for (el_id,elem_data) in eldata_col
         state_id = e2s[el_id]
@@ -71,7 +71,7 @@ function state_update!(states::DesignVarInfo,
     sim_pars::SimPars, 
     laplace_operator::SparseMatrixCSC,
     u::AbstractVector{Float64},
-    eldata_col::Dict{<:Integer, <:ElData})
+    eldata_col::Dict{Int64, <:ElData})
 
 
     dh = cv.dh
@@ -84,7 +84,7 @@ function state_update!(states::DesignVarInfo,
     β0 = 2*hmin^2 * sim_pars.β0
  
     #TODO: hmin should be the minimal distance between two nodes --> very large n_steps for voronoi?
-    n_steps = 4*ceil(Int32,12/sim_pars.η0 * β0/hmin^2)
+    n_steps = 4*ceil(Int,12/sim_pars.η0 * β0/hmin^2)
     dt = 1.0/n_steps
 
     Δχ          = zero(states.χ_vec)
