@@ -2,8 +2,7 @@ using AlgebraicMultigrid
 using LinearAlgebra
 using SparseArrays
 import LinearSolve
-using LinearSolve: LinearProblem, SmoothedAggregationPreconBuilder, KrylovJL_CG
-
+using LinearSolve: LinearProblem, KrylovJL_CG
 function create_elasticity_nullspace_matrix(topo::Topology, fixed_dofs::Vector{Int})
     active_nodes = filter(is_active, get_nodes(topo))
     n_active_nodes = length(active_nodes)
@@ -18,25 +17,18 @@ function create_elasticity_nullspace_matrix(topo::Topology, fixed_dofs::Vector{I
         dofy = 3*(i-1)+2
         dofz = 3*(i-1)+3
 
-        x, y, z = node[1], node[2], node[3]
-
+        x, y, z = node
         # --- Translation Modes ---
-        B[dofx, 1] = 1.0
-        B[dofy, 2] = 1.0
-        B[dofz, 3] = 1.0
-        
+        B[dofx, 1] = 1.0; B[dofy, 2] = 1.0; B[dofz, 3] = 1.0
         # --- Rotation Modes ---
         # Rotation around X (y -> z, z -> -y)
-        B[dofy, 4] = -z
-        B[dofz, 4] =  y
+        B[dofy, 4] = -z;  B[dofz, 4] =  y 
         
         # Rotation around Y (z -> x, x -> -z)
-        B[dofx, 5] =  z
-        B[dofz, 5] = -x
+        B[dofx, 5] =  z; B[dofz, 5] = -x
         
         # Rotation around Z (x -> y, y -> -x)
-        B[dofx, 6] = -y
-        B[dofy, 6] =  x
+        B[dofx, 6] = -y; B[dofy, 6] =  x
     end
 
     # Zero out fixed DOFs (Dirichlet BCs)
@@ -53,7 +45,7 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
                         cv::CellValues,
                         ch::ConstraintHandler)
 
-    # 1. Setup Nullspace (Crucial for 5M DOFs Elasticity)
+    # 1. Setup Nullspace 
     fixed_dofs = collect(keys(ch.d_bcs))
     @timeit to "build nullspace" B = create_elasticity_nullspace_matrix(cv.mesh.topo, fixed_dofs)
 

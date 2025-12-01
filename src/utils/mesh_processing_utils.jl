@@ -132,6 +132,8 @@ function get_sets_to_refine(b_case::Symbol)
         return (x -> x[1] ≈ 3.0 && x[3] >= 2.5 && x[2] >= 0.4,)
     elseif b_case == :pressure_plate
         return (x -> x[1] > 2.8 && x[2] > 2.8 && x[3] ≈ 1.0,)
+    elseif b_case == :L_cantilever
+        return (x ->(1.7 ≤ x[1] ≤ 2.0) && x[2] ≈ 1.0,)
     else
         ()
     end
@@ -200,6 +202,14 @@ function create_constraint_handler(cv::CellValues{3}, b_case::Symbol)
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc1", x -> SA[0.0], c_dofs=SA[1])
         add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc2", x -> SA[0.0], c_dofs=SA[2])
         add_neumann_bc!(ch, cv.dh, cv.facedata_col, "pressure", x -> SA[0.0, 0.0, -1.0])
+    elseif b_case == :L_cantilever
+        # add_face_set!(mesh, "symmetry_bc", x -> x[3] ≈ 0.5)
+        add_face_set!(mesh, "top_clamp", x -> x[2] ≈ 2.0)
+        add_face_set!(mesh, "traction", x -> (1.7 ≤ x[1] ≤ 2.0) && x[2] ≈ 1.0)
+
+        # add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "symmetry_bc", x -> SA[0.0], c_dofs=SA[3])
+        add_dirichlet_bc!(ch, cv.dh, cv.facedata_col, "top_clamp", x -> SA[0.0, 0.0], c_dofs=SA[1, 2])
+        add_neumann_bc!(ch, cv.dh, cv.facedata_col, "traction", x -> SA[0.0, -1.0, 0.0])
     else
         error("Invalid boundary value problem: $b_case")
     end

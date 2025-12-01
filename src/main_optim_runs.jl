@@ -41,6 +41,7 @@ include("postprocessing/sim_data.jl")
 include("postprocessing/topopt_vtk_export.jl")
 include("optim_run.jl")
 include("get_sparsity_pattern.jl")
+include("utils/temp_utils.jl") #TODO: move into Ju3VEM
 
 const K = 1
 const U = 3
@@ -108,8 +109,14 @@ function main(
         3.0, 0.5, 3.0, 3n, div(n, 2), 3n,0.15
     elseif b_case == :pressure_plate
         3.0,3.0,1.0,3n,3n,n,0.10
+    elseif b_case == :L_cantilever
+        2.0, 2.0, 0.5, 2n, 2n, div(n,2), 0.15
     else
         error("Invalid b_case: $b_case")
+    end
+
+    if b_case == :L_cantilever
+        MeshType = :Lquad_mesh
     end
 
 
@@ -137,6 +144,13 @@ function main(
 
         _mesh = extrude_to_3d(ny, Mesh(topo,StandardEl{K}()), ly)
         permute_coord_dimensions(_mesh, dim_permute) #swith y and z
+    elseif MeshType == :Lquad_mesh
+        mesh2d = create_L_mesh(
+            (0.0, 0.0),
+            (2.0, 2.0),
+            nx, ny, StandardEl{K}(),0.5,0.5
+        )
+        mesh = extrude_to_3d(nz, mesh2d, lz)
     else
         error("Invalid MeshType: $MeshType")
     end

@@ -224,13 +224,13 @@ function compute_displacement(cv::CellValues{D,U,ET},
   
     n = size(k_global, 1)
     @timeit to "solver" u = begin 
-        # u = cholesky(Symmetric(k_global)) \ rhs_global
-        # u = zero(rhs_global)
-        # Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
-        # u
-
-        u = solve_lse_amg(k_global,rhs_global,cv,ch)
-        # @timeit to "gc" GC.gc()
+        u = if n < 500_000
+            u = zero(rhs_global)
+            Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
+            u
+        else
+            solve_lse_amg(k_global,rhs_global,cv,ch)
+        end
         u
     end
 

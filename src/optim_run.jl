@@ -55,6 +55,7 @@ function run_optimization(
     ch = nothing; state_neights_col = nothing; b_face_id_to_state_id = nothing; laplace_operator = nothing
     for optimization_step in 1:MAX_OPT_STEPS
 
+        flush(stdout)
         @timeit to "adaptivity" if optimization_step == 1 || do_adaptivity 
 
             @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
