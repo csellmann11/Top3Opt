@@ -5,6 +5,32 @@ function get_petsc_symbol(petsclib, sym::Symbol)
     return Libdl.dlsym(Libdl.dlopen(petsclib.petsc_library), sym)
 end
 
+# Wrapper for VecDuplicate (Missing in PETSc.jl)
+function VecDuplicate(v::PETSc.AbstractVec{T}) where T
+    # 1. Allocate a pointer to hold the new vector handle
+    new_ptr = Ref{Ptr{Cvoid}}()
+    
+    # 2. Call PETSc C API
+    sym = get_petsc_symbol(PETSc.petsclibs[1], :VecDuplicate)
+    err = ccall(sym, PETSc.PetscErrorCode, (Ptr{Cvoid}, Ptr{Ptr{Cvoid}}), v.ptr, new_ptr)
+    @assert err == 0 "VecDuplicate failed"
+    
+    # 3. Wrap the new pointer in a generic PETSc.Vec struct
+    #    (Note: We use PETSc.Vec, not PETSc.VecSeq, because we don't have a Julia array backing it)
+    new_vec = PETSc.Vec{T}(new_ptr[])
+    
+    # 4. Register finalizer for cleanup
+    finalizer(PETSc.destroy, new_vec)
+    return new_vec
+end
+
+# Wrapper for VecCopy (Much faster than broadcasting .=)
+function VecCopy!(x::PETSc.AbstractVec, y::PETSc.AbstractVec)
+    sym = get_petsc_symbol(PETSc.petsclibs[1], :VecCopy)
+    err = ccall(sym, PETSc.PetscErrorCode, (Ptr{Cvoid}, Ptr{Cvoid}), x.ptr, y.ptr)
+    @assert err == 0 "VecCopy failed"
+end
+
 # 1. Wrapper for MatSetBlockSize
 function MatSetBlockSize!(mat::PETSc.AbstractMat, bs::Integer, petsclib=PETSc.petsclibs[1])
     sym = get_petsc_symbol(petsclib, :MatSetBlockSize)
@@ -30,7 +56,7 @@ function MatSetNearNullSpace!(mat::PETSc.AbstractMat, nullsp::PETSc.MatNullSpace
 end
 
 # 3. Custom Constructor for MatNullSpace (Accepting Vectors)
-function MatNullSpaceCreate(comm::MPI.Comm, has_constant::Bool, vecs::Vector{<:PETSc.AbstractVec}, petsclib=PETSc.petsclibs[1])
+function MatNullSpaceCreate(comm::MPI.Comm, has_constant::Bool, vecs::AbstractVector, petsclib=PETSc.petsclibs[1])
     # Extract pointers from the PETSc vectors
     vec_ptrs = [v.ptr for v in vecs]
     
@@ -64,103 +90,71 @@ function MatNullSpaceCreate(comm::MPI.Comm, has_constant::Bool, vecs::Vector{<:P
     return nullsp
 end
 
+# Helper to destroy PETSc object and invalidates the pointer
+# to prevent the GC from causing a Double Free later.
+function safe_destroy!(obj)
+    if isdefined(obj, :ptr) && obj.ptr != C_NULL
+        PETSc.destroy(obj)
+        obj.ptr = C_NULL # Defuse the finalizer
+    end
+end
 
-# Modified function to zero out BCs
-function create_elasticity_nullspace(coords::AbstractVector{<:StaticVector{3, T}}, fixed_dofs::Vector{Int}, petsclib=PETSc.petsclibs[1]) where T
 
+function create_elasticity_nullspace(topo::Topology, fixed_dofs::Vector{Int}, petsclib=PETSc.petsclibs[1]) 
     
-    # 2. Extract coordinates and shift to centroid
-    #    (Centering decouples rotations from translations, improving numerical stability)
+    active_nodes = filter(is_active,get_nodes(topo))
 
-    n_active_nodes = count(is_active,coords)  
-    # x = FixedSizeVector{Float64}(undef,n_active_nodes) 
-    # y = FixedSizeVector{Float64}(undef,n_active_nodes) 
-    # z = FixedSizeVector{Float64}(undef,n_active_nodes)  
-    # counter = 1 
-    # for c in coords
-    #     if is_active(c)
-    #         x[counter] = c[1]
-    #         y[counter] = c[2]
-    #         z[counter] = c[3]
-    #         counter += 1
-    #     end
-    # end
-    
-    # cx, cy, cz = sum(x)/n_active_nodes, sum(y)/n_active_nodes, sum(z)/n_active_nodes
-    # x .-= cx
-    # y .-= cy
-    # z .-= cz
+    n_active_nodes = length(active_nodes)
+    n_dofs = 3 * n_active_nodes
 
-    # N = length(coords)
-    dofs = 3 * n_active_nodes
 
-    # 1. Prepare vectors for Rigid Body Modes (RBM)
-    #    We create 6 vectors of length 'dofs' initialized to 0.0
-    rbm = [zeros(Float64, dofs) for _ in 1:6]
+    # 2. Get direct array views into the PETSc memory
+    #    write=true, read=false tells PETSc we are overwriting, which can be faster
+    rbm_arrays = [zeros(Float64, n_dofs) for _ in 1:6]
 
-    for i in 1:n_active_nodes 
-
+    # 3. Fill the arrays directly (Your Logic)
+    #    Note: 'arrays' is a Vector of Julia Arrays that point to C memory.
+    # for i in 1:n_active_nodes 
+    for (i,node) in enumerate(active_nodes)
         dofx = 3*(i-1)+1
         dofy = 3*(i-1)+2
         dofz = 3*(i-1)+3
 
-        x    = coords[i][1]
-        y    = coords[i][2]
-        z    = coords[i][3]
+        # Assuming coords is compacted/ordered correctly for 1:n_active_nodes
+        x = node[1]
+        y = node[2]
+        z = node[3]
 
-        rbm[1][dofx] = 1.0
-        rbm[2][dofy] = 1.0
-        rbm[3][dofz] = 1.0
+        # Translation Modes
+        rbm_arrays[1][dofx] = 1.0
+        rbm_arrays[2][dofy] = 1.0
+        rbm_arrays[3][dofz] = 1.0
         
-        rbm[4][dofx] = -z
-        rbm[4][dofy] =  y
-        rbm[5][dofx] =  z
-        rbm[5][dofz] = -x
-        rbm[6][dofx] = -y
-        rbm[6][dofy] =  x
+        # Rotation Modes
+        rbm_arrays[4][dofy] = -z;  rbm_arrays[4][dofz] =  y
+        rbm_arrays[5][dofx] =  z;  rbm_arrays[5][dofz] = -x
+        rbm_arrays[6][dofx] = -y;  rbm_arrays[6][dofy] =  x
     end
 
-    
-   
-    
-    # 3. Fill Translations (x, y, z)
-    # #    Pattern: 1 0 0 | 1 0 0 | ...
-    # rbm[1][1:3:end] .= 1.0  # Trans X
-    # rbm[2][2:3:end] .= 1.0  # Trans Y
-    # rbm[3][3:3:end] .= 1.0  # Trans Z
-    
-    # # 4. Fill Rotations (small angle approximation)
-    # #    Rot X (about x-axis): 0, -z,  y
-    # rbm[4][2:3:end] .= -z
-    # rbm[4][3:3:end] .=  y
-    
-    # #    Rot Y (about y-axis): z,  0, -x
-    # rbm[5][1:3:end] .=  z
-    # rbm[5][3:3:end] .= -x
-    
-    # #    Rot Z (about z-axis): -y, x,  0
-    # rbm[6][1:3:end] .= -y
-    # rbm[6][2:3:end] .=  x
-    
-    # 5. CRITICAL: Zero out rows corresponding to Dirichlet BCs
-    #    If a DOF is fixed in the system matrix, it must NOT move in the null space.
+    # 4. Zero out fixed DOFs directly in PETSc memory
     if !isempty(fixed_dofs)
-        for v in rbm
-            v[fixed_dofs] .= 0.0
+        for arr in rbm_arrays
+            arr[fixed_dofs] .= 0.0
         end
     end
+
+    # 5. CRITICAL: Restore the arrays
+    #    This tells PETSc "I am done writing to your memory".
+    #    If you skip this, PETSc will crash during Solve.
+    petsc_vecs = [PETSc.VecSeq(v) for v in rbm_arrays]
+    # for v in petsc_vecs
+    #     PETSc.assemble(v)
+    # end
     
-    # 6. Convert to PETSc Vectors and Assemble
-    petsc_vecs = [PETSc.VecSeq(v) for v in rbm]
-    for v in petsc_vecs
-        PETSc.assemble(v)
-    end
-    
-    # 7. Create the NullSpace Object
-    #    has_constant=false because we are explicitly providing the translational modes
+    # 7. Create NullSpace
     nullsp = MatNullSpaceCreate(MPI.COMM_SELF, false, petsc_vecs, petsclib)
     
-    return nullsp, petsc_vecs # return petsc_vecs for gc 
+    return nullsp, rbm_arrays
 end
 
 
@@ -169,11 +163,18 @@ function solve_lse_petsc(k_global::SparseMatrixCSC,
     rhs_global::AbstractVector{Float64},
     cv::CellValues{D,U},
     ch::ConstraintHandler{D,U}) where {D,U}
+    
+    println("starting petsc")
+    flush(stdout)
 
     k_petsc = PETSc.MatSeqAIJ(k_global)
     b_petsc = PETSc.VecSeq(rhs_global)
-    u_petsc = PETSc.VecSeq(zero(rhs_global))
+    u       = zero(rhs_global)
+    u_petsc = PETSc.VecSeq(u)
 
+    
+    println("created petsc quantities")
+    flush(stdout)
 
     # 1. Set Block Size (Crucial for vector structure)
     MatSetBlockSize!(k_petsc, U)
@@ -182,8 +183,11 @@ function solve_lse_petsc(k_global::SparseMatrixCSC,
 
     fixed_dofs = collect(keys(ch.d_bcs))
     # 2. Attach Null Space (Crucial for AMG convergence)
-    nullspace, null_vecs = create_elasticity_nullspace(cv.mesh.nodes, fixed_dofs)
+    @timeit to "create_nullspace" nullspace, null_vecs = create_elasticity_nullspace(cv.mesh.topo, fixed_dofs)
     MatSetNearNullSpace!(k_petsc, nullspace)
+    
+    println("set up null spaces")
+    flush(stdout)
 
     ksp = PETSc.KSP(k_petsc; 
         ksp_type="cg",
@@ -203,32 +207,29 @@ function solve_lse_petsc(k_global::SparseMatrixCSC,
         # Smoother settings
         mg_levels_ksp_type="chebyshev",
         mg_levels_pc_type="sor",    # Jacobi is faster than SOR/ASM
-        mg_levels_ksp_max_it=4,        # Reduce from 4 to 2.
+        mg_levels_ksp_max_it=2,        # Reduce from 4 to 2.
         
         # Use exact solver only on the very coarsest level
-        mg_coarse_pc_type="redundant",
+        #mg_coarse_pc_type="redundant",
         mg_coarse_redundant_pc_type="cholesky",
         ksp_monitor=true,
         ksp_view = false
     )
     # PETSc.setfromoptions!(ksp)
+    
     PETSc.solve!(u_petsc, ksp, b_petsc)
-    # Extract solution to Julia Array
-    result = collect(u_petsc)
-
-    # --- MANUAL CLEANUP (Crucial for loops) ---
-    # Destroy in reverse order of dependency
-    PETSc.destroy(ksp)
     
-    # NullSpace does NOT destroy its vectors automatically in PETSc
-    PETSc.destroy(nullspace) 
-    for v in null_vecs
-        PETSc.destroy(v) # Destroy the vectors we kept alive
-    end
-    
-    PETSc.destroy(u_petsc)
-    PETSc.destroy(b_petsc)
-    PETSc.destroy(k_petsc)
+    println("solve finished") 
+    flush(stdout)  # <--- Essential for debugging crashes
 
-    return result # Return result
+    
+    println("cleaning up...")
+    flush(stdout)
+
+    
+    println("cleanup finished")
+    flush(stdout)
+
+
+    return u # Return result
 end

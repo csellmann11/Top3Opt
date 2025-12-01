@@ -1,5 +1,5 @@
 ENV["OMP_NUM_THREADS"] = Threads.nthreads()
-
+using MKL
 using Ju3VEM
 using Ju3VEM.FixedSizeArrays
 using StaticArrays
