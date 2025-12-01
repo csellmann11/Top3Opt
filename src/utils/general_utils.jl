@@ -15,7 +15,7 @@ function parse_commandline()
         "--max_ref_level","-r"
             help = "Maximum refinement level"
             arg_type = Int
-            default  = 3
+            default  = 5
         "--mesh_type","-m"
             help = "Mesh type"
             arg_type = Symbol

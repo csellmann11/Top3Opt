@@ -224,12 +224,12 @@ function compute_displacement(cv::CellValues{D,U,ET},
   
     n = size(k_global, 1)
     @timeit to "solver" u = begin 
-        # u_chol = cholesky(Symmetric(k_global)) \ rhs_global
-        u = zero(rhs_global)
-        Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
-        u
+        # u = cholesky(Symmetric(k_global)) \ rhs_global
+        # u = zero(rhs_global)
+        # Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
+        # u
 
-        # u = solve_lse_petsc(k_global,rhs_global,cv,ch)
+        u = solve_lse_amg(k_global,rhs_global,cv,ch)
         # @timeit to "gc" GC.gc()
         u
     end
