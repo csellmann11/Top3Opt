@@ -157,6 +157,58 @@ function compute_d_mat!(
 end
 
 
+function compute_d_mat_full!(
+    res_cache::CachedVector{Float64},
+    state_id  ::Int,
+    local_neighs ::AbstractVector{Int32},
+    b_face_id_to_state_id ::Dict{Int32,Int32},
+    topo::Topology{D},
+    states::DesignVarInfo{D},
+    laplace_rescale::Bool = true) where D
+
+    
+    n_neighs   = length(local_neighs)
+    h0         = states.h_vec[state_id]
+    bc         = states.x_vec[state_id]
+
+    setsize!(res_cache,(n_neighs,))
+
+    @no_escape begin
+        A     = @alloc(Float64,n_neighs,9)
+        w_vec = @alloc(Float64,n_neighs)
+        W_A   = @alloc(Float64,n_neighs,9)
+
+        for (n_count,n_id) in enumerate(local_neighs) 
+            
+            y = get_location(n_id,state_id,bc,topo,b_face_id_to_state_id,states,laplace_rescale)
+
+            dx,dy,dz = (y-bc)/h0
+            w_vec[n_count] = 1.0#weight_factor(norm(dist_vec),2*hmin^2)
+     
+            A[n_count,:] .= (dx,dy,dz,0.5*dx^2,dx*dy,0.5*dy^2,dx*dz,dy*dz,0.5*dz^2)
+        end
+
+
+        W_A .= w_vec .*A
+        AT_A = static_matmul(A',W_A,Val((9,9)))
+
+ 
+        reg_α   = 1e-04*sum(AT_A[i,i] for i in 1:9)
+        invAT_A = inv(AT_A + reg_α*I)
+        res     = res_cache.array
+
+        for i in axes(A, 1)
+            res[i] = zero(eltype(res))
+            for j in axes(A, 2)
+                # res[i] += (invAT_A[4,j] + invAT_A[7,j] + invAT_A[9,j]) * W_A[i,j] / h0^2
+                res[i] += (invAT_A[4,j] + invAT_A[6,j] + invAT_A[9,j]) * W_A[i,j] / h0^2
+            end
+        end
+    end
+    return res_cache
+end
+
+
 
 
 function compute_laplace_operator_mat(
@@ -186,7 +238,7 @@ function compute_laplace_operator_mat(
         state_id = get_state_id(states,element_id)
         local_neighs = state_neights_col[state_id]
 
-        compute_d_mat!(res_cache,
+        compute_d_mat_full!(res_cache,
             state_id,local_neighs,b_face_id_to_state_id,topo,states,laplace_rescale)
 
         dΔ_sum =  0.0 

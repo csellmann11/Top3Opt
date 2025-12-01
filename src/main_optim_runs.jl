@@ -18,7 +18,8 @@ using JLD2
 using Infiltrator
 using Dates: today
 using Pardiso
-
+using PETSc
+PETSc.initialize()
 const to = TimerOutput()
 const ps = MKLPardisoSolver()
 set_matrixtype!(ps, 2)
@@ -26,15 +27,15 @@ set_nprocs!(ps, Threads.nthreads()) # Sets the number of threads to use
 
 
 
-
-include("general_utils.jl")
+include("utils/petsc_utils.jl")
+include("utils/general_utils.jl")
 include("hash_output.jl")
 args = parse_commandline()
 include("mat_states.jl")
 include("laplace_operator.jl")
 include("compute_displacement.jl")
 include("bisection.jl")
-include("mesh_processing_utils.jl")
+include("utils/mesh_processing_utils.jl")
 include("neighbor_search.jl")
 include("refinement_utils/estiamte_element_error.jl")
 include("postprocessing/sim_data.jl")

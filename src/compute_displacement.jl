@@ -1,5 +1,43 @@
 using IterativeSolvers, AlgebraicMultigrid
 using Ju3VEM.VEMUtils.Octavian: matmul!
+# import Libdl
+# function get_symbol(petsclib, func_name::Symbol)
+#     handle = Libdl.dlopen(petsclib.petsc_library)
+#     return Libdl.dlsym(handle, func_name)
+# end
+
+# function get_petsc_types(petsclib)
+#     return PETSc.scalartype(petsclib), PETSc.inttype(petsclib)
+# end
+
+# # --- The Missing Function Implementation ---
+# function MatSetBlockSize(mat, bs, petsclib)
+#     # 1. Get the correct Integer type (Int32 or Int64) for this PETSc build
+#     # _, PetscInt = get_petsc_types(petsclib)
+    
+#     # 2. Look up the C function symbol dynamically
+#     sym = get_symbol(petsclib, :MatSetBlockSize)
+    
+#     # 3. Call it
+#     # Signature: PetscErrorCode MatSetBlockSize(Mat mat, PetscInt bs)
+#     err = ccall(sym, 
+#                 PETSc.PetscErrorCode,      # Return type
+#                 (Ptr{Cvoid}, Int64),    # Argument types
+#                 mat.ptr, bs)               # Arguments
+                
+#     @assert err == 0 "MatSetBlockSize failed with error code $err"
+# end
+
+# --- 1. Wrapper for MatSetNearNullSpace (Missing in PETSc.jl) ---
+# --- 1. Wrapper for MatSetNearNullSpace ---
+# function MatSetNearNullSpace(mat, nullsp, petsclib)
+#     sym = get_symbol(petsclib, :MatSetNearNullSpace)
+#     # Note: PetscErrorCode is a constant, so PETSc.PetscErrorCode is fine.
+#     err = ccall(sym, PETSc.PetscErrorCode, (Ptr{Cvoid}, Ptr{Cvoid}), mat.ptr, nullsp)
+#     @assert err == 0 "MatSetNearNullSpace failed"
+# end
+
+#### INFO: 2nd try 
 
 struct ElData{D}
     el_id ::Int 
@@ -117,9 +155,9 @@ function assembly(cv::CellValues{D,U,ET},
     sim_pars::SimPars) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     mat_law = sim_pars.mat_law
-    # @timeit to "set up assembler" ass = Assembler{Float64}(cv)
     @timeit to "set up assembler" k_global = get_sparsity_pattern(cv)
-    ass = FR.start_assemble(Symmetric(k_global),zeros(size(k_global,1)))
+    # ass = FR.start_assemble(Symmetric(k_global),zeros(size(k_global,1))) #!
+    ass = FR.start_assemble(k_global,zeros(size(k_global,1)))
 
 
 
@@ -181,15 +219,17 @@ function compute_displacement(cv::CellValues{D,U,ET},
     sim_pars::SimPars) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     @timeit to "assembly" k_global,rhs_global, eldata_col = assembly(cv,states,f,sim_pars)
-    # @timeit to "assembly" k_global, rhs_global, eldata_col = FEM_assembly(cv,states,sim_pars) #! not working
 
-    @timeit to "apply" apply!(k_global.data,rhs_global,ch)
+    @timeit to "apply" apply!(k_global,rhs_global,ch)
   
     n = size(k_global, 1)
     @timeit to "solver" u = begin 
-        # cholesky(Symmetric(k_global)) \ rhs_global
-        u = zero(rhs_global)
-        Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
+        # u_chol = cholesky(Symmetric(k_global)) \ rhs_global
+        # u = zero(rhs_global)
+        # Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
+        # u
+
+        u = solve_lse_petsc(k_global,rhs_global,cv,ch)
         u
     end
 
