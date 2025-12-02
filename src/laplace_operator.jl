@@ -96,6 +96,7 @@ function get_location(
             rd2  = find_distance_to_boundary(e1id,topo,_x,x0 - _x)
             gap_rel = (1 - rd1 - rd2)
             (2rd1+gap_rel) * (_x - x0) + x0   
+            # (2*max(rd1,rd2)+gap_rel) * (_x - x0) + x0   
         else    
             _x
         end

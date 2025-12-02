@@ -224,7 +224,7 @@ function compute_displacement(cv::CellValues{D,U,ET},
   
     n = size(k_global, 1)
     @timeit to "solver" u = begin 
-        u = if n < 500_000
+        u = if n < 100_000
             u = zero(rhs_global)
             Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
             u

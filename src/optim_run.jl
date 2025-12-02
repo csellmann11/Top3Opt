@@ -89,6 +89,7 @@ function run_optimization(
         println("Improvement: $improvement %")
         println("number of states: $n_states, number of dofs: $n_dofs")
         println("Run time: $run_time minutes")
+        println("Measure of nondiscreteness: $mod")
     
 
         if abs(ΔPsi_rel) < tolerance 

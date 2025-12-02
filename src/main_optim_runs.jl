@@ -110,7 +110,7 @@ function main(
     elseif b_case == :pressure_plate
         3.0,3.0,1.0,3n,3n,n,0.10
     elseif b_case == :L_cantilever
-        2.0, 2.0, 0.5, 2n, 2n, div(n,2), 0.15
+        2.0, 2.0, 0.5, 2n, 2n, div(n,2), 0.25
     else
         error("Invalid b_case: $b_case")
     end
@@ -222,6 +222,5 @@ main(
     MAX_OPT_STEPS, MAX_REF_LEVEL,
     MeshType, do_adaptivity,
     do_adaptivity_at_the_start,
-    density_marking,
-    laplace_rescale,
+    density_marking,laplace_rescale,
     rhs_fun, b_case) 
