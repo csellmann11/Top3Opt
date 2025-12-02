@@ -75,50 +75,18 @@ end
 # end
 
 struct AMGCoarseSolver
-    lu_dec::SparseArrays.UMFPACK.UmfpackLU{Float64, Int64}
-    function AMGCoarseSolver(A::SparseMatrixCSC{Float64, Int64}) 
+    lu_dec::SparseArrays.UMFPACK.UmfpackLU{Float64,Int64}
+    function AMGCoarseSolver(A::SparseMatrixCSC{Float64,Int64})
         return new(lu(A))
     end
 end
 
-(p::AMGCoarseSolver)(x,b) = LinearAlgebra.ldiv!(x,p.lu_dec,b)
-
-function truncated_smoother(threshold::Float64=0.15; damping::Float64=4.0/3.0)
-    # Returns a lambda that accepts the 4 arguments required by AMG
-    return (A, T, S, B) -> begin
-        # 1. Apply Standard Smoothing (Captures Physics)
-        #    This creates a high-quality but DENSE prolongator P
-        P = AlgebraicMultigrid.JacobiProlongation(damping)(A, T, S, B)
-        
-        # 2. Aggressive Truncation (Saves Memory)
-        #    Removes small entries (e.g., < 5% of max) that cause fill-in
-        #    without contributing significantly to convergence.
-        droptol!(P, threshold)
-        
-        return P
-    end
-end
+(p::AMGCoarseSolver)(x, b) = LinearAlgebra.ldiv!(x, p.lu_dec, b)
 
 
-function hybrid_smoother(; damping::Float64=4.0/3.0, filter_strength::Float64=0.02)
-    return (A, T, S, B) -> begin
-        # 1. Create a Filtered Strength Matrix just for smoothing
-        #    We keep S (full) for aggregation, but use S_filt for smoothing.
-        S_filt = copy(S)
-        
-        # This removes weak connections from the smoothing graph.
-        # It prevents P from spreading to weakly coupled neighbors.
-        droptol!(S_filt, filter_strength)
-        
-        # 2. Compute P using the SPARSER S_filt
-        P = AlgebraicMultigrid.JacobiProlongation(damping)(A, T, S_filt, B)
-        
-        # 3. Final cleanup (optional, keeps P extremely tidy)
-        droptol!(P, 0.01) 
-        
-        return P
-    end
-end
+
+
+
 
 function solve_lse_amg(k_global::SparseMatrixCSC,
     rhs_global::AbstractVector{Float64},
@@ -127,26 +95,34 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
 
     # 1. Setup Nullspace
     fixed_dofs = collect(keys(ch.d_bcs))
-    @timeit to "build nullspace" B = create_elasticity_nullspace_matrix(cv.mesh.topo, fixed_dofs)
+    B = create_elasticity_nullspace_matrix(cv.mesh.topo, fixed_dofs)
+
+
+    n_dofs = size(k_global, 2)
+
+    function smooth_fun(A, T, S, B, weighting=AlgebraicMultigrid.LocalWeighting())
+
+        n_reduces_dofs = size(T, 1)
+        (n_dofs == n_reduces_dofs || n_reduces_dofs >= 1_000_000) && return T
+
+        D_inv_S = AlgebraicMultigrid.weight(weighting, A, 4.0 / 3.0)
+
+        (I - D_inv_S) * T
+    end
 
     # --- MEMORY OPTIMIZATION 2: Tune Parameters ---
-    # We call smoothed_aggregation directly on the Float32 matrix.
-    # strength=0.02 is CRITICAL. It drops weak connections (sparsity).
-    # 0.0 creates fully dense coarse grids -> Out of Memory.
     @timeit to "amg build" ml = smoothed_aggregation(k_global,
         B=B,
-        strength=SymmetricStrength(0.0),
-        smooth=(A, T, S, B) -> T,#JacobiProlongation(4.0/3.0),
-        presmoother=GaussSeidel(SymmetricSweep(), 1),
-        postsmoother=GaussSeidel(SymmetricSweep(), 1),
-        max_levels=25, max_coarse=25,
-        diagonal_dominance = true,
+        smooth=(A, T, S, B) -> smooth_fun(A, T, S, B),
         coarse_solver=AMGCoarseSolver
     )
 
     # Convert the MultiLevel object into a LinearOperator/Preconditioner
     P = aspreconditioner(ml)
 
+    ml = nothing
+    B = nothing
+    GC.gc()
     # 2. Setup Problem (Keep k_global as Float64 for the actual solve)
     prob = LinearProblem(k_global, rhs_global)
 
