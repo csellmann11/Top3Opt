@@ -83,20 +83,42 @@ end
 
 (p::AMGCoarseSolver)(x,b) = LinearAlgebra.ldiv!(x,p.lu_dec,b)
 
-function truncated_smoother(threshold::Float64)
+function truncated_smoother(threshold::Float64=0.15; damping::Float64=4.0/3.0)
+    # Returns a lambda that accepts the 4 arguments required by AMG
     return (A, T, S, B) -> begin
-        # 1. Compute the standard smoothed prolongator
-        #    (This creates the "heavy" P momentarily)
-        P = AlgebraicMultigrid.JacobiProlongation(4.0/3.0)(A, T, S, B)
+        # 1. Apply Standard Smoothing (Captures Physics)
+        #    This creates a high-quality but DENSE prolongator P
+        P = AlgebraicMultigrid.JacobiProlongation(damping)(A, T, S, B)
         
-        # 2. Aggressively filter out small entries
-        #    This is the "Dial": Higher value = Less RAM, More Iterations
+        # 2. Aggressive Truncation (Saves Memory)
+        #    Removes small entries (e.g., < 5% of max) that cause fill-in
+        #    without contributing significantly to convergence.
         droptol!(P, threshold)
         
         return P
     end
 end
 
+
+function hybrid_smoother(; damping::Float64=4.0/3.0, filter_strength::Float64=0.02)
+    return (A, T, S, B) -> begin
+        # 1. Create a Filtered Strength Matrix just for smoothing
+        #    We keep S (full) for aggregation, but use S_filt for smoothing.
+        S_filt = copy(S)
+        
+        # This removes weak connections from the smoothing graph.
+        # It prevents P from spreading to weakly coupled neighbors.
+        droptol!(S_filt, filter_strength)
+        
+        # 2. Compute P using the SPARSER S_filt
+        P = AlgebraicMultigrid.JacobiProlongation(damping)(A, T, S_filt, B)
+        
+        # 3. Final cleanup (optional, keeps P extremely tidy)
+        droptol!(P, 0.01) 
+        
+        return P
+    end
+end
 
 function solve_lse_amg(k_global::SparseMatrixCSC,
     rhs_global::AbstractVector{Float64},
@@ -114,10 +136,11 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
     @timeit to "amg build" ml = smoothed_aggregation(k_global,
         B=B,
         strength=SymmetricStrength(0.0),
-        smooth=JacobiProlongation(5.0 / 3.0),
+        smooth=(A, T, S, B) -> T,#JacobiProlongation(4.0/3.0),
         presmoother=GaussSeidel(SymmetricSweep(), 1),
         postsmoother=GaussSeidel(SymmetricSweep(), 1),
-        max_levels=10,
+        max_levels=25, max_coarse=25,
+        diagonal_dominance = true,
         coarse_solver=AMGCoarseSolver
     )
 
@@ -130,6 +153,7 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
     # 3. Solve
     # We pass 'P' explicitly to Pl (Left Preconditioner). 
     # LinearSolve will now use the Float32 AMG to precondition the Float64 CG.
+    # P = Diagonal(diag(k_global))
     strategy = KrylovJL_CG()
     @timeit to "krylov solve" sol = LinearSolve.solve(prob, strategy;
         Pl=P,
