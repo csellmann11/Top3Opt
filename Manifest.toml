@@ -2,7 +2,7 @@
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "c7e834cda23d4a650ca405982a137466dd310c31"
+project_hash = "e4d0c0f0cff8d13b68ca9df6b010d9adeb0d8e10"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "27cecae79e5cc9935255f90c53bb831cc3c870d7"
@@ -1474,6 +1474,12 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 version = "7.7.0+0"
+
+[[deps.SymRCM]]
+deps = ["LinearAlgebra", "SparseArrays", "Test"]
+git-tree-sha1 = "fba6b5d399ff571ab63b4f93b51360050c321b18"
+uuid = "286e6d88-80af-4590-acc9-0001b223b9bd"
+version = "0.2.2"
 
 [[deps.SymbolicIndexingInterface]]
 deps = ["Accessors", "ArrayInterface", "RuntimeGeneratedFunctions", "StaticArraysCore"]

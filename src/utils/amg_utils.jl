@@ -4,7 +4,7 @@ using SparseArrays
 import LinearSolve
 using LinearSolve: LinearProblem, KrylovJL_CG
 function create_elasticity_nullspace_matrix(topo::Topology, fixed_dofs::Vector{Int})
-    active_nodes = filter(is_active, get_nodes(topo))
+    active_nodes   = filter(is_active, get_nodes(topo))
     n_active_nodes = length(active_nodes)
     n_dofs = 3 * n_active_nodes
 
@@ -45,48 +45,8 @@ function create_elasticity_nullspace_matrix(topo::Topology, fixed_dofs::Vector{I
     return B
 end
 
-# function solve_lse_amg(k_global::SparseMatrixCSC,
-#                         rhs_global::AbstractVector{Float64},
-#                         cv::CellValues,
-#                         ch::ConstraintHandler)
 
-#     # 1. Setup Nullspace 
-#     fixed_dofs = collect(keys(ch.d_bcs))
-#     @timeit to "build nullspace" B = create_elasticity_nullspace_matrix(cv.mesh.topo, fixed_dofs)
-
-
-#     prob = LinearProblem(k_global, rhs_global)
-#     amg_builder = SmoothedAggregationPreconBuilder(
-#         B = B,
-#         strength = SymmetricStrength(0.00),
-#         smooth = JacobiProlongation(4.0/3.0),
-#         presmoother = GaussSeidel(SymmetricSweep(),1),
-#         postsmoother = GaussSeidel(SymmetricSweep(),1),
-#         max_levels = 20
-#     )
-#     strategy = KrylovJL_CG(precs = amg_builder)
-#     @timeit to "krylov solve" sol = LinearSolve.solve(prob, strategy; 
-#              abstol = 1e-6, reltol = 1e-6, itmax = 500, verbose = true)
-
-#     u = sol.u
-
-
-#     return u
-# end
-
-struct AMGCoarseSolver
-    lu_dec::SparseArrays.UMFPACK.UmfpackLU{Float64,Int64}
-    function AMGCoarseSolver(A::SparseMatrixCSC{Float64,Int64})
-        return new(lu(A))
-    end
-end
-
-(p::AMGCoarseSolver)(x, b) = LinearAlgebra.ldiv!(x, p.lu_dec, b)
-
-
-
-
-
+using SymRCM
 
 function solve_lse_amg(k_global::SparseMatrixCSC,
     rhs_global::AbstractVector{Float64},
@@ -110,26 +70,28 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
         (I - D_inv_S) * T
     end
 
+
+    GC.gc()
+
+    perm = symrcm(k_global) 
+    inv_perm = similar(perm); inv_perm[perm] = 1:length(perm)
+    k_global_perm = k_global[perm,perm]
+    rhs_global_perm = rhs_global[perm]
+    B_perm = B[perm,:]
+
     # --- MEMORY OPTIMIZATION 2: Tune Parameters ---
-    @timeit to "amg build" ml = smoothed_aggregation(k_global,
-        B=B,
+    @timeit to "amg build" ml = smoothed_aggregation(k_global_perm,
+        B=B_perm,
         smooth=(A, T, S, B) -> smooth_fun(A, T, S, B),
-        coarse_solver=AMGCoarseSolver
-    )
+        improve_candidates = GaussSeidel(iter=8) 
+        )
 
     # Convert the MultiLevel object into a LinearOperator/Preconditioner
     P = aspreconditioner(ml)
-
-    ml = nothing
-    B = nothing
-    GC.gc()
     # 2. Setup Problem (Keep k_global as Float64 for the actual solve)
-    prob = LinearProblem(k_global, rhs_global)
+    prob = LinearProblem(k_global_perm, rhs_global_perm)
 
     # 3. Solve
-    # We pass 'P' explicitly to Pl (Left Preconditioner). 
-    # LinearSolve will now use the Float32 AMG to precondition the Float64 CG.
-    # P = Diagonal(diag(k_global))
     strategy = KrylovJL_CG()
     @timeit to "krylov solve" sol = LinearSolve.solve(prob, strategy;
         Pl=P,
@@ -137,5 +99,5 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
 
     @show sol.iters
 
-    return sol.u
+    return sol.u[inv_perm]
 end

@@ -35,6 +35,13 @@ function get_sparsity_pattern(
                     push!(cols,element.id)
                 end
             end
+
+        moment_ids = cv.mesh.int_coords_connect[4][element.id]
+        for moment_id in moment_ids
+            dense_moment_id = node_id_map[moment_id]
+            push!(rows,dense_moment_id)
+            push!(cols,element.id)
+        end
     end
 
     # node2el_id = sparse(rows,cols,true) 

@@ -122,14 +122,7 @@ function run_optimization(
 
             @timeit to "mesh_clearing" clear_up_topo!(cv.mesh.topo)
             @timeit to "adapt_mesh" cv = adapt_mesh(cv,coarse_marker,ref_marker)
-            # @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
             @timeit to "update_states_after_mesh_adaption" states = update_states_after_mesh_adaption!(states,cv,eldata_col,ref_marker,coarse_marker)
-
- 
-            # @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh_list(states,cv);
-
-            # @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
-            #       cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states)
         end
     end
 

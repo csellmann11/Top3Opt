@@ -11,11 +11,11 @@ function parse_commandline()
         "--max_opt_steps","-s"
             help = "Maximum number of optimization steps"
             arg_type = Int
-            default  = 50
+            default  = 2
         "--max_ref_level","-r"
             help = "Maximum refinement level"
             arg_type = Int
-            default  = 3
+            default  = 4
         "--mesh_type","-m"
             help = "Mesh type"
             arg_type = Symbol
@@ -31,7 +31,7 @@ function parse_commandline()
         "--b_case","-c"
             help = "Case name"
             arg_type = Symbol
-            default  = :L_cantilever #[:simple_lever,:MBB_sym,:Cantilever_sym,:Bending_Beam_sym,:pressure_plate,:L_cantilever]
+            default  = :MBB_sym #[:simple_lever,:MBB_sym,:Cantilever_sym,:Bending_Beam_sym,:pressure_plate,:L_cantilever]
         "--density_marking","-d"
             help = "Toogle if elements are marked for refinement if density is growing"
             arg_type = Bool

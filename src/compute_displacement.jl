@@ -1,41 +1,5 @@
 using IterativeSolvers, AlgebraicMultigrid
 using Ju3VEM.VEMUtils.Octavian: matmul!
-# import Libdl
-# function get_symbol(petsclib, func_name::Symbol)
-#     handle = Libdl.dlopen(petsclib.petsc_library)
-#     return Libdl.dlsym(handle, func_name)
-# end
-
-# function get_petsc_types(petsclib)
-#     return PETSc.scalartype(petsclib), PETSc.inttype(petsclib)
-# end
-
-# # --- The Missing Function Implementation ---
-# function MatSetBlockSize(mat, bs, petsclib)
-#     # 1. Get the correct Integer type (Int32 or Int64) for this PETSc build
-#     # _, PetscInt = get_petsc_types(petsclib)
-    
-#     # 2. Look up the C function symbol dynamically
-#     sym = get_symbol(petsclib, :MatSetBlockSize)
-    
-#     # 3. Call it
-#     # Signature: PetscErrorCode MatSetBlockSize(Mat mat, PetscInt bs)
-#     err = ccall(sym, 
-#                 PETSc.PetscErrorCode,      # Return type
-#                 (Ptr{Cvoid}, Int64),    # Argument types
-#                 mat.ptr, bs)               # Arguments
-                
-#     @assert err == 0 "MatSetBlockSize failed with error code $err"
-# end
-
-# --- 1. Wrapper for MatSetNearNullSpace (Missing in PETSc.jl) ---
-# --- 1. Wrapper for MatSetNearNullSpace ---
-# function MatSetNearNullSpace(mat, nullsp, petsclib)
-#     sym = get_symbol(petsclib, :MatSetNearNullSpace)
-#     # Note: PetscErrorCode is a constant, so PETSc.PetscErrorCode is fine.
-#     err = ccall(sym, PETSc.PetscErrorCode, (Ptr{Cvoid}, Ptr{Cvoid}), mat.ptr, nullsp)
-#     @assert err == 0 "MatSetNearNullSpace failed"
-# end
 
 #### INFO: 2nd try 
 
@@ -120,16 +84,12 @@ function build_local_kel_and_f_topo!(
     setsize!(rhs_element,(n_dofs,))
 
 
-    # project_matrix!(kelement.array,k_poly_space,stretch(proj_s,Val(U)))
     begin # computes proj_s' * k_poly_space * proj_s
-        # full_proj_s = FixedSizeMatrix{Float64}(undef,L,n_dofs)
         setsize!(cache2,(L,n_dofs))
         Ju3VEM.VEMGeo.destretch!(cache2.array,stretch(proj_s,Val(U)))
         setsize!(cache1,(L,n_dofs)) 
         matmul!(cache1.array,k_poly_space,cache2.array)
         matmul!(kelement.array,cache2.array',cache1.array)
-
-        # kelement.array .= full_proj_s' * (k_poly_space .* dΩ/(hvol^2)) * full_proj_s
     end
     kelement .*= dΩ/(hvol^2) * χ^3
 
@@ -140,7 +100,6 @@ function build_local_kel_and_f_topo!(
     cache1 .= I - proj
     matmul!(cache2.array,cache1.array',cache1.array)
     cache2.array .*= hvol*γ
-    # cache2.array .= (I(n_nodes) .- proj)' * (I(n_nodes) .- proj) * hvol*γ
     kelement .+= stretch(cache2.array,Val(U))
 
     return proj_s, proj
@@ -179,7 +138,7 @@ function assembly(cv::CellValues{D,U,ET},
         χ = states.χ_vec[e2s[element.id]]
         @timeit to "reinit" reinit!(element.id,cv)
 
-        γ_stab = γ/4 * χ^3
+        γ_stab = γ/4 * χ^3 
 
         @timeit to "build_local_kel_and_f" proj_s, proj = build_local_kel_and_f_topo!(
             k_poly_space,kelement, 
