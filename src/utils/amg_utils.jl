@@ -50,52 +50,6 @@ end
 
 import AlgebraicMultigrid as AMG
 # 1. Define the Wrapper Struct
-struct Float32AMGWrapper{PType,BufType}
-    real_preconditioner::PType  # This holds your Float32 AMG
-    buf_x::BufType              # Pre-allocated Float32 buffer for input
-    buf_b::BufType              # Pre-allocated Float32 buffer for output
-end
-
-# 2. Constructor
-function Float32AMGWrapper(p::AMG.Preconditioner)
-    # Get the size from the top level of the hierarchy
-    n = size(p.ml.levels[1].A, 1)
-
-    # Pre-allocate Float32 vectors ONCE.
-    buf_x = Vector{Float32}(undef, n)
-    buf_b = Vector{Float32}(undef, n)
-
-    return Float32AMGWrapper(p, buf_x, buf_b)
-end
-
-# 3. The magic ldiv! function
-#    This is what the Krylov solver calls.
-#    y is Float64 (output), x is Float64 (input)
-function LinearAlgebra.ldiv!(y::AbstractVector{Float64},
-    wrapper::Float32AMGWrapper,
-    x::AbstractVector{Float64})
-
-    # A. Fast Copy & Cast: Float64 x -> Float32 buffer
-    #    This uses the pre-allocated buffer, no new memory is asked from OS.
-    wrapper.buf_b .= x
-
-    # B. Call the inner AMG solve on Float32 data
-    #    We use the definition you provided: ldiv!(x, p, b)
-    #    Target: wrapper.buf_x (solution), Source: wrapper.buf_b (RHS)
-    ldiv!(wrapper.buf_x, wrapper.real_preconditioner, wrapper.buf_b)
-
-    # C. Fast Copy & Cast Back: Float32 buffer -> Float64 y
-    y .= wrapper.buf_x
-
-    return y
-end
-
-# 4. Helper for the '\' operator just in case
-function Base.:\(wrapper::Float32AMGWrapper, x::AbstractVector{Float64})
-    y = similar(x)
-    ldiv!(y, wrapper, x)
-    return y
-end
 
 
 
@@ -107,7 +61,7 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
     # 1. Setup Nullspace
     fixed_dofs = collect(keys(ch.d_bcs))
     B = create_elasticity_nullspace_matrix(cv.mesh.topo,
-        fixed_dofs; eltype=Float32)
+        fixed_dofs; eltype=Float64)
 
 
     n_dofs = size(k_global, 2)
@@ -125,31 +79,23 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
 
 
     GC.gc()
-
-
-
-    k_global_f32 = SparseMatrixCSC(
-        k_global.m, k_global.n, k_global.colptr, k_global.rowval, Float32.(k_global.nzval)
-    )
-
     # --- MEMORY OPTIMIZATION 2: Tune Parameters ---
-    @timeit to "amg build" ml = smoothed_aggregation(k_global_f32,
+    @timeit to "amg build" ml = smoothed_aggregation(k_global,
         B=B,
         smooth=smooth_fun,
         improve_candidates=GaussSeidel(iter=4),
         strength=SymmetricStrength(0.0)
     )
 
-    # Convert the MultiLevel object into a LinearOperator/Preconditioner
-    P = aspreconditioner(ml) |> Float32AMGWrapper
     # 2. Setup Problem (Keep k_global as Float64 for the actual solve)
     prob = LinearProblem(Symmetric(k_global), rhs_global)
 
-    # 3. Solve
+    reltol = 1e-06
     strategy = LinearSolve.KrylovJL_GMRES(gmres_restart = 50)
+    # strategy = LinearSolve.KrylovJL_CG()
     @timeit to "krylov solve" sol = LinearSolve.solve(prob, strategy;
-        Pl=P,
-        abstol=1e-6, reltol=1e-6, itmax=500, verbose=true)
+        Pl=aspreconditioner(ml),
+        reltol=reltol, itmax=500, verbose=true)
 
     @show sol.iters
 

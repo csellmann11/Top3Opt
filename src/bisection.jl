@@ -102,7 +102,7 @@ function state_update!(states::DesignVarInfo,
 
         Δχ .= laplace_operator * states.χ_vec
         compute_driving_force!(p_χ,Ψvec,states)
-        p_avg = get_avarage_driving_force(states,p_χ,sim_pars) 
+        p_avg = get_avarage_driving_force(states,p_χ,sim_pars) |> abs
     
         η    = sim_pars.η0 * p_avg
         
@@ -122,7 +122,7 @@ function state_update!(states::DesignVarInfo,
                  
                 β = 2*max(h^2,hmin^2)*p_avg*sim_pars.β0
     
-                dχ = dt/η * (pχi - λ_trial + β * Δχi)
+                dχ = dt/η * (-pχi - λ_trial + β * Δχi)
                 χv_trial[state_id] = clamp(χi + dχ,χ_min,1.0)
 
                 ∑Ω += area
@@ -133,6 +133,7 @@ function state_update!(states::DesignVarInfo,
 
 
             ρ_trial > sim_pars.ρ_init ? λ_lower = λ_trial : λ_upper = λ_trial 
+   
 
             λ_trial = (λ_lower + λ_upper)/2.0
 
