@@ -28,7 +28,7 @@ function build_k_poly_space(
     mat_law::H,
     pars::Tuple{Float64,Float64,Float64}
 ) where H<:Helmholtz
-
+ 
     base3d = get_base(BaseInfo{3,1,3}())
 
     ℂ0 = eval_hessian(mat_law,zero(SMatrix{3,3,Float64,9}),pars)
@@ -97,7 +97,7 @@ function build_local_kel_and_f_topo!(
     setsize!(cache2,(n_nodes,n_nodes))
 
 
-    cache1 .= I - proj
+    cache1 .= I(n_nodes) .- proj
     matmul!(cache2.array,cache1.array',cache1.array)
     cache2.array .*= hvol*γ
     kelement .+= stretch(cache2.array,Val(U))
@@ -181,23 +181,7 @@ function compute_displacement(cv::CellValues{D,U,ET},
 
     @timeit to "apply" apply!(k_global,rhs_global,ch)
 
-
-  
-    n = size(k_global, 1)
-    @timeit to "solver" u = begin 
-        u = if n < 1#200_000
-            u = zero(rhs_global)
-            Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
-            u
-            # cholesky(Symmetric(k_global))\rhs_global
-        else
-            # solve_lse_amg(k_global,rhs_global,cv,ch)
-            solve_lse_hypre(k_global,rhs_global)
-        end
-        u
-    end
-
-
+    @timeit to "solver" u = solve_lse(k_global,rhs_global)
 
     return u, k_global, eldata_col
 end

@@ -139,6 +139,30 @@ end
 using Ju3VEM.VEMGeo: _refine!,_coarsen!
 
 
+function resize_with_default!(vec::Vector{T}, n::Int, default::T) where T
+    current_length = length(vec)
+    resize!(vec, n)
+    for i in current_length+1:n
+        vec[i] = default
+    end
+    return vec
+end
+
+function recycle_mesh!(mesh::Mesh{D,ET}) where {D,ET<:ElType{1}}
+    int_coords_connect = mesh.int_coords_connect
+    n_edges = length(get_edges(mesh.topo)) 
+    n_areas = length(get_areas(mesh.topo))
+    n_volumes = length(get_volumes(mesh.topo))
+    resize_with_default!(int_coords_connect[2], n_edges, Int[])
+    resize_with_default!(int_coords_connect[3], n_areas, Int[])
+    resize_with_default!(int_coords_connect[4], n_volumes, Int[])
+    empty!(mesh.node_sets)
+    empty!(mesh.edge_sets)
+    empty!(mesh.face_sets)
+    empty!(mesh.volume_sets)
+    return mesh
+end
+
 
 function adapt_mesh(cv::CellValues{D,U},
     coarse_marker::Vector{Bool},
@@ -153,5 +177,6 @@ function adapt_mesh(cv::CellValues{D,U},
         end
     end
 
-    return CellValues{U}(Mesh(topo,StandardEl{1}()))
+    return CellValues{U}(recycle_mesh!(cv.mesh))
+    # return CellValues{U}(Mesh(topo,StandardEl{1}()))
 end

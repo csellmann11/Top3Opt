@@ -11,11 +11,11 @@ function parse_commandline()
         "--max_opt_steps","-s"
             help = "Maximum number of optimization steps"
             arg_type = Int
-            default  = 2
+            default  = 20
         "--max_ref_level","-r"
             help = "Maximum refinement level"
             arg_type = Int
-            default  = 5
+            default  = 3
         "--mesh_type","-m"
             help = "Mesh type"
             arg_type = Symbol
