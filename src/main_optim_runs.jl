@@ -18,7 +18,8 @@ using JLD2
 using Infiltrator
 using Dates: today
 using Pardiso
-
+using HYPRE
+HYPRE.Init()
 const to = TimerOutput()
 const ps = MKLPardisoSolver()
 set_matrixtype!(ps, 2)

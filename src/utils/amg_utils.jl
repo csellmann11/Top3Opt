@@ -91,7 +91,7 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
     prob = LinearProblem(Symmetric(k_global), rhs_global)
 
     reltol = 1e-06
-    strategy = LinearSolve.KrylovJL_GMRES(gmres_restart = 50)
+    strategy = LinearSolve.KrylovJL_GMRES(gmres_restart=50)
     # strategy = LinearSolve.KrylovJL_CG()
     @timeit to "krylov solve" sol = LinearSolve.solve(prob, strategy;
         Pl=aspreconditioner(ml),
@@ -100,4 +100,34 @@ function solve_lse_amg(k_global::SparseMatrixCSC,
     @show sol.iters
 
     return sol.u
+end
+
+
+function solve_lse_hypre(k_global::SparseMatrixCSC,
+    rhs_global::AbstractVector{Float64})
+
+
+    precond = HYPRE.BoomerAMG(;
+        NumFunctions=3,      # 3 degrees of freedom per node (u,v,w)
+        CoarsenType=10,      # HMIS coarsening (often faster for larger 3D problems)
+        RelaxType=6,         # Symmetric smoothing for PCG
+        NumSweeps=1,         # 1 sweep of smoothing
+        MaxIter=1,           # Perform 1 V-cycle per preconditioner application
+        Tol=0.0              # Do not stop on tolerance inside preconditioner
+    )
+
+    # 3. Configure the Solver (PCG)
+    # We use Conjugate Gradient (PCG) as the outer solver.
+    # If your matrix is not Symmetric Positive Definite, use HYPRE.GMRES or HYPRE.BiCGSTAB instead.
+    solver = HYPRE.PCG(;
+        MaxIter=1000,
+        Tol=1e-6,            
+        PrintLevel=0,
+        Precond=precond      # Attach the AMG preconditioner
+    )
+
+    @timeit to "hypre_solver" u = HYPRE.solve(solver, k_global, rhs_global);
+
+    return u
+
 end

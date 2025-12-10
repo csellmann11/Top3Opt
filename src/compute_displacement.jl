@@ -180,16 +180,19 @@ function compute_displacement(cv::CellValues{D,U,ET},
     @timeit to "assembly" k_global,rhs_global, eldata_col = assembly(cv,states,f,sim_pars)
 
     @timeit to "apply" apply!(k_global,rhs_global,ch)
+
+
   
     n = size(k_global, 1)
     @timeit to "solver" u = begin 
         u = if n < 1#200_000
-            # u = zero(rhs_global)
-            # Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
-            # u
-            cholesky(Symmetric(k_global))\rhs_global
+            u = zero(rhs_global)
+            Pardiso.pardiso(ps, u,tril(k_global), rhs_global)
+            u
+            # cholesky(Symmetric(k_global))\rhs_global
         else
-            solve_lse_amg(k_global,rhs_global,cv,ch)
+            # solve_lse_amg(k_global,rhs_global,cv,ch)
+            solve_lse_hypre(k_global,rhs_global)
         end
         u
     end
