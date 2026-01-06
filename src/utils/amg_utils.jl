@@ -17,7 +17,7 @@ function solve_lse(
 
     solver = HYPRE.PCG(;
         MaxIter=1000,
-        Tol=1e-6,
+        Tol=1e-4,
         PrintLevel=1,
         Precond=precond      # Attach the AMG preconditioner
     )

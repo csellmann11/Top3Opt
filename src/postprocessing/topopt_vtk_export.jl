@@ -46,6 +46,13 @@ function create_volume_cells(cv::CellValues{D,U},
         for volume in RootIterator{4}(topo)
     )
 
+    max_node_ids_per_volume = 0 
+    for (u_node_ids,_) in values(vol_data)
+        max_node_ids_per_volume = max(max_node_ids_per_volume,length(u_node_ids))
+    end
+
+    println("Max number of node ids per volume: $max_node_ids_per_volume")
+
 
     volume_cells = if D ≥ 3 
         [

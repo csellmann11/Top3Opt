@@ -35,6 +35,8 @@ function run_optimization(
     end
     mkdir(vtk_folder_name)
 
+    optimization_finished = false
+
 
     mesh, no_coarsening_marker = refine_sets(mesh, 
                   get_sets_to_refine(b_case), MAX_REF_LEVEL)
@@ -94,8 +96,12 @@ function run_optimization(
 
         if abs(ΔPsi_rel) < tolerance 
             n_conv_count += 1
-            if n_conv_count >= n_conv_until_stop 
-                break
+            if n_conv_count >= n_conv_until_stop && !optimization_finished
+                # break
+                sim_results.conv_n_iter = optimization_step
+                sim_results.sim_times_conv_iter = get_simulation_times(to)
+                # break
+                optimization_finished = true
             end
         else
             n_conv_count = 0
@@ -130,14 +136,15 @@ function run_optimization(
     el_error_v = el_dict_to_state_vec(estimate_element_error(u,states,cv,eldata_col),states)
     write_vtu_file(cv,eldata_col,full_name,u;cell_data_col = (states.χ_vec,el_error_v,state_changed))
 
-    sim_results.simulation_times.solve_time = TimerOutputs.time(to["compute_displacement"]["solver"])/(1e09)
-    sim_results.simulation_times.assembly_time = TimerOutputs.time(to["compute_displacement"]["assembly"])/(1e09)
-    sim_results.simulation_times.state_update_time = TimerOutputs.time(to["state_update"])/(1e09)
-    try
-        sim_results.simulation_times.adaptivity_time = TimerOutputs.time(to["adaptivity"])/(1e09)
-    catch
-        sim_results.simulation_times.adaptivity_time = 0.0
-    end
+    # sim_results.simulation_times.solve_time = TimerOutputs.time(to["compute_displacement"]["solver"])/(1e09)
+    # sim_results.simulation_times.assembly_time = TimerOutputs.time(to["compute_displacement"]["assembly"])/(1e09)
+    # sim_results.simulation_times.state_update_time = TimerOutputs.time(to["state_update"])/(1e09)
+    # try
+    #     sim_results.simulation_times.adaptivity_time = TimerOutputs.time(to["adaptivity"])/(1e09)
+    # catch
+    #     sim_results.simulation_times.adaptivity_time = 0.0
+    # end
+    sim_results.simulation_times = get_simulation_times(to)
 
     return sim_results
 end

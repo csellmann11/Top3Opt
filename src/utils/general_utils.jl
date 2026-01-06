@@ -11,7 +11,7 @@ function parse_commandline()
         "--max_opt_steps","-s"
             help = "Maximum number of optimization steps"
             arg_type = Int
-            default  = 20
+            default  = 300
         "--max_ref_level","-r"
             help = "Maximum refinement level"
             arg_type = Int
@@ -23,7 +23,7 @@ function parse_commandline()
         "--do_adaptivity","-a"
             help = "Boolean to determine if adaptivity is enabled"
             arg_type = Bool
-            default  = true
+            default  = false
         "--do_adaptivity_at_the_start","-b"
             help = "if true, the mesh is refined to the finest level at the start"
             arg_type = Bool
@@ -48,4 +48,18 @@ function parse_commandline()
     return parse_args(s)
 
 
+end
+
+
+function get_simulation_times(to::TimerOutput)
+    sim_times = SimulationTimes() 
+    sim_times.solve_time = TimerOutputs.time(to["compute_displacement"]["solver"])/(1e09)
+    sim_times.assembly_time = TimerOutputs.time(to["compute_displacement"]["assembly"])/(1e09)
+    sim_times.state_update_time = TimerOutputs.time(to["state_update"])/(1e09)
+    try
+        sim_times.adaptivity_time = TimerOutputs.time(to["adaptivity"])/(1e09)
+    catch
+        sim_times.adaptivity_time = 0.0
+    end
+    return sim_times
 end
