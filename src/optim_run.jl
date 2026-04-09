@@ -18,7 +18,7 @@ function run_optimization(
     MAX_REF_LEVEL::Int = 3,
     density_marking::Bool = true,
     laplace_rescale::Bool = true,
-    tolerance::Float64 = 1e-4,
+    tolerance::Float64 = 1e-5,
     n_conv_until_stop::Int = 2,
     take_snapshots_at::AbstractVector{Int} = 1:30:MAX_OPT_STEPS,
     do_adaptivity::Bool = true,
