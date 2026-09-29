@@ -36,7 +36,7 @@ function run_optimization(
         println("Removing existing vtk folder: $vtk_folder_name")
         rm(vtk_folder_name,recursive=true)
     end
-    mkdir(vtk_folder_name)
+    mkpath(vtk_folder_name)
 
     optimization_finished = false
 

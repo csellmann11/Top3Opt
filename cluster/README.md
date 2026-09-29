@@ -44,6 +44,15 @@ so jobs request one task and launch one Julia process, without `mpiexecjl`.
 Julia threads follow `--cpus-per-task`; BLAS threads are set to one. No external
 PETSc build or AndersonPlasticity-specific MPI setup is copied into this project.
 
+Both AVX2 and AVX-512 nodes remain eligible. The exported HostCPUFeatures preference
+in `Project.toml` enables runtime invalidation: when a shared precompile cache was
+built on a different CPU, the package refreshes its CPU feature information on
+the executing node. This can add startup compilation time. It does not force
+AVX-512 on AVX2 hardware or guarantee that every kernel uses the widest vectors.
+After pulling this preference change, run the instantiate/precompile command above
+once before starting the sweep. A `LocalPreferences.toml` override can supersede
+the exported preference.
+
 ## Files and names
 
 ```text

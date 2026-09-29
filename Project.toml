@@ -47,3 +47,9 @@ SparseArrays = "1.11.0"
 StaticArrays = "1.9.15"
 SymRCM = "0.2.2"
 TimerOutputs = "0.5.29"
+
+[extras]
+HostCPUFeatures = "3e5b6fbb-0976-4d2c-9146-d79de83f2fb0"
+
+[preferences.HostCPUFeatures]
+allow_runtime_invalidation = true
