@@ -23,7 +23,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Experiment axes. Defaults reproduce the 16 combinations in the old sweep.
 BENCHMARK_CASES=(MBB_sym L_cantilever)        # Options: MBB_sym | Cantilever_sym | Bending_Beam_sym | simple_lever | pressure_plate | L_cantilever
 SOLVERS=(hypre)                  # petsc | hypre
-MAX_REF_LEVELS=(6 5 4 3)
+MAX_REF_LEVELS=(3 4 5 6)
 MESH_TYPES=(Hexahedra Voronoi)
 ADAPTIVITY_OPTIONS=(true false)
 DENSITY_MARKING_OPTIONS=(true)
@@ -110,9 +110,9 @@ mkdir -p "$LOG_DIR" "$RESULTS_DIR"
 printf 'job_name\tjob_script\tsubmission\n' > "$JOB_DIR/submissions.tsv"
 
 COUNT=0
+for ref in "${MAX_REF_LEVELS[@]}"; do
 for benchmark in "${BENCHMARK_CASES[@]}"; do
 for solver in "${SOLVERS[@]}"; do
-for ref in "${MAX_REF_LEVELS[@]}"; do
 for mesh in "${MESH_TYPES[@]}"; do
 for adapt in "${ADAPTIVITY_OPTIONS[@]}"; do
 for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
