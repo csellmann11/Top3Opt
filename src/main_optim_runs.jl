@@ -19,6 +19,8 @@ using Infiltrator
 using Dates: today
 using Pardiso
 using HYPRE
+using PETSc
+using MPI
 HYPRE.Init()
 const to = TimerOutput()
 const ps = MKLPardisoSolver()
@@ -28,9 +30,12 @@ set_nprocs!(ps, Threads.nthreads()) # Sets the number of threads to use
 
 
 include("utils/amg_utils.jl")
+include("utils/petsc_utils.jl")
 include("utils/general_utils.jl")
 include("hash_output.jl")
 args = parse_commandline()
+const LINEAR_SOLVER = args["solver"]::Symbol   # :petsc (CG + GAMG) or :hypre (PCG + BoomerAMG)
+LINEAR_SOLVER === :petsc && petsc_init!()
 include("mat_states.jl")
 include("laplace_operator.jl")
 include("compute_displacement.jl")
@@ -79,6 +84,8 @@ println("b_case: $b_case")
 println("rhs_fun: $rhs_fun")
 println("density_marking: $density_marking")
 println("laplace_rescale: $laplace_rescale")
+println("flux_scheme: ", args["flux_scheme"])
+println("Linear solver: $LINEAR_SOLVER")
 println("Number of threads: $(Threads.nthreads())")
 println("Number of BLAS threads: $(BLAS.get_num_threads())")
 println("Number of Paridso threads: $(get_nprocs(ps))")
@@ -188,6 +195,8 @@ function main(
 
     # Get project root directory (robust to where script is called from)
     project_root = dirname(@__DIR__)
+    results_root = abspath(get(ENV, "TOOPT_RESULTS_DIR", joinpath(project_root, "Results")))
+    mkpath(joinpath(results_root, "SimData"))
     folder_name = "$(string(b_case))_$(today())_$(setting_hash)"
     println("The folder name is $folder_name")
 
@@ -198,11 +207,12 @@ function main(
         mesh, 
         rhs_fun,
         sim_pars,
-        vtk_folder_name=joinpath(project_root, "Results", "vtk", "Adaptive_Runs", folder_name),
+        vtk_folder_name=joinpath(results_root, "vtk", "Adaptive_Runs", folder_name),
         MAX_OPT_STEPS=MAX_OPT_STEPS,
         MAX_REF_LEVEL=MAX_REF_LEVEL,
         density_marking=density_marking,
         laplace_rescale=laplace_rescale,
+        flux_scheme=args["flux_scheme"],
         take_snapshots_at= Int[1, 10, 20, 30, 50, 100, 200],
         do_adaptivity=do_adaptivity,
         b_case=b_case
@@ -214,10 +224,10 @@ function main(
 
 
     println("The folder hash is $(setting_hash)")
-    jld2_path = joinpath(project_root, "Results", "SimData", folder_name * ".jld2")
+    jld2_path = joinpath(results_root, "SimData", folder_name * ".jld2")
 
     @save jld2_path sim_results ARGS
-    export_sim_data_for_latex(sim_results, joinpath(project_root, "Results", "SimData", folder_name * ".csv"))
+    export_sim_data_for_latex(sim_results, joinpath(results_root, "SimData", folder_name * ".csv"))
 end
 
 main(

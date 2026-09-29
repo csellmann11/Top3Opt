@@ -1,4 +1,5 @@
 using Ju3VEM.VEMUtils: static_matmul
+include("diamond_flux.jl")
 
 """
     mirror_across_face(bc, p0, n)

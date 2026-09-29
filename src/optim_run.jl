@@ -18,6 +18,7 @@ function run_optimization(
     MAX_REF_LEVEL::Int = 3,
     density_marking::Bool = true,
     laplace_rescale::Bool = true,
+    flux_scheme::Symbol = :diamond,
     tolerance::Float64 = 1e-5,
     n_conv_until_stop::Int = 2,
     take_snapshots_at::AbstractVector{Int} = 1:30:MAX_OPT_STEPS,
@@ -25,6 +26,8 @@ function run_optimization(
     b_case::Symbol = :MBB_sym,
  ) where {D,H<:Helmholtz,F<:Function}
 
+    flux_scheme in (:strong, :tpfa, :diamond) ||
+        throw(ArgumentError("flux_scheme must be :strong, :tpfa, or :diamond"))
     n_conv_count = 0
     sim_results  = SimulationResults(MAX_REF_LEVEL,
               MAX_OPT_STEPS,sim_pars,Val{D}())
@@ -61,15 +64,21 @@ function run_optimization(
         @timeit to "adaptivity" if optimization_step == 1 || do_adaptivity 
 
             @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
-            @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh_list(states,cv);
-            @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
-                          cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states,laplace_rescale)
+            if flux_scheme == :strong
+                @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh_list(states,cv)
+                @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
+                    cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states,laplace_rescale)
+            else
+                @timeit to "compute_laplace_operator_mat" laplace_operator = compute_flux_operator_mat(
+                    cv,states,sim_pars; scheme=flux_scheme)
+            end
 
         end 
 
         @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
         @timeit to "state_update" state_changed = state_update!(
-            states,cv,sim_pars,laplace_operator,u,eldata_col)
+            states,cv,sim_pars,laplace_operator,u,eldata_col;
+            beta_in_operator=flux_scheme != :strong)
 
 
 
@@ -92,6 +101,7 @@ function run_optimization(
         println("number of states: $n_states, number of dofs: $n_dofs")
         println("Run time: $run_time minutes")
         println("Measure of nondiscreteness: $mod")
+        println("Peak RSS: $(round(Sys.maxrss() / 2^20, digits = 1)) MiB")
     
 
         if abs(ΔPsi_rel) < tolerance 

@@ -40,10 +40,19 @@ function parse_commandline()
             help = "Toogle if the distance between two nodes is rescaled for the computation of the laplace operator"
             arg_type = Bool
             default  = true
+        "--flux_scheme"
+            help = "Regularization: diamond (harmonic beta plus tangential correction), tpfa, or strong (legacy; uses laplace_rescale)"
+            arg_type = Symbol
+            default = :diamond
+            range_tester = x -> x in (:diamond, :tpfa, :strong)
         "--rhs_fun","-f"
             help = "Right hand side function"
             arg_type = Function
             default  = def_rhs_fun 
+        "--solver"
+            help = "Linear solver backend: petsc (CG + GAMG with rigid-body near-null space) or hypre (PCG + BoomerAMG)"
+            arg_type = Symbol
+            default  = :petsc
     end
     return parse_args(s)
 

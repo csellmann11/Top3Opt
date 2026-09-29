@@ -1,0 +1,6 @@
+/jobs/*
+!/jobs/.gitkeep
+/logs/*
+!/logs/.gitkeep
+/results/*
+!/results/.gitkeep

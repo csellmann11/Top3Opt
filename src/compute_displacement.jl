@@ -181,7 +181,7 @@ function compute_displacement(cv::CellValues{D,U,ET},
 
     @timeit to "apply" apply!(k_global,rhs_global,ch)
 
-    @timeit to "solver" u = solve_lse(k_global,rhs_global)
+    @timeit to "solver" u = solve_lse(k_global,rhs_global,cv,ch)
 
     return u, k_global, eldata_col
 end

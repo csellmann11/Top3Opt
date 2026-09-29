@@ -71,7 +71,8 @@ function state_update!(states::DesignVarInfo,
     sim_pars::SimPars, 
     laplace_operator::SparseMatrixCSC,
     u::AbstractVector{Float64},
-    eldata_col::Dict{Int64, <:ElData})
+    eldata_col::Dict{Int64, <:ElData};
+    beta_in_operator::Bool = false)
 
 
     dh = cv.dh
@@ -84,7 +85,13 @@ function state_update!(states::DesignVarInfo,
     β0 = 2*hmin^2 * sim_pars.β0
  
     #TODO: hmin should be the minimal distance between two nodes --> very large n_steps for voronoi?
-    n_steps = 4*ceil(Int,12/sim_pars.η0 * β0/hmin^2)
+    n_steps = max(1, 4*ceil(Int,12/sim_pars.η0 * β0/hmin^2))
+    if beta_in_operator
+        # Account for the actual face geometry and the wider corrected stencil.
+        # This bounds the explicit increment; it does not imply a maximum principle.
+        row_bound = maximum(vec(sum(abs, laplace_operator; dims=2)))
+        n_steps = max(n_steps, ceil(Int, 2row_bound/sim_pars.η0))
+    end
     dt = 1.0/n_steps
 
     Δχ          = zero(states.χ_vec)
@@ -120,7 +127,7 @@ function state_update!(states::DesignVarInfo,
             
             for (state_id,(χi,area,h,pχi,Δχi)) in enumerate(zip(χv,areav,hv,p_χ,Δχ))
                  
-                β = 2*max(h^2,hmin^2)*p_avg*sim_pars.β0
+                β = beta_in_operator ? p_avg : 2*max(h^2,hmin^2)*p_avg*sim_pars.β0
     
                 dχ = dt/η * (-pχi - λ_trial + β * Δχi)
                 χv_trial[state_id] = clamp(χi + dχ,χ_min,1.0)

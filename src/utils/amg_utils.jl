@@ -1,7 +1,7 @@
 using LinearAlgebra
 using SparseArrays
 
-function solve_lse(
+function solve_lse_hypre(
     k_global::SparseMatrixCSC,
     rhs_global::AbstractVector)
 
