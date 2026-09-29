@@ -113,23 +113,30 @@ runs still default to the existing repository `Results/` directory.
 
 ## Resources and solver options
 
-The full sweep uses partition `smp`, eight CPUs, and `6-00:30:00`.
-Total job RAM is selected automatically with `#SBATCH --mem`:
+The full sweep uses partition `smp` and eight CPUs. Total job RAM (`--mem`) and
+time limits (`--time`) are selected automatically per mesh and refinement level:
 
-| Refinement level | Hexahedra | Voronoi |
-| --- | --- | --- |
-| 1–3 | 4G | 6G |
-| 4 | 8G | 12G |
-| 5 | 24G | 36G |
-| 6 | 128G | 192G |
+| Refinement level | Hexahedra RAM | Hexahedra time | Voronoi RAM | Voronoi time |
+| --- | --- | --- | --- | --- |
+| 1–3 | 4G | 30 min | 5G | 38 min |
+| 4 | 8G | 1 hour | 10G | 1 h 15 min |
+| 5 | 16G | 6 hours | 20G | 7 h 30 min |
+| 6 | 100G | 48 hours | 125G | 60 hours |
 
-These are provisional MBB estimates, identical for adaptive and nonadaptive jobs
-because both start fully refined. Check cluster peak memory before larger runs.
-CPU count does not affect the default RAM request. The selected request is printed
-for each generated job. Other meshes or levels require an explicit override.
+These are provisional reservations with headroom, based on the supplied hex
+measurements: level 3 took 3m24s / 1563.13M peak RSS; level 4 took 24m26s /
+2833.36M. Levels 5/6 use extrapolated budgets, not measured bounds. They assume
+comparable workload and eight CPUs; changing solver, step count, benchmark, or
+CPU count does not automatically rescale the table. Validate level 5 before level 6.
+Voronoi receives 25% extra time and memory, rounded up to whole minutes/GiB.
+Adaptive and nonadaptive runs use the same budgets. CPU count does not affect
+the default total RAM request. Both selected resources are printed per job.
+Other meshes or levels require explicit overrides for both memory and time.
 
-Set `MEM_PER_JOB` to override total RAM. The legacy `MEM_PER_CPU` override is still
-accepted, but cannot be combined with `MEM_PER_JOB`.
+Set `MEM_PER_JOB` to override total RAM and `TIME_LIMIT` to override time.
+Overrides are used exactly as supplied, without the Voronoi multiplier.
+The legacy `MEM_PER_CPU` override is still accepted, but cannot be combined with
+`MEM_PER_JOB`.
 The smoke run uses two CPUs, 4G total RAM, and 30 minutes; override these with
 `SMOKE_CPUS`, `SMOKE_MEM_PER_JOB`, and `SMOKE_TIME_LIMIT`. A smoke-specific memory
 override takes precedence over a general override; otherwise the general override

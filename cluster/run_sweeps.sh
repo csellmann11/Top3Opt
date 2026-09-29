@@ -21,8 +21,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Experiment axes. Defaults reproduce the 16 combinations in the old sweep.
-BENCHMARK_CASES=(MBB_sym)
-SOLVERS=(petsc)                  # petsc | hypre
+BENCHMARK_CASES=(MBB_sym L_cantilever)        # Options: MBB_sym | Cantilever_sym | Bending_Beam_sym | simple_lever | pressure_plate | L_cantilever
+SOLVERS=(hypre)                  # petsc | hypre
 MAX_REF_LEVELS=(6 5 4 3)
 MESH_TYPES=(Hexahedra Voronoi)
 ADAPTIVITY_OPTIONS=(true false)
@@ -32,11 +32,11 @@ ADAPTIVITY_AT_START=true
 
 # Cluster resources; override these through the submitting environment.
 PARTITION=${PARTITION:-smp}
-CPUS_PER_TASK=${CPUS_PER_TASK:-8}
+CPUS_PER_TASK=${CPUS_PER_TASK:-16}
 # Empty overrides select total job RAM automatically below.
 MEM_PER_JOB=${MEM_PER_JOB:-}
 MEM_PER_CPU=${MEM_PER_CPU:-}
-TIME_LIMIT=${TIME_LIMIT:-6-00:30:00}
+TIME_LIMIT=${TIME_LIMIT:-}       # Empty selects a limit by mesh/refinement.
 CONSTRAINT=${CONSTRAINT-'[CPU_ARCH:avx512|CPU_ARCH:avx2]'}
 MAIL_USER=${MAIL_USER:-}         # Empty means no email notifications.
 
@@ -61,20 +61,32 @@ if [[ -n "$MEM_PER_JOB" && -n "$MEM_PER_CPU" ]]; then
     exit 2
 fi
 
-# Provisional MBB estimates, identical for adaptive and nonadaptive starts.
-# Use total RAM so changing the CPU count does not change the default allocation.
-suggested_memory() {
-    case "$1:$2" in
-        Hexahedra:1|Hexahedra:2|Hexahedra:3) echo 4G ;;
-        Hexahedra:4) echo 8G ;;
-        Hexahedra:5) echo 24G ;;
-        Hexahedra:6) echo 128G ;;
-        Voronoi:1|Voronoi:2|Voronoi:3) echo 6G ;;
-        Voronoi:4) echo 12G ;;
-        Voronoi:5) echo 36G ;;
-        Voronoi:6) echo 192G ;;
-        *) echo "No RAM estimate for mesh $1, level $2; set MEM_PER_JOB explicitly." >&2; return 2 ;;
+# Provisional limits with headroom over measured hex levels 3/4 and extrapolated
+# levels 5/6. Time is in minutes, memory in total GiB (independent of CPU count).
+# Same limits for adaptive/nonadaptive runs; no assumed saving from adaptivity.
+suggested_resource() {
+    local mesh=$1 ref=$2 resource=$3 memory minutes value
+    case "$ref" in
+        1|2|3) memory=4; minutes=30 ;;
+        4) memory=8; minutes=60 ;;
+        5) memory=16; minutes=360 ;;
+        6) memory=100; minutes=2880 ;;
+        *) echo "No $resource estimate for level $ref; set MEM_PER_JOB/TIME_LIMIT explicitly." >&2; return 2 ;;
     esac
+    case "$resource" in
+        memory) value=$memory ;;
+        time) value=$minutes ;;
+    esac
+    case "$mesh" in
+        Hexahedra) ;;
+        Voronoi) value=$(( (value * 5 + 3) / 4 )) ;; # +25%, rounded up
+        *) echo "No $resource estimate for mesh $mesh; set MEM_PER_JOB/TIME_LIMIT explicitly." >&2; return 2 ;;
+    esac
+    if [[ "$resource" == memory ]]; then
+        printf '%sG\n' "$value"
+    else
+        printf '%d-%02d:%02d:00\n' "$((value / 1440))" "$((value / 60 % 24))" "$((value % 60))"
+    fi
 }
 
 if (( ! DRY_RUN )) && ! command -v sbatch >/dev/null 2>&1; then
@@ -111,8 +123,9 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
         MEMORY_VALUE=$MEM_PER_CPU
     else
         MEMORY_OPTION=--mem
-        MEMORY_VALUE=${MEM_PER_JOB:-$(suggested_memory "$mesh" "$ref")}
+        MEMORY_VALUE=${MEM_PER_JOB:-$(suggested_resource "$mesh" "$ref" memory)}
     fi
+    JOB_TIME_LIMIT=${TIME_LIMIT:-$(suggested_resource "$mesh" "$ref" time)}
     ARGS=(-c "$benchmark" --solver "$solver" -r "$ref" -m "$mesh"
         -a "$adapt" -b "$ADAPTIVITY_AT_START" --flux_scheme diamond --laplace_rescale false
         -d "$density" -s "$MAX_OPT_STEPS")
@@ -122,7 +135,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
         printf '#SBATCH --nodes=1\n#SBATCH --ntasks=1\n'
         printf '#SBATCH --cpus-per-task=%s\n' "$CPUS_PER_TASK"
         printf '#SBATCH %s=%s\n' "$MEMORY_OPTION" "$MEMORY_VALUE"
-        printf '#SBATCH --time=%s\n#SBATCH --partition=%s\n' "$TIME_LIMIT" "$PARTITION"
+        printf '#SBATCH --time=%s\n#SBATCH --partition=%s\n' "$JOB_TIME_LIMIT" "$PARTITION"
         if [[ -n "$CONSTRAINT" ]]; then printf '#SBATCH --constraint=%s\n' "$CONSTRAINT"; fi
         if [[ -n "$MAIL_USER" ]]; then
             printf '#SBATCH --mail-user=%s\n#SBATCH --mail-type=END,FAIL\n' "$MAIL_USER"
@@ -144,7 +157,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
         SUBMISSION=$(sbatch --parsable "$JOB_SCRIPT")
     fi
     printf '%s\t%s\t%s\n' "$NAME" "$JOB_SCRIPT" "$SUBMISSION" >> "$JOB_DIR/submissions.tsv"
-    echo "$SUBMISSION: $NAME ($MEMORY_OPTION=$MEMORY_VALUE)"
+    echo "$SUBMISSION: $NAME ($MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
     COUNT=$((COUNT + 1))
 done; done; done; done; done; done
 
