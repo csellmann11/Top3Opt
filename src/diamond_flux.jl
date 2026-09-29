@@ -16,8 +16,18 @@ function regularization_faces(cv, states)
     return owners
 end
 
+"""Normalized intercept weights, ignoring numerically unresolved sample directions."""
+function diamond_reconstruction_weights(A)
+    # Mesh integration roundoff can make a coplanar stencil appear full-rank at
+    # pinv's default machine-epsilon tolerance. Inverting that direction creates
+    # enormous flux coefficients. Retain affine exactness in resolved directions.
+    w = pinv(A; rtol=sqrt(eps(Float64)))[1,:]
+    w ./= sum(w)
+    return w
+end
+
 """Cell-to-vertex linear reconstruction, with equal-value mirrored boundary samples."""
-function build_diamond_node_weights(cv, states, owners)
+function build_diamond_node_weights(cv, states, owners; needed=nothing)
     nodes = cv.mesh.topo.nodes
     samples = [Dict{Int,SVector{3,Float64}}() for _ in eachindex(nodes)]
     ghosts = [Tuple{Int,SVector{3,Float64}}[] for _ in eachindex(nodes)]
@@ -25,6 +35,7 @@ function build_diamond_node_weights(cv, states, owners)
         fd = cv.facedata_col[fid]
         ids = fd.face_node_ids.v.args[1]
         for sid in sids, nid in ids
+            needed === nothing || needed[nid] || continue
             samples[nid][sid] = states.x_vec[sid]
         end
         if length(sids) == 1
@@ -33,6 +44,7 @@ function build_diamond_node_weights(cv, states, owners)
             n = Ju3VEM.VEMGeo.get_outward_normal(x, fd)
             ghost = x + 2dot(nodes[first(ids)] - x, n)*n
             for nid in ids
+                needed === nothing || needed[nid] || continue
                 push!(ghosts[nid], (sid, ghost))
             end
         end
@@ -43,12 +55,17 @@ function build_diamond_node_weights(cv, states, owners)
         s = vcat(collect(pairs(samples[nid])), [sid => x for (sid,x) in ghosts[nid]])
         h = maximum(norm(x - nodes[nid]) for (_,x) in s)
         A = [j == 1 ? 1.0 : (x[j-1] - nodes[nid][j-1])/h for (_,x) in s, j in 1:4]
-        # SVD handles rank-deficient boundary stencils without a ridge bias.
-        w = pinv(A)[1,:]
-        w ./= sum(w)
+        w = diamond_reconstruction_weights(A)
         weights[nid] = [(s[i].first, w[i]) for i in eachindex(s)]
     end
     return weights
+end
+
+"""Whether a face needs the diamond correction (ignore centroid roundoff)."""
+function needs_diamond_correction(fd, xL, xR)
+    d = xR-xL
+    n = fd.dΩ.plane.n
+    return norm(d-dot(d,n)*n) > 1e-12*norm(d)
 end
 
 """
@@ -103,7 +120,20 @@ function compute_flux_operator_mat(cv, states, sim_pars; scheme::Symbol=:diamond
     scheme in (:diamond, :tpfa) || throw(ArgumentError("Unknown flux scheme: $scheme"))
     sim_pars.β0 >= 0 || throw(ArgumentError("beta0 must be nonnegative"))
     owners = regularization_faces(cv, states)
-    nw = scheme == :diamond ? build_diamond_node_weights(cv,states,owners) : nothing
+    corrected_faces = Set{Int}()
+    needed_nodes = falses(length(cv.mesh.topo.nodes))
+    if scheme == :diamond
+        for (fid,sids) in owners
+            length(sids) == 2 || continue
+            fd = cv.facedata_col[fid]
+            if needs_diamond_correction(fd,states.x_vec[sids[1]],states.x_vec[sids[2]])
+                push!(corrected_faces,fid)
+                needed_nodes[fd.face_node_ids.v.args[1]] .= true
+            end
+        end
+    end
+    nw = isempty(corrected_faces) ? nothing :
+        build_diamond_node_weights(cv,states,owners;needed=needed_nodes)
     rows = Int[]; cols = Int[]; vals = Float64[]
     for (fid, sids) in owners
         length(sids) == 2 || continue
@@ -112,9 +142,9 @@ function compute_flux_operator_mat(cv, states, sim_pars; scheme::Symbol=:diamond
         points = [cv.mesh.topo.nodes[nid] for nid in ids]
         T,c = diamond_face_coefficients(points, states.x_vec[l], states.x_vec[r],
             2sim_pars.β0*states.h_vec[l]^2, 2sim_pars.β0*states.h_vec[r]^2;
-            diamond=scheme == :diamond)
+            diamond=fid in corrected_faces)
         flux = Dict(l => -T, r => T)
-        if scheme == :diamond
+        if fid in corrected_faces
             for (i,nid) in enumerate(ids), (sid,w) in nw[nid]
                 flux[sid] = get(flux,sid,0.0) + c[i]*w
             end
@@ -125,5 +155,7 @@ function compute_flux_operator_mat(cv, states, sim_pars; scheme::Symbol=:diamond
         end
     end
     N = length(states.χ_vec)
-    return sparse(rows,cols,vals,N,N)
+    R = sparse(rows,cols,vals,N,N)
+    dropzeros!(R)
+    return R
 end

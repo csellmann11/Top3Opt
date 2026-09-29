@@ -1,7 +1,56 @@
 using Test, LinearAlgebra, SparseArrays, StaticArrays, OrderedCollections
-using Ju3VEM
+using Ju3VEM, Ju3VEM.FixedSizeArrays
 include("../src/mat_states.jl")
 include("../src/diamond_flux.jl")
+include("../src/density_timestepping.jl")
+include("../src/utils/mesh_processing_utils.jl")
+
+@testset "Nearly coplanar reconstruction and fixed substeps" begin
+    # An exactly planar stencil shifted off the target vertex, perturbed only
+    # by centroid integration roundoff. Default pinv fits that noise with 1e11 weights.
+    A = hcat(ones(4), [-1.,1.,-1.,1.], [-1.,-1.,1.,1.],
+        [0.2+1e-12,0.2-1e-12,0.2-1e-12,0.2+1e-12])
+    w = diamond_reconstruction_weights(A)
+    @test all(isfinite,w)
+    @test sum(w) ≈ 1
+    @test norm(w,1) < 2
+    @test dot(w, 0.7 .+ 0.2A[:,2] .- 0.4A[:,3]) ≈ 0.7 atol=1e-12
+    @test density_substeps(spdiagm(0=>[-75.]),15.,1.;beta_in_operator=true) == (8,75.)
+    @test density_substeps(spzeros(2,2),15.,0.;beta_in_operator=true) == (1,0.)
+    @test density_substeps(spdiagm(0=>[-1e13]),15.,1.;beta_in_operator=true) == (8,1e13)
+    @test_throws ErrorException density_substeps(spdiagm(0=>[NaN]),15.,1.;beta_in_operator=true)
+end
+
+@testset "Direct coarse/fine interfaces up to 32:1" begin
+    mesh = create_rectangular_mesh(2,1,1,2.,1.,1.,StandardEl{1})
+    target = SA[1.,0.,0.]
+    for level in 1:5
+        cv = CellValues{3}(mesh)
+        states = DesignVarInfo{3}(cv,0.3)
+        candidates = findall(x->x[1]<1.,states.x_vec)
+        sid = candidates[argmin([norm(states.x_vec[i]-target) for i in candidates])]
+        elid = get_el_id(states,sid)
+        el = only(el for el in RootIterator{4}(mesh.topo) if el.id == elid)
+        Ju3VEM.VEMGeo._refine!(el,mesh.topo)
+        mesh = Mesh(mesh.topo,StandardEl{1}())
+        cv = CellValues{3}(mesh)
+        states = DesignVarInfo{3}(cv,0.3)
+        R = compute_flux_operator_mat(cv,states,(β0=1.,))
+        row_bound = maximum(vec(sum(abs,R;dims=2)))
+        @test maximum(states.h_vec)/minimum(states.h_vec) ≈ 2.0^level
+        @test all(isfinite,nonzeros(R))
+        @test norm(R*ones(length(states.χ_vec)),Inf) < 1e-9
+        @test norm(states.area_vec'*R,Inf) < 1e-10
+        # Nonorthogonal corrections can grow with the size ratio without
+        # producing a large eigenvalue; this is not a time-step selection rule.
+        @test row_bound < 40*2.0^level
+        @test density_substeps(R,15.,1.;beta_in_operator=true)[1] == 8
+        # The diffusion-only explicit step must not develop a growing mode on
+        # these deliberately unbalanced meshes with the original eight steps.
+        amplification = eigvals(I + Matrix(R)/(8*15))
+        @test maximum(abs,amplification) <= 1+1e-10
+    end
+end
 
 @testset "3D diamond face flux" begin
     points = [SA[0.,-1.,-1.], SA[0.,1.,-1.], SA[0.,1.,1.], SA[0.,-1.,1.]]
@@ -23,6 +72,21 @@ include("../src/diamond_flux.jl")
     @test all(iszero,ct)
     _,co = diamond_face_coefficients(points,xL,SA[0.5,0.,0.],2.,8.)
     @test all(iszero,co)
+end
+
+@testset "Extruded Voronoi faces" begin
+    mesh2d = create_voronoi_mesh((0.,0.),(1.,1.),3,3,StandardEl{1})
+    topo = mesh2d.topo
+    for _ in 1:3
+        topo = remove_short_edges(topo)
+    end
+    mesh = extrude_to_3d(2,Mesh(topo,StandardEl{1}()),1.)
+    cv = CellValues{3}(mesh)
+    states = DesignVarInfo{3}(cv,0.3)
+    R = compute_flux_operator_mat(cv,states,(β0=1.,))
+    @test all(isfinite,nonzeros(R))
+    @test norm(R*ones(length(states.χ_vec)),Inf) < 1e-9
+    @test norm(states.area_vec'*R,Inf) < 1e-10
 end
 
 @testset "Assembled uniform and adaptive mesh" begin

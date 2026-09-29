@@ -1,3 +1,6 @@
+include("density_timestepping.jl")
+include("density_projection.jl")
+
 function compute_driving_force!(
     pχv::Vector{Float64},
     Ψvec::Vector{Float64},
@@ -54,16 +57,11 @@ function get_avarage_driving_force(states::DesignVarInfo,
         ∑g_pχ += gχ * pχi * area
         ∑g    += gχ * area
     end
-    return ∑g_pχ/∑g
+    # At a completely clipped design g vanishes everywhere. Use the volume
+    # average in that degenerate case so the next update remains defined.
+    return ∑g > 0 ? ∑g_pχ/∑g : dot(states.area_vec,p_χ)/sum(states.area_vec)
 end
 
-
-
-function lower_upper_bound(p_χ::Vector{Float64},η::Float64,dt::Float64)
-
-    min_val,max_val = extrema(p_χ)
-    return min_val - η/dt, max_val + η/dt
-end
 
 
 function state_update!(states::DesignVarInfo,
@@ -79,25 +77,18 @@ function state_update!(states::DesignVarInfo,
     χ_min = sim_pars.χmin
     
 
-    MAX_ITER = 1000
- 
     hmin,hmax = extrema(states.h_vec)#./sqrt(3)
-    β0 = 2*hmin^2 * sim_pars.β0
- 
-    #TODO: hmin should be the minimal distance between two nodes --> very large n_steps for voronoi?
-    n_steps = max(1, 4*ceil(Int,12/sim_pars.η0 * β0/hmin^2))
-    if beta_in_operator
-        # Account for the actual face geometry and the wider corrected stencil.
-        # This bounds the explicit increment; it does not imply a maximum principle.
-        row_bound = maximum(vec(sum(abs, laplace_operator; dims=2)))
-        n_steps = max(n_steps, ceil(Int, 2row_bound/sim_pars.η0))
-    end
+    n_steps, row_bound = density_substeps(laplace_operator,sim_pars.η0,sim_pars.β0;
+        beta_in_operator)
+    println("[density] substeps=$n_steps, operator row bound=$row_bound, hmin=$hmin, hmax=$hmax")
+    flush(stdout)
     dt = 1.0/n_steps
 
     Δχ          = zero(states.χ_vec)
     p_χ         = zero(states.χ_vec)
     χv          = states.χ_vec 
     χv_trial    = similar(χv)
+    unconstrained = similar(χv)
     areav       = states.area_vec
     hv          = states.h_vec
     Ψvec        = compute_strain_energy(dh,eldata_col,u,states,sim_pars)
@@ -107,49 +98,19 @@ function state_update!(states::DesignVarInfo,
 
     for _ in 1:n_steps
 
-        Δχ .= laplace_operator * states.χ_vec
+        mul!(Δχ,laplace_operator,states.χ_vec)
         compute_driving_force!(p_χ,Ψvec,states)
         p_avg = get_avarage_driving_force(states,p_χ,sim_pars) |> abs
     
-        η    = sim_pars.η0 * p_avg
-        
-        iter = 0
-        λ_trial = 0.0
-        copyto!(χv_trial,states.χ_vec)
-        λ_lower, λ_upper = lower_upper_bound(p_χ,η,dt)
-        ρ_trial = 1.0
-
-        while abs(sim_pars.ρ_init - ρ_trial) > 1e-8
-
-            iter += 1
-            ∑χ = 0.0  
-            ∑Ω = 0.0    
-            
-            for (state_id,(χi,area,h,pχi,Δχi)) in enumerate(zip(χv,areav,hv,p_χ,Δχ))
-                 
-                β = beta_in_operator ? p_avg : 2*max(h^2,hmin^2)*p_avg*sim_pars.β0
-    
-                dχ = dt/η * (-pχi - λ_trial + β * Δχi)
-                χv_trial[state_id] = clamp(χi + dχ,χ_min,1.0)
-
-                ∑Ω += area
-                ∑χ += area * χv_trial[state_id]
-            end
-
-            ρ_trial = ∑χ/∑Ω
-
-
-            ρ_trial > sim_pars.ρ_init ? λ_lower = λ_trial : λ_upper = λ_trial 
-   
-
-            λ_trial = (λ_lower + λ_upper)/2.0
-
-            if iter > MAX_ITER
-                error("Max iterations reached")
-                break
-            end
+        isfinite(p_avg) || error("Nonfinite average driving force")
+        # Zero strain energy gives no driving or regularization force in the
+        # original scaling (both beta and eta contain p_avg).
+        p_avg == 0 && break
+        for i in eachindex(χv)
+            beta_hat = beta_in_operator ? 1.0 : 2hv[i]^2*sim_pars.β0
+            unconstrained[i] = χv[i] + dt/sim_pars.η0*(-p_χ[i]/p_avg + beta_hat*Δχ[i])
         end
-
+        project_density_volume!(χv_trial,unconstrained,areav,sim_pars.ρ_init,χ_min)
         copyto!(states.χ_vec,χv_trial)
     end
     state_changed = (states.χ_vec .- state_initial) 
