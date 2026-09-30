@@ -46,6 +46,7 @@ function run_optimization(
 
 
     cv = CellValues{U}(mesh)
+    validate_vem_projectors(cv)
 
     
     states = DesignVarInfo{U}(cv, sim_pars.ρ_init)

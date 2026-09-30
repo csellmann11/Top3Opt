@@ -54,7 +54,7 @@ function project_matrix!(
         destretch_cache = @alloc(Float64,size(proj,1),size(proj,2))
         mul_cache       = @alloc(Float64,size(g,1),size(proj,2))
         Ju3VEM.VEMGeo.destretch!(destretch_cache,stretch(proj,Val(U)))
-        matmul!(mul_cache,g,destretch_cache)
+        mul!(mul_cache,g,destretch_cache)
         matmul!(dest,destretch_cache',mul_cache)
     end
     dest
@@ -88,7 +88,9 @@ function build_local_kel_and_f_topo!(
         setsize!(cache2,(L,n_dofs))
         Ju3VEM.VEMGeo.destretch!(cache2.array,stretch(proj_s,Val(U)))
         setsize!(cache1,(L,n_dofs)) 
-        matmul!(cache1.array,k_poly_space,cache2.array)
+        # k_poly_space is an immutable SMatrix. Octavian's pointer-based path
+        # can read invalid coefficients from it on Julia 1.12.
+        mul!(cache1.array,k_poly_space,cache2.array)
         matmul!(kelement.array,cache2.array',cache1.array)
     end
     kelement .*= dΩ/(hvol^2) * χ^3
@@ -107,6 +109,35 @@ end
 
 
 
+
+"""
+    validate_vem_projectors(cv)
+
+Check polynomial reproduction on the first active cell and its faces before a
+long optimization. In particular, reject a Ju3VEM checkout with the faulty
+Octavian/static-matrix projector products instead of silently optimizing an
+invalid elasticity model.
+"""
+function validate_vem_projectors(cv::CellValues{3})
+    element = first(RootIterator{4}(cv.mesh.topo))
+    reinit!(element.id,cv)
+    Ju3VEM.VEMGeo.iterate_volume_areas(cv.facedata_col,cv.mesh.topo,element.id) do face,fd,_
+        D = Ju3VEM.VEMUtils.create_D_mat(cv.mesh,fd)
+        defect = norm(Matrix(fd.ΠsL2)*Matrix(D)-I,Inf)
+        isfinite(defect) && defect <= 1e-8 || error(
+            "Ju3VEM face $(face.id) fails polynomial reproduction (error=$defect). " *
+            "Update Ju3VEM's face and volume projector matrix products before optimizing.")
+    end
+    D = Ju3VEM.VEMUtils.create_volume_dmat(element.id,cv.mesh,
+        cv.facedata_col,cv.volume_data,cv.vnm)
+    Ps,P = create_volume_vem_projectors(element.id,cv.mesh,
+        cv.volume_data,cv.facedata_col,cv.vnm)
+    defect = max(norm(Matrix(Ps)*Matrix(D)-I,Inf),norm(Matrix(P)*Matrix(D)-Matrix(D),Inf))
+    isfinite(defect) && defect <= 1e-8 || error(
+        "Ju3VEM cell $(element.id) fails polynomial reproduction (error=$defect). " *
+        "Update Ju3VEM's face and volume projector matrix products before optimizing.")
+    return nothing
+end
 
 function assembly(cv::CellValues{D,U,ET},
     states::DesignVarInfo{D},
