@@ -20,6 +20,7 @@
 #   PETSC_CG_RTOL (1e-4)   PETSC_CG_MAXIT (1000)   PETSC_GAMG_THRESHOLD (0.01)
 #   PETSC_GAMG_RBM (1)     PETSC_GAMG_L1CHEB (0)   PETSC_GAMG_CHEB_EMIN (0.1)
 #   PETSC_GAMG_CHEB_EMAX (1.0)   PETSC_GAMG_VIEW (0)   PETSC_VERBOSE (1)
+#   PETSC_GAMG_SQUARE_GRAPH (1; 0 selects MIS-2 aggressive coarsening)
 ################################################################################
 using LinearAlgebra
 using SparseArrays
@@ -69,6 +70,10 @@ end
 _petsc_gamg_set_threshold(pc::Ptr{Cvoid}, thr::Float64) =
     _petsc_check(ccall(_petsc_sym(:PCGAMGSetThreshold), Cint,
                        (Ptr{Cvoid}, Ptr{Cdouble}, Int64), pc, [thr], 1), "PCGAMGSetThreshold")
+# PETSc.jl drops false-valued keyword options, so set this through the C API.
+_petsc_gamg_set_square_graph(pc::Ptr{Cvoid}, enabled::Bool) =
+    _petsc_check(ccall(_petsc_sym(:PCGAMGSetAggressiveSquareGraph), Cint,
+                       (Ptr{Cvoid}, Cint), pc, Cint(enabled)), "PCGAMGSetAggressiveSquareGraph")
 function _petsc_mg_nlevels(pc::Ptr{Cvoid})
     n = Ref{Int64}(0)
     _petsc_check(ccall(_petsc_sym(:PCMGGetLevels), Cint,
@@ -260,6 +265,7 @@ function solve_lse_petsc(k_global::SparseMatrixCSC, rhs_global::AbstractVector,
                         ksp_rtol = rtol, ksp_max_it = maxit, pc_type = "gamg")
         pc = _petsc_ksp_get_pc(ksp.ptr)
         _petsc_gamg_set_threshold(pc, _petsc_env_f("PETSC_GAMG_THRESHOLD", "0.01"))
+        _petsc_gamg_set_square_graph(pc, _petsc_env_b("PETSC_GAMG_SQUARE_GRAPH", "1"))
 
         t1 = time_ns()
         LP.KSPSetUp(lib, ksp)                          # builds the GAMG hierarchy

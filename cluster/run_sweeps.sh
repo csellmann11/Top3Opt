@@ -32,10 +32,16 @@ DENSITY_MARKING_OPTIONS=(true)
 MAX_OPT_STEPS=400
 ADAPTIVITY_AT_START=true
 FLUX_SCHEME=diamond              # Options: diamond | tpfa | taylor | strong
+PETSC_GAMG_SQUARE_GRAPH=${PETSC_GAMG_SQUARE_GRAPH:-1} # PETSc only: 1 = squared graph, 0 = MIS-2
 
 case "$FLUX_SCHEME" in
     diamond|tpfa|taylor|strong) ;;
     *) echo "Unknown FLUX_SCHEME: $FLUX_SCHEME (choose diamond, tpfa, taylor, or strong)." >&2; exit 2 ;;
+esac
+
+case "$PETSC_GAMG_SQUARE_GRAPH" in
+    0|1) ;;
+    *) echo "Invalid PETSC_GAMG_SQUARE_GRAPH: $PETSC_GAMG_SQUARE_GRAPH (choose 0 or 1)." >&2; exit 2 ;;
 esac
 
 # Cluster resources; override these through the submitting environment.
@@ -103,9 +109,9 @@ if (( ! DRY_RUN )) && ! command -v sbatch >/dev/null 2>&1; then
 fi
 
 # Pin current PETSc defaults/overrides into the generated scripts.
-PETSC_KEYS=(PETSC_CG_RTOL PETSC_CG_MAXIT PETSC_GAMG_THRESHOLD PETSC_GAMG_RBM
+PETSC_KEYS=(PETSC_CG_RTOL PETSC_CG_MAXIT PETSC_GAMG_THRESHOLD PETSC_GAMG_SQUARE_GRAPH PETSC_GAMG_RBM
     PETSC_GAMG_L1CHEB PETSC_GAMG_CHEB_EMIN PETSC_GAMG_CHEB_EMAX PETSC_GAMG_VIEW PETSC_VERBOSE)
-PETSC_DEFAULTS=(1e-4 1000 0.01 1 0 0.1 1.0 0 1)
+PETSC_DEFAULTS=(1e-4 1000 0.01 1 1 0 0.1 1.0 0 1)
 
 # mktemp provides a unique suite even when two submissions start simultaneously.
 mkdir -p "$SCRIPT_DIR/jobs" "$SCRIPT_DIR/logs" "$SCRIPT_DIR/results"
