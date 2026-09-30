@@ -2,11 +2,15 @@
 
 `run_sweeps.sh` generates one SLURM job per parameter combination using
 `job_template.sh`, following the basic layout of AndersonPlasticity's
-`run_small_solver_exp.sh`. Edit the experiment axes near the top of the generator.
+`run_small_solver_exp.sh`. Edit the experiment axes and fixed parameters near the
+top of the generator.
 The default sweep retains the old 16 combinations (four refinement levels, two
 meshes, adaptivity on/off), with 400 optimization steps and the current PETSc solver.
-All sweep and smoke jobs explicitly use `--flux_scheme diamond --laplace_rescale false`.
-Legacy Laplace rescaling is no longer a sweep axis.
+`FLUX_SCHEME=diamond` is a fixed parameter shared by all sweep and smoke jobs;
+set it to `taylor`, `tpfa`, or `strong` to select another regularization scheme.
+The selected scheme appears in each job's arguments and name; it is not a sweep
+axis. All jobs use `--laplace_rescale false`, which only affects the legacy
+`strong` scheme.
 
 ## Run on the cluster
 

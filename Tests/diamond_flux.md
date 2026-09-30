@@ -1,9 +1,16 @@
 # 3D density regularization
 
 The default is now `--flux_scheme diamond`. For comparisons, select
-`--flux_scheme tpfa` or `--flux_scheme strong`. The Julia entry point accepts
-`run_optimization(...; flux_scheme=:diamond)`. `laplace_rescale` applies only to
+`--flux_scheme tpfa`, `--flux_scheme taylor`, or `--flux_scheme strong`. The Julia
+entry point accepts the corresponding symbols, for example
+`run_optimization(...; flux_scheme=:taylor)`. `laplace_rescale` applies only to
 the legacy `strong` scheme. Output directory identifiers include the flux scheme.
+
+The `taylor` scheme in `src/taylor_operator.jl` computes the variable-beta product
+rule `beta_hat * laplacian(chi) + grad(beta_hat) ⋅ grad(chi)` with nine Taylor
+derivatives and ridge stabilization. It includes beta in the assembled operator
+and uses physical neighbour locations. It preserves constants but is not exactly
+conservative on graded meshes. The tests and benchmarks use this same implementation.
 
 The face schemes assemble `div(beta_hat * grad(chi))`, with the existing 3D
 coefficient `beta_hat[i] = 2 * beta0 * h[i]^2`. The density update multiplies this

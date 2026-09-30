@@ -14,7 +14,6 @@ include("../src/utils/mesh_processing_utils.jl")
 include("../src/neighbor_search.jl")
 include("../src/refinement_utils/estiamte_element_error.jl")
 include("../src/get_sparsity_pattern.jl")
-include("taylor_reference.jl")
 solve_lse(K, f, cv, ch) = cholesky(Symmetric(K)) \ f
 
 function benchmark_regularization(scheme=:diamond; steps=30, level=3, base_n=4)
@@ -33,7 +32,7 @@ function benchmark_regularization(scheme=:diamond; steps=30, level=3, base_n=4)
         top = @elapsed R = if scheme in (:diamond,:tpfa)
             compute_flux_operator_mat(cv,states,pars;scheme)
         elseif scheme == :taylor
-            compute_reference_taylor_mat(cv,states,pars)
+            compute_taylor_operator_mat(cv,states,pars)
         elseif scheme == :strong
             ns, ghosts = create_neigh_list(states,cv)
             compute_laplace_operator_mat(cv.mesh.topo,ns,ghosts,states,true)

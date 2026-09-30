@@ -41,10 +41,10 @@ function parse_commandline()
             arg_type = Bool
             default  = true
         "--flux_scheme"
-            help = "Regularization: diamond (harmonic beta plus tangential correction), tpfa, or strong (legacy; uses laplace_rescale)"
+            help = "Regularization: diamond (harmonic beta plus tangential correction), tpfa, taylor (variable-beta product rule), or strong (legacy; uses laplace_rescale)"
             arg_type = Symbol
             default = :diamond
-            range_tester = x -> x in (:diamond, :tpfa, :strong)
+            range_tester = x -> x in (:diamond, :tpfa, :taylor, :strong)
         "--rhs_fun","-f"
             help = "Right hand side function"
             arg_type = Function

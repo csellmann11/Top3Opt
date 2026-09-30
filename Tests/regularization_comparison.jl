@@ -5,7 +5,7 @@ include("regularization_benchmark.jl")
 
 function compare_operators(cv,states,pars)
     for scheme in (:diamond,:tpfa,:taylor)
-        build() = scheme == :taylor ? compute_reference_taylor_mat(cv,states,pars) :
+        build() = scheme == :taylor ? compute_taylor_operator_mat(cv,states,pars) :
             compute_flux_operator_mat(cv,states,pars;scheme)
         build() # compilation and warm-up
         timings = [@timed build() for _ in 1:5]

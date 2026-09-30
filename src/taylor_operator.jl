@@ -1,7 +1,12 @@
-# Comparison implementation of the supplied NEM description: edge neighbours,
-# nine Taylor derivatives, ridge regularization, and the variable-beta product
-# rule. Kept as a benchmark reference; it is not a conservative face scheme.
-function compute_reference_taylor_mat(cv, states, pars;
+"""
+    compute_taylor_operator_mat(cv, states, pars; beta=2pars.β0 .* states.h_vec.^2, ridge=1e-4)
+
+Assemble `beta * laplacian(chi) + grad(beta) ⋅ grad(chi)` using edge neighbours,
+nine Taylor derivatives, and ridge stabilization. Beta is included in the
+operator. Uses physical neighbour locations, independently of `laplace_rescale`.
+This product-rule discretization is not a conservative face scheme.
+"""
+function compute_taylor_operator_mat(cv, states, pars;
         beta=2pars.β0 .* states.h_vec.^2, ridge=1e-4)
     neighbours, ghosts = create_neigh_list(states,cv)
     rows = Int[]; cols = Int[]; vals = Float64[]

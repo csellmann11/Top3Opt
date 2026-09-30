@@ -3,8 +3,9 @@
 ## Decision
 
 Keep the conservative diamond flux, with rank-aware vertex reconstruction.
-The variable-beta Taylor method from the supplied text was implemented as a
-comparison in `taylor_reference.jl`; it also runs successfully, but its product
+The variable-beta Taylor method from the supplied text was initially implemented
+as a comparison and now lives in `src/taylor_operator.jl`, selectable with
+`--flux_scheme taylor`; it also runs successfully, but its product
 rule does not give an exactly conservative discrete flux on the graded mesh.
 Diamond retains harmonic transmission across the discontinuous cellwise beta.
 It was faster and smaller on the reproduced MBB failure mesh; the timing order

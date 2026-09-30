@@ -10,7 +10,7 @@ for arg in "$@"; do
         --smoke) SMOKE=1 ;;
         -h|--help)
             echo "Usage: bash cluster/run_sweeps.sh [--dry-run] [--smoke]"
-            echo "Edit the axes below. --smoke selects one small, five-step MBB run."
+            echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
         *) echo "Unknown argument: $arg" >&2; exit 2 ;;
@@ -27,8 +27,16 @@ MAX_REF_LEVELS=(3 4 5 6)
 MESH_TYPES=(Hexahedra Voronoi)
 ADAPTIVITY_OPTIONS=(true false)
 DENSITY_MARKING_OPTIONS=(true)
+
+# Fixed run parameters shared by every job.
 MAX_OPT_STEPS=400
 ADAPTIVITY_AT_START=true
+FLUX_SCHEME=diamond              # Options: diamond | tpfa | taylor | strong
+
+case "$FLUX_SCHEME" in
+    diamond|tpfa|taylor|strong) ;;
+    *) echo "Unknown FLUX_SCHEME: $FLUX_SCHEME (choose diamond, tpfa, taylor, or strong)." >&2; exit 2 ;;
+esac
 
 # Cluster resources; override these through the submitting environment.
 PARTITION=${PARTITION:-smp}
@@ -116,7 +124,7 @@ for solver in "${SOLVERS[@]}"; do
 for mesh in "${MESH_TYPES[@]}"; do
 for adapt in "${ADAPTIVITY_OPTIONS[@]}"; do
 for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
-    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_fdiamond_lfalse_d${density}_s${MAX_OPT_STEPS}"
+    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_lfalse_d${density}_s${MAX_OPT_STEPS}"
     JOB_SCRIPT="$JOB_DIR/$NAME.sh"
     if [[ -n "$MEM_PER_CPU" ]]; then
         MEMORY_OPTION=--mem-per-cpu
@@ -127,7 +135,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
     fi
     JOB_TIME_LIMIT=${TIME_LIMIT:-$(suggested_resource "$mesh" "$ref" time)}
     ARGS=(-c "$benchmark" --solver "$solver" -r "$ref" -m "$mesh"
-        -a "$adapt" -b "$ADAPTIVITY_AT_START" --flux_scheme diamond --laplace_rescale false
+        -a "$adapt" -b "$ADAPTIVITY_AT_START" --flux_scheme "$FLUX_SCHEME" --laplace_rescale false
         -d "$density" -s "$MAX_OPT_STEPS")
     {
         printf '#!/bin/bash -l\n'

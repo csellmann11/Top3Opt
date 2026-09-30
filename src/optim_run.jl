@@ -26,8 +26,8 @@ function run_optimization(
     b_case::Symbol = :MBB_sym,
  ) where {D,H<:Helmholtz,F<:Function}
 
-    flux_scheme in (:strong, :tpfa, :diamond) ||
-        throw(ArgumentError("flux_scheme must be :strong, :tpfa, or :diamond"))
+    flux_scheme in (:strong, :tpfa, :diamond, :taylor) ||
+        throw(ArgumentError("flux_scheme must be :strong, :tpfa, :diamond, or :taylor"))
     n_conv_count = 0
     sim_results  = SimulationResults(MAX_REF_LEVEL,
               MAX_OPT_STEPS,sim_pars,Val{D}())
@@ -69,6 +69,9 @@ function run_optimization(
                 @timeit to "create_neighbor_list" state_neights_col, b_face_id_to_state_id = create_neigh_list(states,cv)
                 @timeit to "compute_laplace_operator_mat" laplace_operator = compute_laplace_operator_mat(
                     cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states,laplace_rescale)
+            elseif flux_scheme == :taylor
+                @timeit to "compute_laplace_operator_mat" laplace_operator = compute_taylor_operator_mat(
+                    cv,states,sim_pars)
             else
                 @timeit to "compute_laplace_operator_mat" laplace_operator = compute_flux_operator_mat(
                     cv,states,sim_pars; scheme=flux_scheme)
