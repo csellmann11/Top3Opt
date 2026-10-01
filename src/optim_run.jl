@@ -19,6 +19,7 @@ function run_optimization(
     density_marking::Bool = true,
     laplace_rescale::Bool = true,
     flux_scheme::Symbol = :diamond,
+    update_mode::Symbol = :explicit,
     tolerance::Float64 = 1e-5,
     n_conv_until_stop::Int = 2,
     take_snapshots_at::AbstractVector{Int} = 1:30:MAX_OPT_STEPS,
@@ -28,6 +29,8 @@ function run_optimization(
 
     flux_scheme in (:strong, :tpfa, :diamond, :taylor) ||
         throw(ArgumentError("flux_scheme must be :strong, :tpfa, :diamond, or :taylor"))
+    update_mode in (:explicit, :implicit) ||
+        throw(ArgumentError("update_mode must be :explicit or :implicit"))
     n_conv_count = 0
     sim_results  = SimulationResults(MAX_REF_LEVEL,
               MAX_OPT_STEPS,sim_pars,Val{D}())
@@ -59,6 +62,7 @@ function run_optimization(
     t_now = time()
 
     ch = nothing; state_neights_col = nothing; b_face_id_to_state_id = nothing; laplace_operator = nothing
+    implicit_cache = nothing
     for optimization_step in 1:MAX_OPT_STEPS
 
         flush(stdout)
@@ -76,13 +80,18 @@ function run_optimization(
                 @timeit to "compute_laplace_operator_mat" laplace_operator = compute_flux_operator_mat(
                     cv,states,sim_pars; scheme=flux_scheme)
             end
+            if update_mode == :implicit
+                @timeit to "prepare_implicit_density" implicit_cache = DensityImplicitCache(
+                    laplace_operator,sim_pars.η0,sim_pars.β0,states.h_vec;
+                    beta_in_operator=flux_scheme != :strong)
+            end
 
         end 
 
         @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
         @timeit to "state_update" state_changed = state_update!(
             states,cv,sim_pars,laplace_operator,u,eldata_col;
-            beta_in_operator=flux_scheme != :strong)
+            beta_in_operator=flux_scheme != :strong,update_mode,implicit_cache)
 
 
 

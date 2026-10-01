@@ -27,6 +27,7 @@ function generate_setting_hash(
     d$(Int(density_marking))
     l$(Int(laplace_rescale))
     f$(get(args,"flux_scheme",:diamond))
+    u$(get(args,"update_mode",:explicit))
     """
     return filter(!isspace, hash)  # This line removes all whitespace
 end

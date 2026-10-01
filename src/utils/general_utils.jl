@@ -45,6 +45,11 @@ function parse_commandline()
             arg_type = Symbol
             default = :diamond
             range_tester = x -> x in (:diamond, :tpfa, :taylor, :strong)
+        "--update_mode"
+            help = "Density update: explicit or implicit regularization"
+            arg_type = Symbol
+            default = :explicit
+            range_tester = x -> x in (:explicit, :implicit)
         "--rhs_fun","-f"
             help = "Right hand side function"
             arg_type = Function

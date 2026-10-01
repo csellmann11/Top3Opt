@@ -11,6 +11,7 @@ for arg in "$@"; do
         -h|--help)
             echo "Usage: bash cluster/run_sweeps.sh [--dry-run] [--smoke]"
             echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
+            echo "UPDATE_MODE=explicit|implicit selects the density update (default: explicit)."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
         *) echo "Unknown argument: $arg" >&2; exit 2 ;;
@@ -29,14 +30,20 @@ ADAPTIVITY_OPTIONS=(true false)
 DENSITY_MARKING_OPTIONS=(true)
 
 # Fixed run parameters shared by every job.
-MAX_OPT_STEPS=400
+MAX_OPT_STEPS=100
 ADAPTIVITY_AT_START=true
-FLUX_SCHEME=diamond              # Options: diamond | tpfa | taylor | strong
+FLUX_SCHEME=taylor              # Options: diamond | tpfa | taylor | strong
+UPDATE_MODE=${UPDATE_MODE:-explicit} # Options: explicit | implicit; also accepts an environment override
 PETSC_GAMG_SQUARE_GRAPH=${PETSC_GAMG_SQUARE_GRAPH:-1} # PETSc only: 1 = squared graph, 0 = MIS-2
 
 case "$FLUX_SCHEME" in
     diamond|tpfa|taylor|strong) ;;
     *) echo "Unknown FLUX_SCHEME: $FLUX_SCHEME (choose diamond, tpfa, taylor, or strong)." >&2; exit 2 ;;
+esac
+
+case "$UPDATE_MODE" in
+    explicit|implicit) ;;
+    *) echo "Unknown UPDATE_MODE: $UPDATE_MODE (choose explicit or implicit)." >&2; exit 2 ;;
 esac
 
 case "$PETSC_GAMG_SQUARE_GRAPH" in
@@ -130,7 +137,7 @@ for solver in "${SOLVERS[@]}"; do
 for mesh in "${MESH_TYPES[@]}"; do
 for adapt in "${ADAPTIVITY_OPTIONS[@]}"; do
 for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
-    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_lfalse_d${density}_s${MAX_OPT_STEPS}"
+    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_u${UPDATE_MODE}_lfalse_d${density}_s${MAX_OPT_STEPS}"
     JOB_SCRIPT="$JOB_DIR/$NAME.sh"
     if [[ -n "$MEM_PER_CPU" ]]; then
         MEMORY_OPTION=--mem-per-cpu
@@ -142,6 +149,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
     JOB_TIME_LIMIT=${TIME_LIMIT:-$(suggested_resource "$mesh" "$ref" time)}
     ARGS=(-c "$benchmark" --solver "$solver" -r "$ref" -m "$mesh"
         -a "$adapt" -b "$ADAPTIVITY_AT_START" --flux_scheme "$FLUX_SCHEME" --laplace_rescale false
+        --update_mode "$UPDATE_MODE"
         -d "$density" -s "$MAX_OPT_STEPS")
     {
         printf '#!/bin/bash -l\n'
@@ -171,7 +179,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
         SUBMISSION=$(sbatch --parsable "$JOB_SCRIPT")
     fi
     printf '%s\t%s\t%s\n' "$NAME" "$JOB_SCRIPT" "$SUBMISSION" >> "$JOB_DIR/submissions.tsv"
-    echo "$SUBMISSION: $NAME ($MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
+    echo "$SUBMISSION: $NAME (update_mode=$UPDATE_MODE, $MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
     COUNT=$((COUNT + 1))
 done; done; done; done; done; done
 

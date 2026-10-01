@@ -85,6 +85,7 @@ println("rhs_fun: $rhs_fun")
 println("density_marking: $density_marking")
 println("laplace_rescale: $laplace_rescale")
 println("flux_scheme: ", args["flux_scheme"])
+println("update_mode: ", args["update_mode"])
 println("Linear solver: $LINEAR_SOLVER")
 println("Number of threads: $(Threads.nthreads())")
 println("Number of BLAS threads: $(BLAS.get_num_threads())")
@@ -213,6 +214,7 @@ function main(
         density_marking=density_marking,
         laplace_rescale=laplace_rescale,
         flux_scheme=args["flux_scheme"],
+        update_mode=args["update_mode"],
         take_snapshots_at= Int[1, 10, 20, 30, 50, 100, 200],
         do_adaptivity=do_adaptivity,
         b_case=b_case

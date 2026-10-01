@@ -4,7 +4,19 @@ The default is now `--flux_scheme diamond`. For comparisons, select
 `--flux_scheme tpfa`, `--flux_scheme taylor`, or `--flux_scheme strong`. The Julia
 entry point accepts the corresponding symbols, for example
 `run_optimization(...; flux_scheme=:taylor)`. `laplace_rescale` applies only to
-the legacy `strong` scheme. Output directory identifiers include the flux scheme.
+the legacy `strong` scheme. Output directory identifiers include the flux scheme
+and density update mode.
+
+Density updates default to `--update_mode explicit`. Select
+`--update_mode implicit` for implicit regularization, or use
+`run_optimization(...; update_mode=:implicit)` in Julia. For cluster sweeps:
+
+```bash
+UPDATE_MODE=implicit bash cluster/run_sweeps.sh
+```
+
+The `UPDATE_MODE` setting in `cluster/run_sweeps.sh` accepts either `explicit`
+or `implicit`; job names and logs record the chosen mode.
 
 The `taylor` scheme in `src/taylor_operator.jl` computes the variable-beta product
 rule `beta_hat * laplacian(chi) + grad(beta_hat) ⋅ grad(chi)` with nine Taylor
@@ -13,9 +25,10 @@ and uses physical neighbour locations. It preserves constants but is not exactly
 conservative on graded meshes. The tests and benchmarks use this same implementation.
 
 The face schemes assemble `div(beta_hat * grad(chi))`, with the existing 3D
-coefficient `beta_hat[i] = 2 * beta0 * h[i]^2`. The density update multiplies this
-by `p_avg` once. The operator is rebuilt after mesh adaptation, so both geometry
-and the spatially varying coefficient follow the current mesh.
+coefficient `beta_hat[i] = 2 * beta0 * h[i]^2`. The common `p_avg` scaling of
+regularization and viscosity cancels in the density update. The operator is
+rebuilt after mesh adaptation, so both geometry and the spatially varying
+coefficient follow the current mesh.
 
 Each active interior subface contributes one flux with opposite signs to its
 two neighboring cells. Its transmissibility is
@@ -38,7 +51,7 @@ roughly 100 to `2.176e14`. The corrected assembly on that same mesh has row boun
 Reconstruction is only built for vertices of nonorthogonal interior faces.
 Orthogonal faces use their exact two-point flux directly; uniform hex meshes
 therefore require no vertex SVDs. Zero sparse entries are removed. Density
-substeps reuse this assembled sparse operator with `mul!`.
+updates reuse this assembled sparse operator.
 
 The operator preserves constants and conserves the volume-weighted total.
 It reduces to TPFA on orthogonal faces. Like the reference correction, it is not
@@ -47,25 +60,48 @@ of each interior face are required. The regression suite tests fixed-step
 diffusion stability on specific unbalanced hex meshes up to a 32:1 direct size
 ratio; this is not a stability proof for arbitrary distorted polyhedra.
 
-The original substep rule is preserved:
+Explicit mode preserves the original substep rule:
 `max(1, 4*ceil(Int, 24*beta0/eta0))`, which gives eight substeps for `beta0=1`
 and `eta0=15`. The operator row norm is logged only as a diagnostic and **never
 increases the substep count**. A nonfinite operator causes an immediate error.
 
-The scalar multiplier is found by projecting the complete unconstrained Euler
-update onto `[chi_min,1]` with the requested volume-weighted mean. The bracket
+The scalar multiplier is found by projecting the complete unconstrained explicit
+Euler update onto `[chi_min,1]` with the requested volume-weighted mean. The bracket
 includes both the driving and regularization terms. Safeguarded Newton steps
 use the volume of currently unclipped cells, with bisection as a fallback and
-a finite iteration limit. This solves the same clipped explicit update as
-bisection; it does not change the evolution equation or introduce implicit steps.
+a finite iteration limit. In explicit mode, this solves the same clipped update
+as bisection.
 If every cell is at a bound, the undefined `g`-weighted force average falls back
 to its volume-weighted average. Zero average driving force leaves density unchanged.
+
+Implicit mode uses one `dt=1` step per optimization iteration. With the current
+mechanical driving force held fixed, it solves
+
+```text
+(I - Rhat/eta0) y = chi - p_chi/(eta0*p_avg)
+chi_new = weighted_volume_and_bounds_projection(y)
+```
+
+Here `Rhat` is the same regularization operator used by explicit mode. For
+`strong`, it is `diag(2*beta0*h.^2) * L`; the other schemes already incorporate
+that coefficient. This changes the time discretization, without introducing a
+filter or changing the regularization functional. The solve uses Jacobi-scaled
+GMRES with a cached matrix and workspace, reused while the mesh and operator
+remain unchanged and rebuilt at operator assembly. There are no additional
+density substeps or LU fallback.
+
+This is an IMEX update followed by the existing volume/bounds projection, as in
+the AndersonPlasticity implementation. It is not an exact coupled solution of
+the bound-constrained backward-Euler equations. Implicit time integration also
+does not automatically remove spatial nonmonotonicity in Diamond or Taylor.
 
 Run the focused regression tests with:
 
 ```powershell
 julia --project=. --startup-file=no Tests/diamond_flux.jl
 julia --project=. --startup-file=no Tests/density_projection.jl
+julia --project=. --startup-file=no Tests/density_implicit.jl
+julia --project=. --startup-file=no Tests/density_update_modes.jl
 julia --project=. --startup-file=no Tests/taylor_reference_tests.jl
 ```
 

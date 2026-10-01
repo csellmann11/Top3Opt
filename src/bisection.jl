@@ -1,5 +1,6 @@
 include("density_timestepping.jl")
 include("density_projection.jl")
+include("density_implicit.jl")
 
 function compute_driving_force!(
     pχv::Vector{Float64},
@@ -70,7 +71,9 @@ function state_update!(states::DesignVarInfo,
     laplace_operator::SparseMatrixCSC,
     u::AbstractVector{Float64},
     eldata_col::Dict{Int64, <:ElData};
-    beta_in_operator::Bool = false)
+    beta_in_operator::Bool = false,
+    update_mode::Symbol = :explicit,
+    implicit_cache::Union{Nothing,DensityImplicitCache} = nothing)
 
 
     dh = cv.dh
@@ -79,12 +82,22 @@ function state_update!(states::DesignVarInfo,
 
     hmin,hmax = extrema(states.h_vec)#./sqrt(3)
     n_steps, row_bound = density_substeps(laplace_operator,sim_pars.η0,sim_pars.β0;
-        beta_in_operator)
-    println("[density] substeps=$n_steps, operator row bound=$row_bound, hmin=$hmin, hmax=$hmax")
+        beta_in_operator,update_mode)
+    println("[density] substeps=$n_steps, operator row bound=$row_bound, hmin=$hmin, hmax=$hmax, mode=$update_mode")
     flush(stdout)
     dt = 1.0/n_steps
 
-    Δχ          = zero(states.χ_vec)
+    if update_mode == :implicit
+        if isnothing(implicit_cache)
+            implicit_cache = DensityImplicitCache(laplace_operator,sim_pars.η0,sim_pars.β0,
+                states.h_vec; beta_in_operator)
+        else
+            validate_implicit_cache(implicit_cache,laplace_operator,sim_pars.η0,sim_pars.β0,
+                states.h_vec; beta_in_operator)
+        end
+    end
+
+    Δχ          = update_mode == :explicit ? zero(states.χ_vec) : Float64[]
     p_χ         = zero(states.χ_vec)
     χv          = states.χ_vec 
     χv_trial    = similar(χv)
@@ -98,7 +111,7 @@ function state_update!(states::DesignVarInfo,
 
     for _ in 1:n_steps
 
-        mul!(Δχ,laplace_operator,states.χ_vec)
+        update_mode == :explicit && mul!(Δχ,laplace_operator,states.χ_vec)
         compute_driving_force!(p_χ,Ψvec,states)
         p_avg = get_avarage_driving_force(states,p_χ,sim_pars) |> abs
     
@@ -106,10 +119,20 @@ function state_update!(states::DesignVarInfo,
         # Zero strain energy gives no driving or regularization force in the
         # original scaling (both beta and eta contain p_avg).
         p_avg == 0 && break
-        for i in eachindex(χv)
-            beta_hat = beta_in_operator ? 1.0 : 2hv[i]^2*sim_pars.β0
-            unconstrained[i] = χv[i] + dt/sim_pars.η0*(-p_χ[i]/p_avg + beta_hat*Δχ[i])
+        if update_mode == :implicit
+            for i in eachindex(χv)
+                unconstrained[i] = χv[i] - p_χ[i]/(sim_pars.η0*p_avg)
+            end
+            solve_info = implicit_density_solve!(unconstrained,unconstrained,implicit_cache)
+            println("[density] GMRES iterations=$(solve_info.iterations), relative residual=$(solve_info.relative_residual)")
+        else
+            for i in eachindex(χv)
+                beta_hat = beta_in_operator ? 1.0 : 2hv[i]^2*sim_pars.β0
+                unconstrained[i] = χv[i] + dt/sim_pars.η0*(-p_χ[i]/p_avg + beta_hat*Δχ[i])
+            end
         end
+        # Rhat*ones == 0, so an unconstrained implicit multiplier response is
+        # uniform. Apply the reference's separate bounds/volume projection.
         project_density_volume!(χv_trial,unconstrained,areav,sim_pars.ρ_init,χ_min)
         copyto!(states.χ_vec,χv_trial)
     end
