@@ -13,6 +13,32 @@ function create_dense_node_id_map(mesh::Mesh{D}) where {D}
     return node_id_map
 end
 
+"""
+Expand each stored scalar entry to a dense block of structural zeros.
+
+This has the same CSC structure as `kron(pattern, sparse(ones(Bool, U, U)))`,
+but writes the final Float64 matrix directly instead of allocating and then
+discarding a full vector of integer connectivity counts.
+"""
+function _expand_sparsity_blocks(pattern::SparseMatrixCSC, U::Int)
+    U > 0 || throw(ArgumentError("The number of components must be positive"))
+    nrows, ncols = size(pattern) .* U
+    colptr = Vector{Int}(undef, ncols + 1)
+    rowvals = Vector{Int}(undef, nnz(pattern) * U * U)
+    values = zeros(Float64, length(rowvals))
+
+    position = 1
+    @inbounds for column in axes(pattern, 2), component in 1:U
+        colptr[(column - 1) * U + component] = position
+        for entry in nzrange(pattern, column), row_component in 1:U
+            rowvals[position] = (pattern.rowval[entry] - 1) * U + row_component
+            position += 1
+        end
+    end
+    colptr[end] = position
+    return SparseMatrixCSC(nrows, ncols, colptr, rowvals, values)
+end
+
 function get_sparsity_pattern(
     cv::CellValues{D,U}
     ) where {D,U}
@@ -60,14 +86,7 @@ function get_sparsity_pattern(
 
     small_sparse_pattern = node2el_id * node2el_id' 
 
-    
-    b = ones(Bool,U,U) |> sparse
-
-    sp = kron(small_sparse_pattern,b)
-    k_global = SparseMatrixCSC(
-        sp.m,sp.n,sp.colptr,sp.rowval,zeros(Float64,length(sp.nzval))
-    )
-    return k_global
+    return _expand_sparsity_blocks(small_sparse_pattern, U)
 end
 
 

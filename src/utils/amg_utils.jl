@@ -1,42 +1,44 @@
 using LinearAlgebra
 using SparseArrays
 using Printf
+include("hypre_conversion.jl")
 
 function solve_lse_hypre(
     k_global::SparseMatrixCSC,
-    rhs_global::AbstractVector)
+    rhs_global::AbstractVector;
+    workspace::HypreConversionWorkspace = _hypre_conversion_workspace())
 
     t_start = time_ns()
-
-    precond = HYPRE.BoomerAMG(;
-        NumFunctions=3,       # 3 DOFs for elasticity
-        CoarsenType=10,       # HMIS (High-Parallel/Low-Memory Coarsening)
-        RelaxType=6,          # Sym G.S./Jacobi
-        NumSweeps=1,
-        MaxIter=1,
-        Tol=0.0
-    )
-
-    solver = HYPRE.PCG(;
-        MaxIter=1000,
-        Tol=1e-4,
-        PrintLevel=1,
-        Precond=precond      # Attach the AMG preconditioner
-    )
-
-    # Build the HYPRE objects explicitly. The convenience call
-    # HYPRE.solve(solver, ::SparseMatrixCSC, ::Vector) hides the HYPREMatrix,
-    # the rhs HYPREVector and the solution vector it allocates internally, so
-    # their C handles can never be freed → the BoomerAMG hierarchy + matrix
-    # leak on the C heap every step (Julia GC underestimates the ~32 B wrapper).
-    A = HYPRE.HYPREMatrix(k_global)                              # COMM_SELF, rows 1:n
-    b = HYPRE.HYPREVector(convert(Vector{Float64}, rhs_global))
-    x = zero(b)                                                  # solution vector
-
+    size(k_global,1) == length(rhs_global) ||
+        throw(DimensionMismatch("HYPRE matrix and right-hand side sizes must agree"))
+    precond = solver = A = b = x = nothing
     u = Vector{Float64}(undef, length(rhs_global))
     t_setup = t_solve = relres = 0.0
     iterations = 0
     try
+        # Refill task-local Julia conversion buffers, but create a fresh native
+        # matrix for this step. No old connectivity or AMG hierarchy is reused.
+        @timeit to "hypre_matrix_conversion" A = _hypre_matrix(k_global,workspace)
+        precond = HYPRE.BoomerAMG(;
+            NumFunctions=3,       # 3 DOFs for elasticity
+            CoarsenType=10,       # HMIS (High-Parallel/Low-Memory Coarsening)
+            RelaxType=6,          # Sym G.S./Jacobi
+            NumSweeps=1,
+            MaxIter=1,
+            Tol=0.0
+        )
+
+        solver = HYPRE.PCG(;
+            MaxIter=1000,
+            Tol=1e-4,
+            PrintLevel=1,
+            Precond=precond      # Attach the AMG preconditioner
+        )
+
+        # Keep explicit handles so the C-side allocations can be released at
+        # the end of this step instead of waiting for Julia's garbage collector.
+        b = HYPRE.HYPREVector(convert(Vector{Float64}, rhs_global))
+        x = zero(b)
         @timeit to "hypre_solver" begin
             # These are the same two calls made by HYPRE.solve!. PCG setup
             # invokes the attached BoomerAMG preconditioner's setup, so this
@@ -56,7 +58,9 @@ function solve_lse_hypre(
         # Deterministically release every HYPRE C object created above.
         # Base.finalize runs the C *Destroy now and is idempotent (guards on
         # pointer != C_NULL), so the atexit/GC sweep later is a no-op.
-        foreach(Base.finalize, (A, b, x, solver, precond))
+        for object in (solver,precond,x,b,A)
+            object === nothing || Base.finalize(object)
+        end
     end
 
     @printf("[hypre] n=%d nnz=%d PCG+BoomerAMG its=%d relres=%.2e setup(PCG+AMG)=%.3fs solve=%.3fs total=%.3fs\n",
