@@ -1,0 +1,50 @@
+This is BibTeX, Version 0.99d (TeX Live 2024)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: paper-draft.aux
+The style file: apalike.bst
+Database file #1: bib.bib
+Warning--empty journal in Becker1997
+Warning--can't use both author and editor fields in brennerMathematicalTheoryFinite2008
+Warning--empty journal in rammADAPTIVETOPOLOGYSHAPE1998
+You've used 62 entries,
+            1935 wiz_defined-function locations,
+            881 strings with 17752 characters,
+and the built_in function-call counts, 25151 in all, are:
+= -- 2475
+> -- 1064
+< -- 38
++ -- 386
+- -- 350
+* -- 2245
+:= -- 4372
+add.period$ -- 181
+call.type$ -- 62
+change.case$ -- 477
+chr.to.int$ -- 58
+cite$ -- 65
+duplicate$ -- 880
+empty$ -- 1721
+format.name$ -- 468
+if$ -- 4846
+int.to.chr$ -- 5
+int.to.str$ -- 0
+missing$ -- 61
+newline$ -- 306
+num.names$ -- 190
+pop$ -- 369
+preamble$ -- 1
+purify$ -- 481
+quote$ -- 0
+skip$ -- 670
+stack$ -- 0
+substring$ -- 1921
+swap$ -- 87
+text.length$ -- 5
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 364
+warning$ -- 3
+while$ -- 213
+width$ -- 0
+write$ -- 787
+(There were 3 warnings)

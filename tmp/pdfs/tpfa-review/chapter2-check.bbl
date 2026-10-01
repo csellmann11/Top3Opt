@@ -1,0 +1,125 @@
+\begin{thebibliography}{}
+
+\bibitem[Ahmad et~al., 2013]{ahmadEquivalentProjectorsVirtual2013}
+Ahmad, B., Alsaedi, A., Brezzi, F., Marini, L., and Russo, A. (2013).
+\newblock Equivalent projectors for virtual element methods.
+\newblock {\em Computers \& Mathematics with Applications}, 66(3):376--391.
+
+\bibitem[Bangerth and Rannacher, 2003]{bangerthAdaptiveFiniteElement2003}
+Bangerth, W. and Rannacher, R. (2003).
+\newblock {\em Adaptive {{Finite Element Methods}} for {{Differential
+  Equations}}}.
+\newblock Birkhäuser Basel.
+
+\bibitem[Becker and Rannacher, 2001]{beckerOptimalControlApproach2001}
+Becker, R. and Rannacher, R. (2001).
+\newblock An optimal control approach to {\emph{a posteriori}} error estimation
+  in finite element methods.
+\newblock {\em Acta Numerica}, 10:1--102.
+
+\bibitem[Beirão Da~Veiga et~al.,
+  2014]{beiraodaveigaHitchhikerGuideVirtual2014}
+Beirão Da~Veiga, L., Brezzi, F., Marini, L.~D., and Russo, A. (2014).
+\newblock The {{Hitchhiker}}'s {{Guide}} to the {{Virtual Element Method}}.
+\newblock {\em Mathematical Models and Methods in Applied Sciences},
+  24(08):1541--1573.
+
+\bibitem[Beirão Da~Veiga et~al., 2023]{beiraodaveigaVirtualElementMethod2023}
+Beirão Da~Veiga, L., Brezzi, F., Marini, L.~D., and Russo, A. (2023).
+\newblock The virtual element method.
+\newblock {\em Acta Numerica}, 32:123--202.
+
+\bibitem[Carpio et~al., 2013]{carpioAnisotropicGoalOrientedMesh2013}
+Carpio, J., Prieto, J.~L., and Bermejo, R. (2013).
+\newblock Anisotropic “{{Goal-Oriented}}” {{Mesh Adaptivity}} for
+  {{Elliptic Problems}}.
+\newblock {\em SIAM Journal on Scientific Computing}, 35(2):A861--A885.
+
+\bibitem[Cihan et~al., 2024]{cihanApplicationAdaptiveVirtual2024}
+Cihan, M., Aichele, R., Jantos, D.~R., and Junker, P. (2024).
+\newblock Application of adaptive virtual element method to thermodynamic
+  topology optimization.
+\newblock {\em International Journal for Numerical Methods in Engineering},
+  page e7575.
+
+\bibitem[Droniou, 2014]{droniouFiniteVolumeDiffusion2014}
+Droniou, J. (2014).
+\newblock Finite volume schemes for diffusion equations: Introduction to and
+  review of modern methods.
+\newblock {\em Mathematical Models and Methods in Applied Sciences},
+  24(8):1575--1619.
+
+\bibitem[Endtmayer et~al., 2024]{ENDTMAYER202419}
+Endtmayer, B., Langer, U., Richter, T., Schafelner, A., and Wick, T. (2024).
+\newblock Chapter two - a posteriori single- and multi-goal error control and
+  adaptivity for partial differential equations.
+\newblock In Chouly, F., Bordas, S.~P., Becker, R., and Omnes, P., editors,
+  {\em Error Control, Adaptive Discretizations, and Applications, Part 2},
+  volume~59 of {\em Advances in Applied Mechanics}, pages 19--108. Elsevier.
+
+\bibitem[Jantos et~al., 2019]{jantosAccurateFastRegularization2019}
+Jantos, D.~R., Hackl, K., and Junker, P. (2019).
+\newblock An accurate and fast regularization approach to thermodynamic
+  topology optimization.
+\newblock {\em International Journal for Numerical Methods in Engineering},
+  117(9):991--1017.
+
+\bibitem[Junker and Balzani, 2021a]{junkerExtendedHamiltonPrinciple2021}
+Junker, P. and Balzani, D. (2021a).
+\newblock An extended {{Hamilton}} principle as unifying theory for coupled
+  problems and dissipative microstructure evolution.
+\newblock {\em Continuum Mechanics and Thermodynamics}, 33(4):1931--1956.
+
+\bibitem[Junker and Balzani, 2021b]{junkerNewVariationalApproach2021}
+Junker, P. and Balzani, D. (2021b).
+\newblock A new variational approach for the thermodynamic topology
+  optimization of hyperelastic structures.
+\newblock {\em Computational Mechanics}, 67(2):455--480.
+
+\bibitem[Junker et~al., 2019]{junkerFASTROBUSTNUMERICAL2019}
+Junker, P., Schwarz, S., Jantos, D.~R., and Hackl, K. (2019).
+\newblock A {{FAST AND ROBUST NUMERICAL TREATMENT OF A GRADIENT-ENHANCED MODEL
+  FOR BRITTLE DAMAGE}}.
+\newblock {\em International Journal for Multiscale Computational Engineering},
+  17(2):151--180.
+
+\bibitem[Richter and Wick, 2015]{richterVariationalLocalizationsDual2015}
+Richter, T. and Wick, T. (2015).
+\newblock Variational localizations of the dual weighted residual estimator.
+\newblock {\em Journal of Computational and Applied Mathematics}, 279:192--208.
+
+\bibitem[Rognes and Logg, 2012]{rognesAutomatedGoalorientedError2012}
+Rognes, M.~E. and Logg, A. (2012).
+\newblock Automated goal-oriented error control {{I}}: Stationary variational
+  problems.
+
+\bibitem[Sellmann and Junker, 2025]{sellmannDWRforVEM2025}
+Sellmann, C. and Junker, P. (2025).
+\newblock Goal-oriented dual-weighted residual error estimation for the virtual
+  elements method.
+\newblock {\em Computer Methods in Applied Mechanics and Engineering}.
+
+\bibitem[Vogel and Junker, 2020]{vogelAdaptiveHighlyAccurate2020}
+Vogel, A. and Junker, P. (2020).
+\newblock Adaptive and highly accurate numerical treatment for a
+  gradient-enhanced brittle damage model.
+\newblock {\em International Journal for Numerical Methods in Engineering},
+  121(14):3108--3131.
+
+\bibitem[Vogel and Junker, 2021]{vogelAdaptiveThermodynamicTopology2021}
+Vogel, A. and Junker, P. (2021).
+\newblock Adaptive thermodynamic topology optimization.
+\newblock {\em Structural and Multidisciplinary Optimization}, 63(1):95--119.
+
+\bibitem[Weißer and Wick, 2018]{weisserDualWeightedResidualEstimator2018}
+Weißer, S. and Wick, T. (2018).
+\newblock The {{Dual-Weighted Residual Estimator Realized}} on {{Polygonal
+  Meshes}}.
+\newblock {\em Computational Methods in Applied Mathematics}, 18(4):753--776.
+
+\bibitem[Wriggers et~al., 2024]{wriggersVirtualElementMethods2024}
+Wriggers, P., Aldakheel, F., and Hudobivnik, B. (2024).
+\newblock {\em Virtual {{Element Methods}} in {{Engineering Sciences}}}.
+\newblock Springer International Publishing.
+
+\end{thebibliography}

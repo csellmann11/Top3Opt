@@ -79,8 +79,9 @@ Example job name:
 Here `r` is refinement level, `a` adaptivity, `b` initial refinement, `f` flux
 scheme, `l` Laplace rescaling (always false), `d` density marking, and `s` maximum
 optimization steps.
-For `L_cantilever`, Julia forces `Lquad_mesh`; configure that mesh explicitly
-to keep job names accurate and avoid duplicate runs.
+For `L_cantilever`, `Voronoi` creates an L-shaped polygon mesh in the x–y plane
+and extrudes it through the thickness. `Hexahedra` and `Lquad_mesh` both select
+the structured L mesh; choose only one of those two to avoid duplicate runs.
 
 Logs are created separately from results, with parent directories prepared before
 submission. Generated files and outputs are ignored by Git. Each run records its

@@ -1,0 +1,168 @@
+[density] substeps=16, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=16, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=1, relative residual=1.849738756509947e-16
+[density] substeps=16, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=22, relative residual=4.771268083095058e-8
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=22, relative residual=4.771268083095058e-8
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=22, relative residual=5.43924486476887e-8
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=252.0, hmin=0.30618621784789724, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=252.0, hmin=0.30618621784789724, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=22, relative residual=4.799831275549732e-8
+[density] substeps=16, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=16, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=1, relative residual=1.849738756509947e-16
+[density] substeps=16, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=22, relative residual=4.771268083095058e-8
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=22, relative residual=4.771268083095058e-8
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=22, relative residual=5.43924486476887e-8
+[density] substeps=1, operator row bound=155.99999999999997, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=265.6574585635359, hmin=0.30618621784789724, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=265.6574585635359, hmin=0.30618621784789724, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=22, relative residual=4.650892911461318e-8
+[density] substeps=16, operator row bound=112.38839959569347, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=16, operator row bound=112.38839959569347, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=1, relative residual=1.849738756509947e-16
+[density] substeps=16, operator row bound=112.38839959569347, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=112.38839959569347, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=112.38839959569347, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=17, relative residual=8.516997791709052e-8
+[density] substeps=1, operator row bound=112.38839959569347, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=17, relative residual=8.516997791709052e-8
+[density] substeps=1, operator row bound=112.38839959569347, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=18, relative residual=1.9825970347825496e-8
+[density] substeps=1, operator row bound=112.38839959569347, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=129.2247705062196, hmin=0.30618621784789724, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=129.2247705062196, hmin=0.30618621784789724, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=18, relative residual=2.4947477705421597e-8
+[density] substeps=16, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=16, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=1, relative residual=1.849738756509947e-16
+[density] substeps=16, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=explicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=17, relative residual=8.516997771320413e-8
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=17, relative residual=8.516997771320413e-8
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=18, relative residual=1.9825970804756876e-8
+[density] substeps=1, operator row bound=0.0, hmin=0.6123724356957945, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=0.0, hmin=0.30618621784789724, hmax=0.6123724356957945, mode=implicit
+[density] substeps=1, operator row bound=0.0, hmin=0.30618621784789724, hmax=0.6123724356957945, mode=implicit
+[density] GMRES iterations=18, relative residual=2.158625568959017e-8
+Test Summary:                         | Pass  Total     Time
+Density update modes: CPU integration |  144    144  1m39.7s
+[density] substeps=16, operator row bound=228.00000000000003, hmin=0.375, hmax=0.75, mode=explicit
+Optimization step: 1, Relative strain energy change: 0.0
+Improvement: 100.0 %
+number of states: 38, number of dofs: 288
+Run time: 6.7e-5 minutes
+Measure of nondiscreteness: 0.8350739897140079
+Peak RSS: 984.7 MiB
+[density] substeps=16, operator row bound=228.00000000000003, hmin=0.375, hmax=0.75, mode=explicit
+Optimization step: 2, Relative strain energy change: -0.10217767134015183
+Improvement: 110.0 %
+number of states: 38, number of dofs: 288
+Run time: 0.00015 minutes
+Measure of nondiscreteness: 0.835630970790899
+Peak RSS: 984.7 MiB
+[density] substeps=16, operator row bound=228.00000000000003, hmin=0.375, hmax=0.75, mode=explicit
+Optimization step: 3, Relative strain energy change: 0.017696602959037973
+Improvement: 110.0 %
+number of states: 38, number of dofs: 288
+Run time: 0.00025 minutes
+Measure of nondiscreteness: 0.8355281351971583
+Peak RSS: 984.7 MiB
+Max number of node ids per volume: 13
+[density] substeps=16, operator row bound=228.00000000000003, hmin=0.375, hmax=0.75, mode=explicit
+Optimization step: 1, Relative strain energy change: 0.0
+Improvement: 100.0 %
+number of states: 38, number of dofs: 288
+Run time: 5.0e-5 minutes
+Measure of nondiscreteness: 0.8350739897140079
+Peak RSS: 984.7 MiB
+[density] substeps=16, operator row bound=222.0000000000001, hmin=0.375, hmax=0.75, mode=explicit
+Optimization step: 2, Relative strain energy change: 0.4194267438497731
+Improvement: 70.0 %
+number of states: 122, number of dofs: 720
+Run time: 0.00017 minutes
+Measure of nondiscreteness: 0.832339960792971
+Peak RSS: 984.7 MiB
+[density] substeps=16, operator row bound=216.0000000000004, hmin=0.375, hmax=0.375, mode=explicit
+Optimization step: 3, Relative strain energy change: 0.21696112502410012
+Improvement: 58.0 %
+number of states: 192, number of dofs: 975
+Run time: 0.003 minutes
+Measure of nondiscreteness: 0.8310383642916315
+Peak RSS: 984.7 MiB
+Max number of node ids per volume: 8
+[density] substeps=1, operator row bound=228.00000000000003, hmin=0.375, hmax=0.75, mode=implicit
+[density] GMRES iterations=20, relative residual=2.600864019262927e-8
+Optimization step: 1, Relative strain energy change: 0.0
+Improvement: 100.0 %
+number of states: 38, number of dofs: 288
+Run time: 0.00013 minutes
+Measure of nondiscreteness: 0.8362761300327639
+Peak RSS: 984.7 MiB
+[density] substeps=1, operator row bound=228.00000000000003, hmin=0.375, hmax=0.75, mode=implicit
+[density] GMRES iterations=20, relative residual=3.168657462891706e-8
+Optimization step: 2, Relative strain energy change: -0.07529906437044841
+Improvement: 110.0 %
+number of states: 38, number of dofs: 288
+Run time: 0.00015 minutes
+Measure of nondiscreteness: 0.8358247097288626
+Peak RSS: 984.7 MiB
+[density] substeps=1, operator row bound=228.00000000000003, hmin=0.375, hmax=0.75, mode=implicit
+[density] GMRES iterations=20, relative residual=3.30497546262136e-8
+Optimization step: 3, Relative strain energy change: -0.011702996723114978
+Improvement: 110.0 %
+number of states: 38, number of dofs: 288
+Run time: 0.00015 minutes
+Measure of nondiscreteness: 0.8356259880918046
+Peak RSS: 984.7 MiB
+Max number of node ids per volume: 13
+[density] substeps=1, operator row bound=228.00000000000003, hmin=0.375, hmax=0.75, mode=implicit
+[density] GMRES iterations=20, relative residual=2.600864019262927e-8
+Optimization step: 1, Relative strain energy change: 0.0
+Improvement: 100.0 %
+number of states: 38, number of dofs: 288
+Run time: 8.3e-5 minutes
+Measure of nondiscreteness: 0.8362761300327639
+Peak RSS: 984.7 MiB
+[density] substeps=1, operator row bound=222.0000000000001, hmin=0.375, hmax=0.75, mode=implicit
+[density] GMRES iterations=25, relative residual=5.0401413646380224e-8
+Optimization step: 2, Relative strain energy change: 0.4524109644181185
+Improvement: 69.0 %
+number of states: 122, number of dofs: 720
+Run time: 0.00033 minutes
+Measure of nondiscreteness: 0.8341998318500106
+Peak RSS: 984.7 MiB
+[density] substeps=1, operator row bound=216.0000000000004, hmin=0.375, hmax=0.375, mode=implicit
+[density] GMRES iterations=26, relative residual=5.323532774500261e-8
+Optimization step: 3, Relative strain energy change: 0.20331230257193864
+Improvement: 57.0 %
+number of states: 192, number of dofs: 975
+Run time: 0.0006 minutes
+Measure of nondiscreteness: 0.8328872580944914
+Peak RSS: 984.7 MiB
+Max number of node ids per volume: 8
+Test Summary:                              | Pass  Total   Time
+Production optimization update-mode wiring |   48     48  10.8s
+┌ Info: Density update production smoke outputs
+└   output_root = "C:\\Users\\sellmann\\AppData\\Local\\Temp\\toopt3-density-modes-QxJsaD"

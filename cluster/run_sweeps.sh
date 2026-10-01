@@ -32,8 +32,8 @@ DENSITY_MARKING_OPTIONS=(true)
 # Fixed run parameters shared by every job.
 MAX_OPT_STEPS=100
 ADAPTIVITY_AT_START=true
-FLUX_SCHEME=taylor              # Options: diamond | tpfa | taylor | strong
-UPDATE_MODE=${UPDATE_MODE:-explicit} # Options: explicit | implicit; also accepts an environment override
+FLUX_SCHEME=tpfa              # Options: diamond | tpfa | taylor | strong
+UPDATE_MODE=${UPDATE_MODE:-implicit} # Options: explicit | implicit; also accepts an environment override
 PETSC_GAMG_SQUARE_GRAPH=${PETSC_GAMG_SQUARE_GRAPH:-1} # PETSc only: 1 = squared graph, 0 = MIS-2
 
 case "$FLUX_SCHEME" in
@@ -88,10 +88,10 @@ fi
 suggested_resource() {
     local mesh=$1 ref=$2 resource=$3 memory minutes value
     case "$ref" in
-        1|2|3) memory=4; minutes=30 ;;
-        4) memory=8; minutes=60 ;;
-        5) memory=16; minutes=360 ;;
-        6) memory=100; minutes=2880 ;;
+        1|2|3) memory=4; minutes=60 ;;
+        4) memory=8; minutes=120 ;;
+        5) memory=16; minutes=720 ;;
+        6) memory=100; minutes=6000 ;;
         *) echo "No $resource estimate for level $ref; set MEM_PER_JOB/TIME_LIMIT explicitly." >&2; return 2 ;;
     esac
     case "$resource" in

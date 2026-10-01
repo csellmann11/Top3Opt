@@ -1,0 +1,3385 @@
+perl: warning: Setting locale failed.
+perl: warning: Please check that your locale settings:
+	LC_ALL = "C.UTF-8",
+	(possibly more locale environment variables)
+	LANG = "C.UTF-8"
+    are supported and installed on your system.
+perl: warning: Falling back to the system default locale ("German_Germany.1252").
+Initial Win CP for (console input, console output, system): (CP850, CP65001, CP1252)
+I changed them all to CP1252
+Rc files read:
+  NONE
+Latexmk: This is Latexmk, John Collins, 27 Dec. 2024. Version 4.86a.
+No existing .aux file, so I'll make a simple one, and require run of *latex.
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Category 'other':
+  Rerun of 'pdflatex' forced or previously required:
+    Reason or flag: 'Initial setup'
+
+------------
+Run number 1 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -halt-on-error -recorder --jobname="paper-draft" -output-directory="C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build"  "main.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex)
+ restricted \write18 enabled.
+entering extended mode
+(./main.tex
+LaTeX2e <2024-11-01> patch level 2
+L3 programming layer <2025-01-18>
+(./paper_bode.cls
+Document Class: paper_bode 2020/07/28 v1.0
+(c:/texlive/2024/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2024/06/29 v1.4n Standard LaTeX document class
+(c:/texlive/2024/texmf-dist/tex/latex/base/size12.clo))) (./preamble.sty
+(c:/texlive/2024/texmf-dist/tex/generic/babel/babel.sty
+(c:/texlive/2024/texmf-dist/tex/generic/babel/txtbabel.def)
+(c:/texlive/2024/texmf-dist/tex/generic/babel-english/english.ldf))
+(c:/texlive/2024/texmf-dist/tex/generic/babel/locale/en/babel-english.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/base/inputenc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/import/import.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/enumerate.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/ulem/ulem.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amstext.sty
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amscls/amsthm.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/mathtools/mathtools.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/keyval.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/calc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/mathtools/mhsetup.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/float/float.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/parskip/parskip.sty
+(c:/texlive/2024/texmf-dist/tex/latex/kvoptions/kvoptions.sty
+(c:/texlive/2024/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/etoolbox/etoolbox.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/caption/caption.sty
+(c:/texlive/2024/texmf-dist/tex/latex/caption/caption3.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/caption/subcaption.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/todonotes/todonotes.sty
+(c:/texlive/2024/texmf-dist/tex/latex/base/ifthen.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/xkeyval/xkeyval.sty
+(c:/texlive/2024/texmf-dist/tex/generic/xkeyval/xkeyval.tex
+(c:/texlive/2024/texmf-dist/tex/generic/xkeyval/xkvutils.tex)))
+(c:/texlive/2024/texmf-dist/tex/latex/xcolor/xcolor.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-cfg/color.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-def/pdftex.def)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/mathcolor.ltx))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfutil-common.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfutil-latex.def)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfrcs.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/pgf.revision.tex)))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/basiclayer/pgfcore.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/graphicx.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/graphics.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/trig.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-cfg/graphics.cfg)))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/systemlayer/pgfsys.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeyslibraryfiltered.co
+de.tex)) (c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgf.cfg)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-pdftex.def
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-common-pdf.def))
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsyssoftpath.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsysprotocol.code.tex
+)) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcore.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathutil.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathparser.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.basic.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.trigonometric
+.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.random.code.t
+ex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.comparison.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.base.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.round.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.misc.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.integerarithm
+etics.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathcalc.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfint.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.cod
+e.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorescopes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code
+.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreobjects.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathprocessing.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreshade.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreimage.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreexternal.code.tex
+) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorelayers.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransparency.code
+.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.tex
+) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorerdf.code.tex)))
+ (c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduleplot.code.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-0-65.st
+y)
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-1-18.st
+y)) (c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgffor.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgfkeys.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/math/pgfmath.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmodulematrix.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarytopaths.code.tex)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarypositioning.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/setspace/setspace.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/pgfplots/pgfplots.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.revision.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotscore.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/sys/pgfplotssysgeneric.code.te
+x))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/pgfplotslibrary.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldpgfs
+upp_loader.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryfpu.code.tex)
+Package pgfplots: loading complementary utilities for your pgf version...
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldpgfs
+upp_pgfutil-common-lists.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsliststru
+cture.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsliststru
+ctureext.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsarray.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsmatrix.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/numtable/pgfplotstableshared.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsdeque.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.data.code.
+tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.verb.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/pgflibrarypgfplots.surfsh
+ading.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/sys/pgflibrarypgfplots.surfsha
+ding.pgfsys-pdftex.def)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotscolormap.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotscolor.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplothandler.code.t
+ex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplotimage.code.tex
+))) (c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.scaling.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.t
+ex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.errorbars.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.markers.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.paths.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.t
+ex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.pathmorphing.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydec
+orations.pathmorphing.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.pathreplacing.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydec
+orations.pathreplacing.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.conto
+urlua.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryplotmarks.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.
+tex)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarypatterns.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibrarypatterns.code.t
+ex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarymatrix.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarycalc.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.cod
+e.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryangles.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryquotes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarybackgrounds.code.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/geometry/geometry.sty
+(c:/texlive/2024/texmf-dist/tex/generic/iftex/ifvtex.sty
+(c:/texlive/2024/texmf-dist/tex/generic/iftex/iftex.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/tools/layout.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/blindtext/blindtext.sty
+(c:/texlive/2024/texmf-dist/tex/latex/tools/xspace.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/siunitx/siunitx.sty
+(c:/texlive/2024/texmf-dist/tex/latex/translations/translations.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+(c:/texlive/2024/texmf-dist/tex/generic/infwarerr/infwarerr.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/tools/array.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/amsfonts.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/multirow/bigdelim.sty
+(c:/texlive/2024/texmf-dist/tex/latex/multirow/multirow.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/algorithms/algorithm.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/algorithms/algorithmic.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.group
+plots.code.tex) (c:/texlive/2024/texmf-dist/tex/latex/amsfonts/euscript.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/wrapfig/wrapfig.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype.sty
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype-pdftex.def)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype.cfg))
+(c:/texlive/2024/texmf-dist/tex/latex/svg/svg.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrbase.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlfile.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlfile-hook.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlogo.sty))))
+(c:/texlive/2024/texmf-dist/tex/latex/trimspaces/trimspaces.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/shellesc.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/transparent/transparent.sty
+(c:/texlive/2024/texmf-dist/tex/latex/transparent/transparent-nometadata.sty
+(c:/texlive/2024/texmf-dist/tex/latex/auxhook/auxhook.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/booktabs/booktabs.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryshapes.geometric.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.g
+eometric.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/tocbibind/tocbibind.sty
+
+Package tocbibind Note: Using section or other style headings.
+
+) (c:/texlive/2024/texmf-dist/tex/latex/titlesec/titlesec.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/amssymb.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/marvosym/marvosym.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/ragged2e/ragged2e.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/psnfss/helvet.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/jknapltx/mathrsfs.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/natbib/natbib.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/fancyhdr/fancyhdr.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/colortbl/colortbl.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/framed/framed.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/hyperref.sty
+(c:/texlive/2024/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pdfescape/pdfescape.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hycolor/hycolor.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/nameref.sty
+(c:/texlive/2024/texmf-dist/tex/latex/refcount/refcount.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/gettitlestring/gettitlestring.sty))
+(c:/texlive/2024/texmf-dist/tex/generic/stringenc/stringenc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/pd1enc.def)
+(c:/texlive/2024/texmf-dist/tex/generic/intcalc/intcalc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/puenc.def)
+(c:/texlive/2024/texmf-dist/tex/latex/url/url.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/bitset/bitset.sty
+(c:/texlive/2024/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/base/atbegshi-ltx.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/hpdftex.def
+(c:/texlive/2024/texmf-dist/tex/latex/base/atveryend-ltx.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty
+(c:/texlive/2024/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty))))
+(c:/texlive/2024/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
+
+LaTeX Warning: Unused global option(s):
+    [12pt].
+
+
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.aux)
+(c:/texlive/2024/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+) (c:/texlive/2024/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
+(c:/texlive/2024/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))
+
+Package todonotes Warning: The length marginparwidth is less than 2cm and will 
+most likely cause issues with the appearance of inserted todonotes. The issue c
+an be solved by adding a line like \setlength {\marginparwidth }{2cm} prior to 
+loading the todonotes package. on input line 5.
+
+Package pgfplots notification 'compat/show suggested version=true': document ha
+s been generated with the most recent feature set (\pgfplotsset{compat=1.18}).
+
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+
+(c:/texlive/2024/texmf-dist/tex/latex/translations/translations-basic-dictionar
+y-english.trsl) (c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-cmr.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/psnfss/ot1phv.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsa.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-msa.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-msb.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/jknapltx/ursfs.fd)
+Overfull \hbox (5.03963pt too wide) in paragraph at lines 26--26
+[][][]\OT1/cmr/m/n/12 (-20) adjust 
+
+Overfull \hbox (5.03963pt too wide) in paragraph at lines 26--26
+[][][]\OT1/cmr/m/n/12 (-20) adjust 
+
+[1{c:/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/texlive/202
+4/texmf-dist/fonts/enc/dvips/base/8r.enc}{c:/texlive/2024/texmf-dist/fonts/enc/
+dvips/cm-super/cm-super-ts1.enc}] (./Chapters/Chapter1.tex
+
+Package natbib Warning: Citation `sigmundTopologyOptimizationApproaches2013' on
+ page 2 undefined on input line 3.
+
+
+Package natbib Warning: Citation `allaireTopologyOptimizationMinimum2004' on pa
+ge 2 undefined on input line 4.
+
+
+Package natbib Warning: Citation `bendsoeOptimalShapeDesign1989' on page 2 unde
+fined on input line 10.
+
+
+Package natbib Warning: Citation `bendsoeTopologyOptimization2004' on page 2 un
+defined on input line 10.
+
+
+Package natbib Warning: Citation `diazCheckerboardPatternsLayout1995' on page 2
+ undefined on input line 12.
+
+
+Package natbib Warning: Citation `sigmundTopologyOptimizationApproaches2013' on
+ page 2 undefined on input line 13.
+
+
+Package natbib Warning: Citation `junkerVariationalGrowthApproach2015' on page 
+2 undefined on input line 16.
+
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 2 undefined on input line 16.
+
+
+Package natbib Warning: Citation `junkerNewVariationalApproach2021' on page 2 u
+ndefined on input line 16.
+
+
+Package natbib Warning: Citation `blaszczykApplicationTaylorSeries2022' on page
+ 2 undefined on input line 16.
+
+
+Package natbib Warning: Citation `jantosComparisonThermodynamicTopology2019' on
+ page 2 undefined on input line 16.
+
+
+Package natbib Warning: Citation `mauteAdaptiveTopologyOptimization1995' on pag
+e 2 undefined on input line 20.
+
+
+Package natbib Warning: Citation `costajrLayoutOptimizationAdaptivity2003' on p
+age 2 undefined on input line 22.
+
+
+Package natbib Warning: Citation `stainkoAdaptiveMultilevelApproach2005' on pag
+e 2 undefined on input line 23.
+
+
+Package natbib Warning: Citation `wangDynamicAdaptiveMesh2010' on page 2 undefi
+ned on input line 24.
+
+
+Package natbib Warning: Citation `wangAdaptiveTopologyOptimization2014' on page
+ 2 undefined on input line 26.
+
+
+Package natbib Warning: Citation `zhangAdaptiveMultimaterialTopology2020' on pa
+ge 2 undefined on input line 28.
+
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 2 undefined on input line 29.
+
+
+Package natbib Warning: Citation `cihanApplicationAdaptiveVirtual2024' on page 
+2 undefined on input line 29.
+
+
+Package natbib Warning: Citation `BeRa96' on page 2 undefined on input line 43.
+
+
+
+Package natbib Warning: Citation `Becker1997' on page 2 undefined on input line
+ 43.
+
+
+Package natbib Warning: Citation `beckerOptimalControlApproach2001' on page 2 u
+ndefined on input line 43.
+
+
+Package natbib Warning: Citation `prudhommeGoalorientedErrorEstimation1999' on 
+page 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `odenEstimationModelingError2002' on page 2 un
+defined on input line 43.
+
+
+Package natbib Warning: Citation `richterGoalorientedErrorEstimation2012' on pa
+ge 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `richterVariationalLocalizationsDual2015' on p
+age 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `rothTensorproductSpacetimeGoaloriented2022' o
+n page 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `ENDTMAYER202419' on page 2 undefined on input
+ line 43.
+
+
+Package natbib Warning: Citation `Becker1997' on page 2 undefined on input line
+ 43.
+
+
+Package natbib Warning: Citation `goncalvesGoalOrientedErrorEstimation2010' on 
+page 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `chenGoalorientedPosterioriError2014' on page 
+2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `weisserDualWeightedResidualEstimator2018' on 
+page 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `StoRadeSchroe19' on page 2 undefined on input
+ line 43.
+
+
+Package natbib Warning: Citation `minakowskiPrioriPosterioriError2023' on page 
+2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 2 undefined on
+ input line 43.
+
+
+Package natbib Warning: Citation `beiraodaveigaBASICPRINCIPLESVIRTUAL2013' on p
+age 2 undefined on input line 44.
+
+
+Package natbib Warning: Citation `beiraodaveigaHitchhikerGuideVirtual2014' on p
+age 2 undefined on input line 44.
+
+
+Package natbib Warning: Citation `artioliArbitraryOrder2D2018' on page 2 undefi
+ned on input line 46.
+
+
+Package natbib Warning: Citation `artioliArbitraryOrder2D2018a' on page 2 undef
+ined on input line 46.
+
+
+Package natbib Warning: Citation `wriggersVirtualElementMethods2024' on page 2 
+undefined on input line 46.
+
+
+Package natbib Warning: Citation `beiraodaveigaVirtualElementMethod2023' on pag
+e 2 undefined on input line 46.
+
+
+Package natbib Warning: Citation `beiraodaveigaResidualPosterioriError2015' on 
+page 2 undefined on input line 49.
+
+
+Package natbib Warning: Citation `berroneResidualPosterioriError2017' on page 2
+ undefined on input line 50.
+
+
+Package natbib Warning: Citation `beiraodaveigaPosterioriErrorEstimation2019' o
+n page 2 undefined on input line 50.
+
+
+Package natbib Warning: Citation `guoSuperconvergentGradientRecovery2019' on pa
+ge 2 undefined on input line 50.
+
+
+Package natbib Warning: Citation `chiSimpleEffectiveGradient2019' on page 2 und
+efined on input line 50.
+
+
+Package natbib Warning: Citation `vanhuyssteendanielMeshRefinementProcedures202
+2' on page 2 undefined on input line 50.
+
+
+Package natbib Warning: Citation `duVirtualElementMethod2022' on page 2 undefin
+ed on input line 50.
+
+
+LaTeX Warning: Reference `sec: 2' on page 2 undefined on input line 62.
+
+
+LaTeX Warning: Reference `sec: 3' on page 2 undefined on input line 62.
+
+
+LaTeX Warning: Reference `sec: 4' on page 2 undefined on input line 62.
+
+
+LaTeX Warning: Reference `sec: 5' on page 2 undefined on input line 62.
+
+
+[2]
+[3]) (./Chapters/Chapter2.tex
+
+Package natbib Warning: Citation `beiraodaveigaHitchhikerGuideVirtual2014' on p
+age 4 undefined on input line 3.
+
+
+Package natbib Warning: Citation `beiraodaveigaVirtualElementMethod2023' on pag
+e 4 undefined on input line 3.
+
+
+Package natbib Warning: Citation `wriggersVirtualElementMethods2024' on page 4 
+undefined on input line 3.
+
+
+LaTeX Warning: Reference `eq: Poisson PDE' on page 4 undefined on input line 17
+.
+
+
+[4]
+
+LaTeX Warning: Reference `eq: Poisson PDE' on page 5 undefined on input line 48
+.
+
+
+LaTeX Warning: Reference `fig:proj_VEM' on page 5 undefined on input line 51.
+
+
+[5 <./Figures/Theory/proj_VEM.png>]
+
+Package natbib Warning: Citation `ahmadEquivalentProjectorsVirtual2013' on page
+ 6 undefined on input line 66.
+
+
+Package natbib Warning: Citation `beiraodaveigaHitchhikerGuideVirtual2014' on p
+age 6 undefined on input line 78.
+
+
+LaTeX Warning: Reference `eq: proj cond' on page 6 undefined on input line 91.
+
+
+[6]
+
+Package natbib Warning: Citation `beckerOptimalControlApproach2001' on page 7 u
+ndefined on input line 131.
+
+
+Package natbib Warning: Citation `bangerthAdaptiveFiniteElement2003' on page 7 
+undefined on input line 131.
+
+
+LaTeX Warning: Reference `sec: Marking Strategy' on page 7 undefined on input l
+ine 133.
+
+
+Package natbib Warning: Citation `ENDTMAYER202419' on page 7 undefined on input
+ line 135.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 7 undefined on
+ input line 135.
+
+
+[7]
+
+LaTeX Warning: Reference `eq: example2_Ju' on page 8 undefined on input line 15
+1.
+
+
+[8]
+
+LaTeX Warning: Reference `eq: dwr id1 quad' on page 9 undefined on input line 1
+73.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 9 undefined on
+ input line 178.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 9 undefined on
+ input line 186.
+
+
+LaTeX Warning: Reference `eq: dwr error identities' on page 9 undefined on inpu
+t line 186.
+
+
+[9]
+
+Package natbib Warning: Citation `richterVariationalLocalizationsDual2015' on p
+age 10 undefined on input line 206.
+
+
+Package natbib Warning: Citation `ENDTMAYER202419' on page 10 undefined on inpu
+t line 206.
+
+
+Package natbib Warning: Citation `beckerOptimalControlApproach2001' on page 10 
+undefined on input line 210.
+
+
+Package natbib Warning: Citation `rognesAutomatedGoalorientedError2012' on page
+ 10 undefined on input line 210.
+
+
+Package natbib Warning: Citation `carpioAnisotropicGoalOrientedMesh2013' on pag
+e 10 undefined on input line 210.
+
+
+Package natbib Warning: Citation `weisserDualWeightedResidualEstimator2018' on 
+page 10 undefined on input line 211.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 10 undefined o
+n input line 214.
+
+
+LaTeX Warning: Reference `sec: Marking Strategy' on page 10 undefined on input 
+line 216.
+
+
+Package natbib Warning: Citation `richterVariationalLocalizationsDual2015' on p
+age 10 undefined on input line 226.
+
+
+LaTeX Warning: Reference `eq: dwr self adjoint' on page 10 undefined on input l
+ine 233.
+
+
+[10]
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 11 undefined on input line 256.
+
+
+Package natbib Warning: Citation `junkerNewVariationalApproach2021' on page 11 
+undefined on input line 256.
+
+
+[11]
+
+Package natbib Warning: Citation `junkerExtendedHamiltonPrinciple2021' on page 
+12 undefined on input line 275.
+
+
+[12]
+
+Package natbib Warning: Citation `junkerNewVariationalApproach2021' on page 13 
+undefined on input line 304.
+
+
+[13]
+
+LaTeX Warning: Reference `eq: local evolution equation' on page 14 undefined on
+ input line 329.
+
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 14 undefined on input line 331.
+
+
+Package natbib Warning: Citation `junkerFASTROBUSTNUMERICAL2019' on page 14 und
+efined on input line 331.
+
+
+Package natbib Warning: Citation `vogelAdaptiveHighlyAccurate2020' on page 14 u
+ndefined on input line 331.
+
+
+Package natbib Warning: Citation `junkerNewVariationalApproach2021' on page 14 
+undefined on input line 331.
+
+
+LaTeX Warning: Reference `eq: local evolution equation' on page 14 undefined on
+ input line 334.
+
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 14 undefined on input line 347.
+
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 14 undefined on input line 378.
+
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 14 undefined on input line 381.
+
+
+Package natbib Warning: Citation `cihanApplicationAdaptiveVirtual2024' on page 
+14 undefined on input line 381.
+
+
+[14]
+
+LaTeX Warning: Reference `eq: local evolution equation' on page 15 undefined on
+ input line 387.
+
+
+Overfull \hbox (0.31348pt too wide) detected at line 410
+[]
+
+LaTeX Warning: Reference `eq: taylor exp matrix' on page 15 undefined on input 
+line 482.
+
+
+[15]
+
+LaTeX Warning: Reference `eq: regularization matrix' on page 16 undefined on in
+put line 533.
+
+
+LaTeX Warning: Reference `fig: ghost state pos scheme' on page 16 undefined on 
+input line 549.
+
+(./Chapters/Tikz_pictures/nem_boundary_elements.tex)
+[16]
+
+LaTeX Warning: Reference `alg:density_update' on page 17 undefined on input lin
+e 560.
+
+
+LaTeX Warning: Reference `eq: taylor exp matrix' on page 17 undefined on input 
+line 577.
+
+
+LaTeX Warning: Reference `eq: regularization matrix' on page 17 undefined on in
+put line 631.
+
+
+[17]
+
+Package natbib Warning: Citation `droniouFiniteVolumeDiffusion2014' on page 18 
+undefined on input line 719.
+
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 18 undefined on input line 720.
+
+
+LaTeX Warning: Reference `eq: regfun' on page 18 undefined on input line 722.
+
+
+[18]
+
+LaTeX Warning: Reference `eq: local evolution equation' on page 19 undefined on
+ input line 728.
+
+
+LaTeX Warning: Reference `eq: local evolution equation' on page 19 undefined on
+ input line 757.
+
+
+[19]
+
+Package natbib Warning: Citation `droniouFiniteVolumeDiffusion2014' on page 20 
+undefined on input line 789.
+
+
+LaTeX Warning: Reference `eq: tpfa averaged evolution' on page 20 undefined on 
+input line 793.
+
+
+[20]
+
+LaTeX Warning: Reference `eq: regfun' on page 21 undefined on input line 835.
+
+) (./Chapters/Chapter3.tex
+
+Package natbib Warning: Citation `rammADAPTIVETOPOLOGYSHAPE1998' on page 21 und
+efined on input line 8.
+
+
+Package natbib Warning: Citation `costajrLayoutOptimizationAdaptivity2003' on p
+age 21 undefined on input line 8.
+
+
+Package natbib Warning: Citation `stainkoAdaptiveMultilevelApproach2005' on pag
+e 21 undefined on input line 9.
+
+
+Package natbib Warning: Citation `lambeTopologyOptimizationUsing2018' on page 2
+1 undefined on input line 9.
+
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 21 undefined on input line 9.
+
+
+[21]
+
+LaTeX Warning: Reference `sec: inf error est results' on page 22 undefined on i
+nput line 17.
+
+
+Package natbib Warning: Citation `costajrLayoutOptimizationAdaptivity2003' on p
+age 22 undefined on input line 18.
+
+
+Package natbib Warning: Citation `wangAdaptiveTopologyOptimization2014' on page
+ 22 undefined on input line 18.
+
+
+Package natbib Warning: Citation `salazardetroyaAdaptiveMeshRefinement2018' on 
+page 22 undefined on input line 18.
+
+
+Package natbib Warning: Citation `rammADAPTIVETOPOLOGYSHAPE1998' on page 22 und
+efined on input line 23.
+
+
+Package natbib Warning: Citation `costajrLayoutOptimizationAdaptivity2003' on p
+age 22 undefined on input line 23.
+
+
+Package natbib Warning: Citation `stainkoAdaptiveMultilevelApproach2005' on pag
+e 22 undefined on input line 23.
+
+
+Package natbib Warning: Citation `wangAdaptiveTopologyOptimization2014' on page
+ 22 undefined on input line 23.
+
+
+Package natbib Warning: Citation `lambeTopologyOptimizationUsing2018' on page 2
+2 undefined on input line 23.
+
+
+Package natbib Warning: Citation `wangDynamicAdaptiveMesh2010' on page 22 undef
+ined on input line 26.
+
+
+Package natbib Warning: Citation `zhangAdaptiveMeshRefinement2020' on page 22 u
+ndefined on input line 26.
+
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 22 undefined on input line 26.
+
+
+Package natbib Warning: Citation `herrero-perezEfficientDistributedApproach2022
+' on page 22 undefined on input line 26.
+
+
+Package natbib Warning: Citation `cihanApplicationAdaptiveVirtual2024' on page 
+22 undefined on input line 26.
+
+
+Package natbib Warning: Citation `herrero-perezEfficientDistributedApproach2022
+' on page 22 undefined on input line 27.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 11--30
+
+
+LaTeX Warning: Reference `eq: dwr id1 quad corr' on page 22 undefined on input 
+line 38.
+
+
+[22]
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 23 undefined o
+n input line 52.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 23 undefined o
+n input line 63.
+
+
+Package natbib Warning: Citation `montoison-orban-2023' on page 23 undefined on
+ input line 65.
+
+
+[23]
+
+LaTeX Warning: Reference `eq: proj moment orthogonality' on page 24 undefined o
+n input line 129.
+
+
+Package natbib Warning: Citation `brennerMathematicalTheoryFinite2008' on page 
+24 undefined on input line 129.
+
+
+Package natbib Warning: Citation `beiraodaveigaVirtualElementMethod2023' on pag
+e 24 undefined on input line 129.
+
+
+LaTeX Warning: Reference `eq: proj cond1' on page 24 undefined on input line 12
+9.
+
+
+LaTeX Warning: Reference `eq: dwr self adjoint' on page 24 undefined on input l
+ine 129.
+
+
+[24]
+
+Package natbib Warning: Citation `vanhuyssteendanielMeshRefinementProcedures202
+2' on page 25 undefined on input line 130.
+
+
+Package natbib Warning: Citation `vanhuyssteendanielMeshRefinementProcedures202
+2' on page 25 undefined on input line 140.
+
+
+LaTeX Warning: Reference `alg:evolutionary_amr' on page 25 undefined on input l
+ine 147.
+
+
+LaTeX Warning: Reference `eq: weak form momentum' on page 25 undefined on input
+ line 154.
+
+
+LaTeX Warning: Reference `alg:density_update' on page 25 undefined on input lin
+e 155.
+
+
+LaTeX Warning: Reference `eq: dwr self adjoint' on page 25 undefined on input l
+ine 157.
+
+
+LaTeX Warning: Reference `eq: dwr id1 quad corr simp' on page 25 undefined on i
+nput line 157.
+
+
+[25]
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 26 undefined on input line 183.
+
+
+LaTeX Warning: Reference `eq: regfun' on page 26 undefined on input line 183.
+
+
+[26]
+
+LaTeX Warning: Reference `eq: taylor exp i' on page 27 undefined on input line 
+195.
+
+
+LaTeX Warning: Reference `eq: taylor exp matrix' on page 27 undefined on input 
+line 195.
+
+) (./Chapters/Chapter4.tex
+
+LaTeX Warning: Reference `tab: sim parameters' on page 27 undefined on input li
+ne 14.
+
+
+LaTeX Warning: Reference `fig:MBB_Beam' on page 27 undefined on input line 37.
+
+(./Figures/Theory/MBB_Beam.pdf_tex)
+[27]
+
+LaTeX Warning: Reference `fig:MBB_state_comp' on page 28 undefined on input lin
+e 47.
+
+
+LaTeX Warning: Reference `fig:MBB_state_comp' on page 28 undefined on input lin
+e 50.
+
+
+[28 <./Figures/Results/MBB_design_comp.png> <./Figures/Theory/MBB_Beam.pdf> <./
+Figures/Theory/MBB_Beam.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/MBB_Beam.pdf): PDF inclusio
+n: multiple pdfs with page group included in a single page
+>]
+
+LaTeX Warning: Reference `fig:state_diff_ref6' on page 29 undefined on input li
+ne 75.
+
+
+LaTeX Warning: Reference `fig:ref6_adapted_mesh' on page 29 undefined on input 
+line 80.
+
+
+LaTeX Warning: Reference `sec: App A' on page 29 undefined on input line 80.
+
+
+LaTeX Warning: Reference `fig:grid_evolution6' on page 29 undefined on input li
+ne 80.
+
+
+LaTeX Warning: Reference `fig:MBB3_conv_comp' on page 29 undefined on input lin
+e 82.
+
+
+Package natbib Warning: Citation `sigmundMorphologybasedBlackWhite2007' on page
+ 29 undefined on input line 87.
+
+
+LaTeX Warning: Reference `sec: App A' on page 29 undefined on input line 96.
+
+
+[29]
+Overfull \hbox (12.99081pt too wide) in paragraph at lines 124--125
+ [][] 
+
+Overfull \hbox (6.50128pt too wide) in paragraph at lines 164--165
+ [][] 
+
+LaTeX Warning: Reference `sharedlegend' on page 30 undefined on input line 170.
+
+
+
+Overfull \hbox (2.41797pt too wide) in paragraph at lines 218--219
+ [][] 
+
+LaTeX Warning: Reference `timinglegend' on page 30 undefined on input line 259.
+
+
+
+LaTeX Warning: Reference `eq: dwr self adjoint' on page 30 undefined on input l
+ine 273.
+
+
+[30 <./Figures/Results/state_diff_refl6.png> <./Figures/Results/ref6_adapted_me
+sh.png>]
+Overfull \hbox (9.4759pt too wide) in paragraph at lines 307--308
+ [][] 
+
+Overfull \hbox (8.6288pt too wide) in paragraph at lines 323--324
+ [][] 
+
+LaTeX Warning: Reference `fig: MBB5_idxeff_idxind' on page 31 undefined on inpu
+t line 332.
+
+
+[31]
+
+LaTeX Warning: Reference `fig: error vs number of nodes' on page 32 undefined o
+n input line 345.
+
+
+Overfull \hbox (20.90431pt too wide) in paragraph at lines 379--380
+ [][] 
+
+Overfull \hbox (7.1426pt too wide) in paragraph at lines 393--394
+ [][] 
+(./Figures/Theory/L_cantiliver.pdf_tex)
+[32]
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 33 undefined on input line 417.
+
+
+Package natbib Warning: Citation `cihanApplicationAdaptiveVirtual2024' on page 
+33 undefined on input line 417.
+
+
+[33 <./Figures/Theory/L_cantiliver.pdf> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+>]
+
+LaTeX Warning: Reference `fig:L_cantiliver' on page 34 undefined on input line 
+436.
+
+
+LaTeX Warning: Reference `fig:L1_error_ref5' on page 34 undefined on input line
+ 439.
+
+
+LaTeX Warning: Reference `fig:L1_error_ref5_noerror' on page 34 undefined on in
+put line 439.
+
+
+LaTeX Warning: Reference `eq: rel strain error' on page 34 undefined on input l
+ine 473.
+
+
+LaTeX Warning: Reference `eq: rel strain error' on page 34 undefined on input l
+ine 473.
+
+
+[34]
+[35 <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt.png> <./Figures/Results/RL6_L
+1_1h2_lap3_fine_adapt_grid.png> <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt_d
+esign.png> <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt_design_grid.png>])
+(./Chapters/Chapter5.tex
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+)
+No file paper-draft.bbl.
+(./Chapters/Appendix A.tex
+[36]
+[37]
+Overfull \vbox (347.74268pt too high) has occurred while \output is active
+[38 <./Figures/Results/MBB_grid_evolution_rl6.png>]
+[39]
+Overfull \vbox (9.429pt too high) has occurred while \output is active
+[40 <./Figures/Results/LCantilever_design_comp.png>]
+(./Figures/Theory/Cantiliver.pdf_tex))
+
+Package natbib Warning: There were undefined citations.
+
+
+[41 <./Figures/Theory/Cantiliver.pdf> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Results/Cantilever_design_comp.png>]
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.aux)
+
+LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+
+Package rerunfilecheck Warning: File `paper-draft.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+ )
+(see the transcript file for additional information)<c:/texlive/2024/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmbsy10.pfb><c:/texlive/2024/texmf-dist/fonts/t
+ype1/public/amsfonts/cm/cmbx12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmbx8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmex10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi
+10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb><c
+:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/
+2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb><c:/texlive/2024/texmf
+-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb><c:/texlive/2024/texmf-dist/fo
+nts/type1/public/amsfonts/cmextra/cmmib8.pfb><c:/texlive/2024/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmr10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmr12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmr17.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.
+pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb><c:/tex
+live/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb><c:/texlive/2024/t
+exmf-dist/fonts/type1/public/amsfonts/cm/cmsl12.pfb><c:/texlive/2024/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2024/texmf-dist/fonts/ty
+pe1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public
+/amsfonts/cm/cmti10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmti12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmti8
+.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb
+><c:/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0700.pfb><c:/texli
+ve/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb><c:/texlive/2024/te
+xmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb><c:/texlive/2024/texmf-dist/f
+onts/type1/urw/helvetic/uhvb8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/
+helvetic/uhvr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/helvetic/uhvro8
+a.pfb>
+Output written on C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packag
+es/ToOpt3/tmp/pdfs/paper-build/paper-draft.pdf (41 pages, 4889481 bytes).
+Transcript written on C:/Users/sellmann/Promotion/Programming/Julia/Projects/Pa
+ckages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log.
+Latexmk: Getting log file 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log'
+Latexmk: Examining 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.fls'
+Latexmk: Examining 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log'
+Latexmk: Missing bbl file 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.bbl' in following:
+ No file paper-draft.bbl.
+Latexmk: References changed.
+Latexmk: References changed.
+Latexmk: Log file says output to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.pdf'
+Latexmk: Found bibliography file(s):
+  ./bib.bib
+Latexmk: applying rule 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft'...
+Rule 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft':  Reasons for rerun
+Category 'other':
+  Rerun of 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft' forced or previously required:
+    Reason or flag: 'Initial set up of rule'
+
+------------
+Run number 1 of rule 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft'
+------------
+Latexmk: Change directory to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/'.
+To assist finding of files in document directory, I set
+  BIBINPUTS='C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/paper;C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build;'
+  BSTINPUTS='C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/paper;'.
+------------
+Running 'bibtex  "paper-draft.aux"'
+------------
+This is BibTeX, Version 0.99d (TeX Live 2024)
+The top-level auxiliary file: paper-draft.aux
+The style file: apalike.bst
+Database file #1: bib.bib
+Warning--empty journal in Becker1997
+Warning--can't use both author and editor fields in brennerMathematicalTheoryFinite2008
+Warning--empty journal in rammADAPTIVETOPOLOGYSHAPE1998
+(There were 3 warnings)
+Latexmk: Change directory back to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/paper'
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Changed files or newly in use/created:
+  C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.aux
+  C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.bbl
+  C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.out
+
+------------
+Run number 2 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -halt-on-error -recorder --jobname="paper-draft" -output-directory="C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build"  "main.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex)
+ restricted \write18 enabled.
+entering extended mode
+(./main.tex
+LaTeX2e <2024-11-01> patch level 2
+L3 programming layer <2025-01-18>
+(./paper_bode.cls
+Document Class: paper_bode 2020/07/28 v1.0
+(c:/texlive/2024/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2024/06/29 v1.4n Standard LaTeX document class
+(c:/texlive/2024/texmf-dist/tex/latex/base/size12.clo))) (./preamble.sty
+(c:/texlive/2024/texmf-dist/tex/generic/babel/babel.sty
+(c:/texlive/2024/texmf-dist/tex/generic/babel/txtbabel.def)
+(c:/texlive/2024/texmf-dist/tex/generic/babel-english/english.ldf))
+(c:/texlive/2024/texmf-dist/tex/generic/babel/locale/en/babel-english.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/base/inputenc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/import/import.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/enumerate.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/ulem/ulem.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amstext.sty
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amscls/amsthm.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/mathtools/mathtools.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/keyval.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/calc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/mathtools/mhsetup.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/float/float.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/parskip/parskip.sty
+(c:/texlive/2024/texmf-dist/tex/latex/kvoptions/kvoptions.sty
+(c:/texlive/2024/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/etoolbox/etoolbox.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/caption/caption.sty
+(c:/texlive/2024/texmf-dist/tex/latex/caption/caption3.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/caption/subcaption.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/todonotes/todonotes.sty
+(c:/texlive/2024/texmf-dist/tex/latex/base/ifthen.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/xkeyval/xkeyval.sty
+(c:/texlive/2024/texmf-dist/tex/generic/xkeyval/xkeyval.tex
+(c:/texlive/2024/texmf-dist/tex/generic/xkeyval/xkvutils.tex)))
+(c:/texlive/2024/texmf-dist/tex/latex/xcolor/xcolor.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-cfg/color.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-def/pdftex.def)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/mathcolor.ltx))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfutil-common.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfutil-latex.def)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfrcs.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/pgf.revision.tex)))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/basiclayer/pgfcore.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/graphicx.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/graphics.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/trig.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-cfg/graphics.cfg)))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/systemlayer/pgfsys.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeyslibraryfiltered.co
+de.tex)) (c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgf.cfg)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-pdftex.def
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-common-pdf.def))
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsyssoftpath.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsysprotocol.code.tex
+)) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcore.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathutil.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathparser.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.basic.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.trigonometric
+.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.random.code.t
+ex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.comparison.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.base.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.round.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.misc.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.integerarithm
+etics.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathcalc.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfint.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.cod
+e.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorescopes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code
+.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreobjects.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathprocessing.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreshade.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreimage.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreexternal.code.tex
+) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorelayers.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransparency.code
+.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.tex
+) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorerdf.code.tex)))
+ (c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduleplot.code.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-0-65.st
+y)
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-1-18.st
+y)) (c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgffor.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgfkeys.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/math/pgfmath.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmodulematrix.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarytopaths.code.tex)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarypositioning.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/setspace/setspace.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/pgfplots/pgfplots.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.revision.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotscore.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/sys/pgfplotssysgeneric.code.te
+x))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/pgfplotslibrary.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldpgfs
+upp_loader.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryfpu.code.tex)
+Package pgfplots: loading complementary utilities for your pgf version...
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldpgfs
+upp_pgfutil-common-lists.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsliststru
+cture.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsliststru
+ctureext.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsarray.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsmatrix.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/numtable/pgfplotstableshared.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsdeque.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.data.code.
+tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.verb.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/pgflibrarypgfplots.surfsh
+ading.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/sys/pgflibrarypgfplots.surfsha
+ding.pgfsys-pdftex.def)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotscolormap.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotscolor.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplothandler.code.t
+ex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplotimage.code.tex
+))) (c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.scaling.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.t
+ex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.errorbars.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.markers.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.paths.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.t
+ex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.pathmorphing.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydec
+orations.pathmorphing.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.pathreplacing.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydec
+orations.pathreplacing.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.conto
+urlua.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryplotmarks.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.
+tex)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarypatterns.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibrarypatterns.code.t
+ex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarymatrix.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarycalc.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.cod
+e.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryangles.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryquotes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarybackgrounds.code.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/geometry/geometry.sty
+(c:/texlive/2024/texmf-dist/tex/generic/iftex/ifvtex.sty
+(c:/texlive/2024/texmf-dist/tex/generic/iftex/iftex.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/tools/layout.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/blindtext/blindtext.sty
+(c:/texlive/2024/texmf-dist/tex/latex/tools/xspace.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/siunitx/siunitx.sty
+(c:/texlive/2024/texmf-dist/tex/latex/translations/translations.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+(c:/texlive/2024/texmf-dist/tex/generic/infwarerr/infwarerr.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/tools/array.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/amsfonts.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/multirow/bigdelim.sty
+(c:/texlive/2024/texmf-dist/tex/latex/multirow/multirow.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/algorithms/algorithm.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/algorithms/algorithmic.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.group
+plots.code.tex) (c:/texlive/2024/texmf-dist/tex/latex/amsfonts/euscript.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/wrapfig/wrapfig.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype.sty
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype-pdftex.def)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype.cfg))
+(c:/texlive/2024/texmf-dist/tex/latex/svg/svg.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrbase.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlfile.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlfile-hook.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlogo.sty))))
+(c:/texlive/2024/texmf-dist/tex/latex/trimspaces/trimspaces.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/shellesc.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/transparent/transparent.sty
+(c:/texlive/2024/texmf-dist/tex/latex/transparent/transparent-nometadata.sty
+(c:/texlive/2024/texmf-dist/tex/latex/auxhook/auxhook.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/booktabs/booktabs.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryshapes.geometric.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.g
+eometric.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/tocbibind/tocbibind.sty
+
+Package tocbibind Note: Using section or other style headings.
+
+) (c:/texlive/2024/texmf-dist/tex/latex/titlesec/titlesec.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/amssymb.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/marvosym/marvosym.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/ragged2e/ragged2e.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/psnfss/helvet.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/jknapltx/mathrsfs.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/natbib/natbib.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/fancyhdr/fancyhdr.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/colortbl/colortbl.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/framed/framed.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/hyperref.sty
+(c:/texlive/2024/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pdfescape/pdfescape.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hycolor/hycolor.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/nameref.sty
+(c:/texlive/2024/texmf-dist/tex/latex/refcount/refcount.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/gettitlestring/gettitlestring.sty))
+(c:/texlive/2024/texmf-dist/tex/generic/stringenc/stringenc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/pd1enc.def)
+(c:/texlive/2024/texmf-dist/tex/generic/intcalc/intcalc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/puenc.def)
+(c:/texlive/2024/texmf-dist/tex/latex/url/url.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/bitset/bitset.sty
+(c:/texlive/2024/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/base/atbegshi-ltx.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/hpdftex.def
+(c:/texlive/2024/texmf-dist/tex/latex/base/atveryend-ltx.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty
+(c:/texlive/2024/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty))))
+(c:/texlive/2024/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
+
+LaTeX Warning: Unused global option(s):
+    [12pt].
+
+
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.aux)
+(c:/texlive/2024/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+) (c:/texlive/2024/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
+(c:/texlive/2024/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))
+
+Package todonotes Warning: The length marginparwidth is less than 2cm and will 
+most likely cause issues with the appearance of inserted todonotes. The issue c
+an be solved by adding a line like \setlength {\marginparwidth }{2cm} prior to 
+loading the todonotes package. on input line 5.
+
+Package pgfplots notification 'compat/show suggested version=true': document ha
+s been generated with the most recent feature set (\pgfplotsset{compat=1.18}).
+
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+
+(c:/texlive/2024/texmf-dist/tex/latex/translations/translations-basic-dictionar
+y-english.trsl) (c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-cmr.cfg)
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.out)
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.out)
+(c:/texlive/2024/texmf-dist/tex/latex/psnfss/ot1phv.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsa.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-msa.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-msb.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/jknapltx/ursfs.fd)
+Overfull \hbox (5.03963pt too wide) in paragraph at lines 26--26
+[][][]\OT1/cmr/m/n/12 (-20) adjust 
+
+Overfull \hbox (5.03963pt too wide) in paragraph at lines 26--26
+[][][]\OT1/cmr/m/n/12 (-20) adjust 
+
+[1{c:/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/texlive/202
+4/texmf-dist/fonts/enc/dvips/base/8r.enc}{c:/texlive/2024/texmf-dist/fonts/enc/
+dvips/cm-super/cm-super-ts1.enc}] (./Chapters/Chapter1.tex
+
+Package natbib Warning: Citation `sigmundTopologyOptimizationApproaches2013' on
+ page 2 undefined on input line 3.
+
+
+Package natbib Warning: Citation `allaireTopologyOptimizationMinimum2004' on pa
+ge 2 undefined on input line 4.
+
+
+Package natbib Warning: Citation `bendsoeOptimalShapeDesign1989' on page 2 unde
+fined on input line 10.
+
+
+Package natbib Warning: Citation `bendsoeTopologyOptimization2004' on page 2 un
+defined on input line 10.
+
+
+Package natbib Warning: Citation `diazCheckerboardPatternsLayout1995' on page 2
+ undefined on input line 12.
+
+
+Package natbib Warning: Citation `sigmundTopologyOptimizationApproaches2013' on
+ page 2 undefined on input line 13.
+
+
+Package natbib Warning: Citation `junkerVariationalGrowthApproach2015' on page 
+2 undefined on input line 16.
+
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 2 undefined on input line 16.
+
+
+Package natbib Warning: Citation `junkerNewVariationalApproach2021' on page 2 u
+ndefined on input line 16.
+
+
+Package natbib Warning: Citation `blaszczykApplicationTaylorSeries2022' on page
+ 2 undefined on input line 16.
+
+
+Package natbib Warning: Citation `jantosComparisonThermodynamicTopology2019' on
+ page 2 undefined on input line 16.
+
+
+Package natbib Warning: Citation `mauteAdaptiveTopologyOptimization1995' on pag
+e 2 undefined on input line 20.
+
+
+Package natbib Warning: Citation `costajrLayoutOptimizationAdaptivity2003' on p
+age 2 undefined on input line 22.
+
+
+Package natbib Warning: Citation `stainkoAdaptiveMultilevelApproach2005' on pag
+e 2 undefined on input line 23.
+
+
+Package natbib Warning: Citation `wangDynamicAdaptiveMesh2010' on page 2 undefi
+ned on input line 24.
+
+
+Package natbib Warning: Citation `wangAdaptiveTopologyOptimization2014' on page
+ 2 undefined on input line 26.
+
+
+Package natbib Warning: Citation `zhangAdaptiveMultimaterialTopology2020' on pa
+ge 2 undefined on input line 28.
+
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 2 undefined on input line 29.
+
+
+Package natbib Warning: Citation `cihanApplicationAdaptiveVirtual2024' on page 
+2 undefined on input line 29.
+
+
+Package natbib Warning: Citation `BeRa96' on page 2 undefined on input line 43.
+
+
+
+Package natbib Warning: Citation `Becker1997' on page 2 undefined on input line
+ 43.
+
+
+Package natbib Warning: Citation `beckerOptimalControlApproach2001' on page 2 u
+ndefined on input line 43.
+
+
+Package natbib Warning: Citation `prudhommeGoalorientedErrorEstimation1999' on 
+page 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `odenEstimationModelingError2002' on page 2 un
+defined on input line 43.
+
+
+Package natbib Warning: Citation `richterGoalorientedErrorEstimation2012' on pa
+ge 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `richterVariationalLocalizationsDual2015' on p
+age 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `rothTensorproductSpacetimeGoaloriented2022' o
+n page 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `ENDTMAYER202419' on page 2 undefined on input
+ line 43.
+
+
+Package natbib Warning: Citation `Becker1997' on page 2 undefined on input line
+ 43.
+
+
+Package natbib Warning: Citation `goncalvesGoalOrientedErrorEstimation2010' on 
+page 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `chenGoalorientedPosterioriError2014' on page 
+2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `weisserDualWeightedResidualEstimator2018' on 
+page 2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `StoRadeSchroe19' on page 2 undefined on input
+ line 43.
+
+
+Package natbib Warning: Citation `minakowskiPrioriPosterioriError2023' on page 
+2 undefined on input line 43.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 2 undefined on
+ input line 43.
+
+
+Package natbib Warning: Citation `beiraodaveigaBASICPRINCIPLESVIRTUAL2013' on p
+age 2 undefined on input line 44.
+
+
+Package natbib Warning: Citation `beiraodaveigaHitchhikerGuideVirtual2014' on p
+age 2 undefined on input line 44.
+
+
+Package natbib Warning: Citation `artioliArbitraryOrder2D2018' on page 2 undefi
+ned on input line 46.
+
+
+Package natbib Warning: Citation `artioliArbitraryOrder2D2018a' on page 2 undef
+ined on input line 46.
+
+
+Package natbib Warning: Citation `wriggersVirtualElementMethods2024' on page 2 
+undefined on input line 46.
+
+
+Package natbib Warning: Citation `beiraodaveigaVirtualElementMethod2023' on pag
+e 2 undefined on input line 46.
+
+
+Package natbib Warning: Citation `beiraodaveigaResidualPosterioriError2015' on 
+page 2 undefined on input line 49.
+
+
+Package natbib Warning: Citation `berroneResidualPosterioriError2017' on page 2
+ undefined on input line 50.
+
+
+Package natbib Warning: Citation `beiraodaveigaPosterioriErrorEstimation2019' o
+n page 2 undefined on input line 50.
+
+
+Package natbib Warning: Citation `guoSuperconvergentGradientRecovery2019' on pa
+ge 2 undefined on input line 50.
+
+
+Package natbib Warning: Citation `chiSimpleEffectiveGradient2019' on page 2 und
+efined on input line 50.
+
+
+Package natbib Warning: Citation `vanhuyssteendanielMeshRefinementProcedures202
+2' on page 2 undefined on input line 50.
+
+
+Package natbib Warning: Citation `duVirtualElementMethod2022' on page 2 undefin
+ed on input line 50.
+
+
+[2]
+[3]) (./Chapters/Chapter2.tex
+
+Package natbib Warning: Citation `beiraodaveigaHitchhikerGuideVirtual2014' on p
+age 4 undefined on input line 3.
+
+
+Package natbib Warning: Citation `beiraodaveigaVirtualElementMethod2023' on pag
+e 4 undefined on input line 3.
+
+
+Package natbib Warning: Citation `wriggersVirtualElementMethods2024' on page 4 
+undefined on input line 3.
+
+
+[4]
+[5 <./Figures/Theory/proj_VEM.png>]
+
+Package natbib Warning: Citation `ahmadEquivalentProjectorsVirtual2013' on page
+ 6 undefined on input line 66.
+
+
+Package natbib Warning: Citation `beiraodaveigaHitchhikerGuideVirtual2014' on p
+age 6 undefined on input line 78.
+
+
+[6]
+
+Package natbib Warning: Citation `beckerOptimalControlApproach2001' on page 7 u
+ndefined on input line 131.
+
+
+Package natbib Warning: Citation `bangerthAdaptiveFiniteElement2003' on page 7 
+undefined on input line 131.
+
+
+Package natbib Warning: Citation `ENDTMAYER202419' on page 7 undefined on input
+ line 135.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 7 undefined on
+ input line 135.
+
+
+[7]
+[8]
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 9 undefined on
+ input line 178.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 9 undefined on
+ input line 186.
+
+
+[9]
+
+Package natbib Warning: Citation `richterVariationalLocalizationsDual2015' on p
+age 10 undefined on input line 206.
+
+
+Package natbib Warning: Citation `ENDTMAYER202419' on page 10 undefined on inpu
+t line 206.
+
+
+Package natbib Warning: Citation `beckerOptimalControlApproach2001' on page 10 
+undefined on input line 210.
+
+
+Package natbib Warning: Citation `rognesAutomatedGoalorientedError2012' on page
+ 10 undefined on input line 210.
+
+
+Package natbib Warning: Citation `carpioAnisotropicGoalOrientedMesh2013' on pag
+e 10 undefined on input line 210.
+
+
+Package natbib Warning: Citation `weisserDualWeightedResidualEstimator2018' on 
+page 10 undefined on input line 211.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 10 undefined o
+n input line 214.
+
+
+Package natbib Warning: Citation `richterVariationalLocalizationsDual2015' on p
+age 10 undefined on input line 226.
+
+
+[10]
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 11 undefined on input line 256.
+
+
+Package natbib Warning: Citation `junkerNewVariationalApproach2021' on page 11 
+undefined on input line 256.
+
+
+[11]
+
+Package natbib Warning: Citation `junkerExtendedHamiltonPrinciple2021' on page 
+12 undefined on input line 275.
+
+
+[12]
+
+Package natbib Warning: Citation `junkerNewVariationalApproach2021' on page 13 
+undefined on input line 304.
+
+
+[13]
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 14 undefined on input line 331.
+
+
+Package natbib Warning: Citation `junkerFASTROBUSTNUMERICAL2019' on page 14 und
+efined on input line 331.
+
+
+Package natbib Warning: Citation `vogelAdaptiveHighlyAccurate2020' on page 14 u
+ndefined on input line 331.
+
+
+Package natbib Warning: Citation `junkerNewVariationalApproach2021' on page 14 
+undefined on input line 331.
+
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 14 undefined on input line 347.
+
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 14 undefined on input line 378.
+
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 14 undefined on input line 381.
+
+
+Package natbib Warning: Citation `cihanApplicationAdaptiveVirtual2024' on page 
+14 undefined on input line 381.
+
+
+[14]
+Overfull \hbox (0.31348pt too wide) detected at line 410
+[]
+
+[15] (./Chapters/Tikz_pictures/nem_boundary_elements.tex)
+[16]
+[17]
+
+Package natbib Warning: Citation `droniouFiniteVolumeDiffusion2014' on page 18 
+undefined on input line 719.
+
+
+Package natbib Warning: Citation `jantosAccurateFastRegularization2019' on page
+ 18 undefined on input line 720.
+
+
+[18]
+[19]
+
+Package natbib Warning: Citation `droniouFiniteVolumeDiffusion2014' on page 20 
+undefined on input line 789.
+
+
+[20]) (./Chapters/Chapter3.tex
+
+Package natbib Warning: Citation `rammADAPTIVETOPOLOGYSHAPE1998' on page 21 und
+efined on input line 8.
+
+
+Package natbib Warning: Citation `costajrLayoutOptimizationAdaptivity2003' on p
+age 21 undefined on input line 8.
+
+
+Package natbib Warning: Citation `stainkoAdaptiveMultilevelApproach2005' on pag
+e 21 undefined on input line 9.
+
+
+Package natbib Warning: Citation `lambeTopologyOptimizationUsing2018' on page 2
+1 undefined on input line 9.
+
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 21 undefined on input line 9.
+
+
+[21]
+
+Package natbib Warning: Citation `costajrLayoutOptimizationAdaptivity2003' on p
+age 22 undefined on input line 18.
+
+
+Package natbib Warning: Citation `wangAdaptiveTopologyOptimization2014' on page
+ 22 undefined on input line 18.
+
+
+Package natbib Warning: Citation `salazardetroyaAdaptiveMeshRefinement2018' on 
+page 22 undefined on input line 18.
+
+
+Package natbib Warning: Citation `rammADAPTIVETOPOLOGYSHAPE1998' on page 22 und
+efined on input line 23.
+
+
+Package natbib Warning: Citation `costajrLayoutOptimizationAdaptivity2003' on p
+age 22 undefined on input line 23.
+
+
+Package natbib Warning: Citation `stainkoAdaptiveMultilevelApproach2005' on pag
+e 22 undefined on input line 23.
+
+
+Package natbib Warning: Citation `wangAdaptiveTopologyOptimization2014' on page
+ 22 undefined on input line 23.
+
+
+Package natbib Warning: Citation `lambeTopologyOptimizationUsing2018' on page 2
+2 undefined on input line 23.
+
+
+Package natbib Warning: Citation `wangDynamicAdaptiveMesh2010' on page 22 undef
+ined on input line 26.
+
+
+Package natbib Warning: Citation `zhangAdaptiveMeshRefinement2020' on page 22 u
+ndefined on input line 26.
+
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 22 undefined on input line 26.
+
+
+Package natbib Warning: Citation `herrero-perezEfficientDistributedApproach2022
+' on page 22 undefined on input line 26.
+
+
+Package natbib Warning: Citation `cihanApplicationAdaptiveVirtual2024' on page 
+22 undefined on input line 26.
+
+
+Package natbib Warning: Citation `herrero-perezEfficientDistributedApproach2022
+' on page 22 undefined on input line 27.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 11--30
+
+
+[22]
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 23 undefined o
+n input line 52.
+
+
+Package natbib Warning: Citation `sellmannDWRforVEM2025' on page 23 undefined o
+n input line 63.
+
+
+Package natbib Warning: Citation `montoison-orban-2023' on page 23 undefined on
+ input line 65.
+
+
+[23]
+
+Package natbib Warning: Citation `brennerMathematicalTheoryFinite2008' on page 
+24 undefined on input line 129.
+
+
+Package natbib Warning: Citation `beiraodaveigaVirtualElementMethod2023' on pag
+e 24 undefined on input line 129.
+
+
+[24]
+
+Package natbib Warning: Citation `vanhuyssteendanielMeshRefinementProcedures202
+2' on page 25 undefined on input line 130.
+
+
+Package natbib Warning: Citation `vanhuyssteendanielMeshRefinementProcedures202
+2' on page 25 undefined on input line 140.
+
+
+[25]
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 26 undefined on input line 183.
+
+
+[26]) (./Chapters/Chapter4.tex (./Figures/Theory/MBB_Beam.pdf_tex)
+[27]
+[28 <./Figures/Results/MBB_design_comp.png> <./Figures/Theory/MBB_Beam.pdf> <./
+Figures/Theory/MBB_Beam.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/MBB_Beam.pdf): PDF inclusio
+n: multiple pdfs with page group included in a single page
+>]
+
+Package natbib Warning: Citation `sigmundMorphologybasedBlackWhite2007' on page
+ 29 undefined on input line 87.
+
+
+[29]
+Overfull \hbox (12.99081pt too wide) in paragraph at lines 124--125
+ [][] 
+
+Overfull \hbox (6.50128pt too wide) in paragraph at lines 164--165
+ [][] 
+
+Overfull \hbox (2.41797pt too wide) in paragraph at lines 218--219
+ [][] 
+
+[30 <./Figures/Results/state_diff_refl6.png> <./Figures/Results/ref6_adapted_me
+sh.png>]
+Overfull \hbox (9.4759pt too wide) in paragraph at lines 307--308
+ [][] 
+
+Overfull \hbox (8.6288pt too wide) in paragraph at lines 323--324
+ [][] 
+
+[31]
+Overfull \hbox (20.90431pt too wide) in paragraph at lines 379--380
+ [][] 
+
+Overfull \hbox (7.1426pt too wide) in paragraph at lines 393--394
+ [][] 
+
+[32] (./Figures/Theory/L_cantiliver.pdf_tex)
+
+Package natbib Warning: Citation `vogelAdaptiveThermodynamicTopology2021' on pa
+ge 33 undefined on input line 417.
+
+
+Package natbib Warning: Citation `cihanApplicationAdaptiveVirtual2024' on page 
+33 undefined on input line 417.
+
+
+[33 <./Figures/Theory/L_cantiliver.pdf> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+>]
+[34]
+[35 <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt.png> <./Figures/Results/RL6_L
+1_1h2_lap3_fine_adapt_grid.png> <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt_d
+esign.png> <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt_design_grid.png>])
+(./Chapters/Chapter5.tex
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+)
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.bbl
+[36]
+[37]
+[38]
+[39]
+[40]
+[41]
+[42]) (./Chapters/Appendix A.tex
+[43]
+[44]
+Overfull \vbox (29.10783pt too high) has occurred while \output is active
+[45 <./Figures/Results/MBB_grid_evolution_rl6.png>]
+[46]
+Overfull \vbox (9.429pt too high) has occurred while \output is active
+[47 <./Figures/Results/LCantilever_design_comp.png>]
+(./Figures/Theory/Cantiliver.pdf_tex))
+
+Package natbib Warning: There were undefined citations.
+
+
+[48 <./Figures/Theory/Cantiliver.pdf> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Results/Cantilever_design_comp.png>]
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.aux
+
+Package natbib Warning: Citation(s) may have changed.
+(natbib)                Rerun to get citations correct.
+
+)
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+
+Package rerunfilecheck Warning: File `paper-draft.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+ )
+(see the transcript file for additional information)<c:/texlive/2024/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmbsy10.pfb><c:/texlive/2024/texmf-dist/fonts/t
+ype1/public/amsfonts/cm/cmbx12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmbx8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmex10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi
+10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb><c
+:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/
+2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb><c:/texlive/2024/texmf
+-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb><c:/texlive/2024/texmf-dist/fo
+nts/type1/public/amsfonts/cmextra/cmmib8.pfb><c:/texlive/2024/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmr10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmr12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmr17.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.
+pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb><c:/tex
+live/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb><c:/texlive/2024/t
+exmf-dist/fonts/type1/public/amsfonts/cm/cmsl12.pfb><c:/texlive/2024/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2024/texmf-dist/fonts/ty
+pe1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public
+/amsfonts/cm/cmti10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmti12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmti8
+.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb
+><c:/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0700.pfb><c:/texli
+ve/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb><c:/texlive/2024/te
+xmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb><c:/texlive/2024/texmf-dist/f
+onts/type1/urw/helvetic/uhvb8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/
+helvetic/uhvr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/helvetic/uhvro8
+a.pfb>
+Output written on C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packag
+es/ToOpt3/tmp/pdfs/paper-build/paper-draft.pdf (48 pages, 4921956 bytes).
+Transcript written on C:/Users/sellmann/Promotion/Programming/Julia/Projects/Pa
+ckages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log.
+Latexmk: Getting log file 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log'
+Latexmk: Examining 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.fls'
+Latexmk: Examining 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log'
+Latexmk: Found input bbl file 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.bbl'
+Latexmk: References changed.
+Latexmk: References changed.
+Latexmk: References changed.
+Latexmk: Log file says output to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.pdf'
+Latexmk: Found bibliography file(s):
+  ./bib.bib
+Latexmk: applying rule 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft'...
+Rule 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft':  Reasons for rerun
+Changed files or newly in use/created:
+  C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.aux
+
+------------
+Run number 2 of rule 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft'
+------------
+Latexmk: Change directory to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/'.
+To assist finding of files in document directory, I set
+  BIBINPUTS='C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/paper;C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build;'
+  BSTINPUTS='C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/paper;'.
+------------
+Running 'bibtex  "paper-draft.aux"'
+------------
+This is BibTeX, Version 0.99d (TeX Live 2024)
+The top-level auxiliary file: paper-draft.aux
+The style file: apalike.bst
+Database file #1: bib.bib
+Warning--empty journal in Becker1997
+Warning--can't use both author and editor fields in brennerMathematicalTheoryFinite2008
+Warning--empty journal in rammADAPTIVETOPOLOGYSHAPE1998
+(There were 3 warnings)
+Latexmk: Change directory back to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/paper'
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Changed files or newly in use/created:
+  C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.aux
+  C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.out
+
+------------
+Run number 3 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -halt-on-error -recorder --jobname="paper-draft" -output-directory="C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build"  "main.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex)
+ restricted \write18 enabled.
+entering extended mode
+(./main.tex
+LaTeX2e <2024-11-01> patch level 2
+L3 programming layer <2025-01-18>
+(./paper_bode.cls
+Document Class: paper_bode 2020/07/28 v1.0
+(c:/texlive/2024/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2024/06/29 v1.4n Standard LaTeX document class
+(c:/texlive/2024/texmf-dist/tex/latex/base/size12.clo))) (./preamble.sty
+(c:/texlive/2024/texmf-dist/tex/generic/babel/babel.sty
+(c:/texlive/2024/texmf-dist/tex/generic/babel/txtbabel.def)
+(c:/texlive/2024/texmf-dist/tex/generic/babel-english/english.ldf))
+(c:/texlive/2024/texmf-dist/tex/generic/babel/locale/en/babel-english.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/base/inputenc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/import/import.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/enumerate.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/ulem/ulem.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amstext.sty
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amscls/amsthm.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/mathtools/mathtools.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/keyval.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/calc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/mathtools/mhsetup.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/float/float.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/parskip/parskip.sty
+(c:/texlive/2024/texmf-dist/tex/latex/kvoptions/kvoptions.sty
+(c:/texlive/2024/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/etoolbox/etoolbox.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/caption/caption.sty
+(c:/texlive/2024/texmf-dist/tex/latex/caption/caption3.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/caption/subcaption.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/todonotes/todonotes.sty
+(c:/texlive/2024/texmf-dist/tex/latex/base/ifthen.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/xkeyval/xkeyval.sty
+(c:/texlive/2024/texmf-dist/tex/generic/xkeyval/xkeyval.tex
+(c:/texlive/2024/texmf-dist/tex/generic/xkeyval/xkvutils.tex)))
+(c:/texlive/2024/texmf-dist/tex/latex/xcolor/xcolor.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-cfg/color.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-def/pdftex.def)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/mathcolor.ltx))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfutil-common.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfutil-latex.def)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfrcs.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/pgf.revision.tex)))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/basiclayer/pgfcore.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/graphicx.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/graphics.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/trig.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-cfg/graphics.cfg)))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/systemlayer/pgfsys.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeyslibraryfiltered.co
+de.tex)) (c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgf.cfg)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-pdftex.def
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-common-pdf.def))
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsyssoftpath.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsysprotocol.code.tex
+)) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcore.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathutil.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathparser.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.basic.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.trigonometric
+.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.random.code.t
+ex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.comparison.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.base.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.round.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.misc.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.integerarithm
+etics.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathcalc.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfint.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.cod
+e.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorescopes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code
+.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreobjects.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathprocessing.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreshade.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreimage.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreexternal.code.tex
+) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorelayers.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransparency.code
+.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.tex
+) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorerdf.code.tex)))
+ (c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduleplot.code.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-0-65.st
+y)
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-1-18.st
+y)) (c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgffor.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgfkeys.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/math/pgfmath.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmodulematrix.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarytopaths.code.tex)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarypositioning.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/setspace/setspace.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/pgfplots/pgfplots.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.revision.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotscore.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/sys/pgfplotssysgeneric.code.te
+x))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/pgfplotslibrary.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldpgfs
+upp_loader.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryfpu.code.tex)
+Package pgfplots: loading complementary utilities for your pgf version...
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldpgfs
+upp_pgfutil-common-lists.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsliststru
+cture.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsliststru
+ctureext.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsarray.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsmatrix.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/numtable/pgfplotstableshared.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsdeque.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.data.code.
+tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.verb.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/pgflibrarypgfplots.surfsh
+ading.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/sys/pgflibrarypgfplots.surfsha
+ding.pgfsys-pdftex.def)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotscolormap.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotscolor.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplothandler.code.t
+ex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplotimage.code.tex
+))) (c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.scaling.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.t
+ex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.errorbars.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.markers.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.paths.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.t
+ex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.pathmorphing.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydec
+orations.pathmorphing.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.pathreplacing.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydec
+orations.pathreplacing.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.conto
+urlua.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryplotmarks.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.
+tex)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarypatterns.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibrarypatterns.code.t
+ex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarymatrix.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarycalc.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.cod
+e.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryangles.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryquotes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarybackgrounds.code.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/geometry/geometry.sty
+(c:/texlive/2024/texmf-dist/tex/generic/iftex/ifvtex.sty
+(c:/texlive/2024/texmf-dist/tex/generic/iftex/iftex.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/tools/layout.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/blindtext/blindtext.sty
+(c:/texlive/2024/texmf-dist/tex/latex/tools/xspace.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/siunitx/siunitx.sty
+(c:/texlive/2024/texmf-dist/tex/latex/translations/translations.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+(c:/texlive/2024/texmf-dist/tex/generic/infwarerr/infwarerr.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/tools/array.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/amsfonts.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/multirow/bigdelim.sty
+(c:/texlive/2024/texmf-dist/tex/latex/multirow/multirow.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/algorithms/algorithm.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/algorithms/algorithmic.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.group
+plots.code.tex) (c:/texlive/2024/texmf-dist/tex/latex/amsfonts/euscript.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/wrapfig/wrapfig.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype.sty
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype-pdftex.def)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype.cfg))
+(c:/texlive/2024/texmf-dist/tex/latex/svg/svg.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrbase.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlfile.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlfile-hook.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlogo.sty))))
+(c:/texlive/2024/texmf-dist/tex/latex/trimspaces/trimspaces.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/shellesc.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/transparent/transparent.sty
+(c:/texlive/2024/texmf-dist/tex/latex/transparent/transparent-nometadata.sty
+(c:/texlive/2024/texmf-dist/tex/latex/auxhook/auxhook.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/booktabs/booktabs.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryshapes.geometric.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.g
+eometric.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/tocbibind/tocbibind.sty
+
+Package tocbibind Note: Using section or other style headings.
+
+) (c:/texlive/2024/texmf-dist/tex/latex/titlesec/titlesec.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/amssymb.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/marvosym/marvosym.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/ragged2e/ragged2e.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/psnfss/helvet.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/jknapltx/mathrsfs.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/natbib/natbib.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/fancyhdr/fancyhdr.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/colortbl/colortbl.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/framed/framed.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/hyperref.sty
+(c:/texlive/2024/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pdfescape/pdfescape.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hycolor/hycolor.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/nameref.sty
+(c:/texlive/2024/texmf-dist/tex/latex/refcount/refcount.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/gettitlestring/gettitlestring.sty))
+(c:/texlive/2024/texmf-dist/tex/generic/stringenc/stringenc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/pd1enc.def)
+(c:/texlive/2024/texmf-dist/tex/generic/intcalc/intcalc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/puenc.def)
+(c:/texlive/2024/texmf-dist/tex/latex/url/url.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/bitset/bitset.sty
+(c:/texlive/2024/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/base/atbegshi-ltx.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/hpdftex.def
+(c:/texlive/2024/texmf-dist/tex/latex/base/atveryend-ltx.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty
+(c:/texlive/2024/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty))))
+(c:/texlive/2024/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
+
+LaTeX Warning: Unused global option(s):
+    [12pt].
+
+
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.aux)
+(c:/texlive/2024/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+) (c:/texlive/2024/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
+(c:/texlive/2024/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))
+
+Package todonotes Warning: The length marginparwidth is less than 2cm and will 
+most likely cause issues with the appearance of inserted todonotes. The issue c
+an be solved by adding a line like \setlength {\marginparwidth }{2cm} prior to 
+loading the todonotes package. on input line 5.
+
+Package pgfplots notification 'compat/show suggested version=true': document ha
+s been generated with the most recent feature set (\pgfplotsset{compat=1.18}).
+
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+
+(c:/texlive/2024/texmf-dist/tex/latex/translations/translations-basic-dictionar
+y-english.trsl) (c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-cmr.cfg)
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.out)
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.out)
+(c:/texlive/2024/texmf-dist/tex/latex/psnfss/ot1phv.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsa.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-msa.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-msb.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/jknapltx/ursfs.fd)
+Overfull \hbox (5.03963pt too wide) in paragraph at lines 26--26
+[][][]\OT1/cmr/m/n/12 (-20) adjust 
+
+Overfull \hbox (5.03963pt too wide) in paragraph at lines 26--26
+[][][]\OT1/cmr/m/n/12 (-20) adjust 
+
+[1{c:/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/texlive/202
+4/texmf-dist/fonts/enc/dvips/base/8r.enc}{c:/texlive/2024/texmf-dist/fonts/enc/
+dvips/cm-super/cm-super-ts1.enc}] (./Chapters/Chapter1.tex
+[2]
+[3]) (./Chapters/Chapter2.tex
+[4]
+[5]
+[6 <./Figures/Theory/proj_VEM.png>]
+[7]
+[8]
+[9]
+[10]
+[11]
+[12]
+[13]
+[14]
+Overfull \hbox (0.31348pt too wide) detected at line 410
+[]
+
+[15]
+[16] (./Chapters/Tikz_pictures/nem_boundary_elements.tex)
+[17]
+[18]
+[19]
+[20]
+[21]) (./Chapters/Chapter3.tex
+[22]
+Underfull \hbox (badness 10000) in paragraph at lines 11--30
+
+
+[23]
+[24]
+[25]
+[26]
+[27]) (./Chapters/Chapter4.tex
+[28] (./Figures/Theory/MBB_Beam.pdf_tex)
+[29 <./Figures/Results/MBB_design_comp.png>]
+[30 <./Figures/Theory/MBB_Beam.pdf> <./Figures/Theory/MBB_Beam.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/MBB_Beam.pdf): PDF inclusio
+n: multiple pdfs with page group included in a single page
+>]
+[31 <./Figures/Results/state_diff_refl6.png> <./Figures/Results/ref6_adapted_me
+sh.png>]
+Overfull \hbox (12.99081pt too wide) in paragraph at lines 124--125
+ [][] 
+
+Overfull \hbox (6.50128pt too wide) in paragraph at lines 164--165
+ [][] 
+
+Overfull \hbox (2.41797pt too wide) in paragraph at lines 218--219
+ [][] 
+
+[32]
+Overfull \hbox (9.4759pt too wide) in paragraph at lines 307--308
+ [][] 
+
+Overfull \hbox (8.6288pt too wide) in paragraph at lines 323--324
+ [][] 
+
+[33]
+Overfull \hbox (20.90431pt too wide) in paragraph at lines 379--380
+ [][] 
+
+Overfull \hbox (7.1426pt too wide) in paragraph at lines 393--394
+ [][] 
+(./Figures/Theory/L_cantiliver.pdf_tex)
+[34]
+[35 <./Figures/Theory/L_cantiliver.pdf> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+>]
+[36 <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt.png> <./Figures/Results/RL6_L
+1_1h2_lap3_fine_adapt_grid.png> <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt_d
+esign.png> <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt_design_grid.png>])
+(./Chapters/Chapter5.tex
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+)
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.bbl
+[37]
+[38]
+[39]
+[40]
+[41]
+[42]
+[43]) (./Chapters/Appendix A.tex
+[44]
+[45]
+Overfull \vbox (29.10783pt too high) has occurred while \output is active
+[46 <./Figures/Results/MBB_grid_evolution_rl6.png>]
+[47]
+Overfull \vbox (9.429pt too high) has occurred while \output is active
+[48 <./Figures/Results/LCantilever_design_comp.png>]
+(./Figures/Theory/Cantiliver.pdf_tex))
+[49 <./Figures/Theory/Cantiliver.pdf> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Results/Cantilever_design_comp.png>]
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.aux)
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+ )
+(see the transcript file for additional information)<c:/texlive/2024/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmbsy10.pfb><c:/texlive/2024/texmf-dist/fonts/t
+ype1/public/amsfonts/cm/cmbx12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmbx8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmex10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi
+10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb><c
+:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/
+2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb><c:/texlive/2024/texmf
+-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb><c:/texlive/2024/texmf-dist/fo
+nts/type1/public/amsfonts/cmextra/cmmib8.pfb><c:/texlive/2024/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmr10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmr12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmr17.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.
+pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb><c:/tex
+live/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb><c:/texlive/2024/t
+exmf-dist/fonts/type1/public/amsfonts/cm/cmsl12.pfb><c:/texlive/2024/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2024/texmf-dist/fonts/ty
+pe1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public
+/amsfonts/cm/cmti10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmti12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmti8
+.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb
+><c:/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0700.pfb><c:/texli
+ve/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb><c:/texlive/2024/te
+xmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb><c:/texlive/2024/texmf-dist/f
+onts/type1/urw/helvetic/uhvb8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/
+helvetic/uhvr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/helvetic/uhvro8
+a.pfb>
+Output written on C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packag
+es/ToOpt3/tmp/pdfs/paper-build/paper-draft.pdf (49 pages, 4936831 bytes).
+Transcript written on C:/Users/sellmann/Promotion/Programming/Julia/Projects/Pa
+ckages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log.
+Latexmk: Getting log file 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log'
+Latexmk: Examining 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.fls'
+Latexmk: Examining 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log'
+Latexmk: Found input bbl file 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.bbl'
+Latexmk: References changed.
+Latexmk: Log file says output to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.pdf'
+Latexmk: Found bibliography file(s):
+  ./bib.bib
+Latexmk: applying rule 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft'...
+Rule 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft':  Reasons for rerun
+Changed files or newly in use/created:
+  C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.aux
+
+------------
+Run number 3 of rule 'bibtex C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft'
+------------
+Latexmk: Change directory to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/'.
+To assist finding of files in document directory, I set
+  BIBINPUTS='C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/paper;C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build;'
+  BSTINPUTS='C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/paper;'.
+------------
+Running 'bibtex  "paper-draft.aux"'
+------------
+This is BibTeX, Version 0.99d (TeX Live 2024)
+The top-level auxiliary file: paper-draft.aux
+The style file: apalike.bst
+Database file #1: bib.bib
+Warning--empty journal in Becker1997
+Warning--can't use both author and editor fields in brennerMathematicalTheoryFinite2008
+Warning--empty journal in rammADAPTIVETOPOLOGYSHAPE1998
+(There were 3 warnings)
+Latexmk: Change directory back to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/paper'
+Latexmk: applying rule 'pdflatex'...
+Rule 'pdflatex':  Reasons for rerun
+Changed files or newly in use/created:
+  C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.aux
+
+------------
+Run number 4 of rule 'pdflatex'
+------------
+------------
+Running 'pdflatex  -interaction=nonstopmode -halt-on-error -recorder --jobname="paper-draft" -output-directory="C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build"  "main.tex"'
+------------
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex)
+ restricted \write18 enabled.
+entering extended mode
+(./main.tex
+LaTeX2e <2024-11-01> patch level 2
+L3 programming layer <2025-01-18>
+(./paper_bode.cls
+Document Class: paper_bode 2020/07/28 v1.0
+(c:/texlive/2024/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2024/06/29 v1.4n Standard LaTeX document class
+(c:/texlive/2024/texmf-dist/tex/latex/base/size12.clo))) (./preamble.sty
+(c:/texlive/2024/texmf-dist/tex/generic/babel/babel.sty
+(c:/texlive/2024/texmf-dist/tex/generic/babel/txtbabel.def)
+(c:/texlive/2024/texmf-dist/tex/generic/babel-english/english.ldf))
+(c:/texlive/2024/texmf-dist/tex/generic/babel/locale/en/babel-english.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/base/inputenc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/import/import.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/enumerate.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/ulem/ulem.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amstext.sty
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amscls/amsthm.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/mathtools/mathtools.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/keyval.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/calc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/mathtools/mhsetup.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/float/float.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/parskip/parskip.sty
+(c:/texlive/2024/texmf-dist/tex/latex/kvoptions/kvoptions.sty
+(c:/texlive/2024/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/etoolbox/etoolbox.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/caption/caption.sty
+(c:/texlive/2024/texmf-dist/tex/latex/caption/caption3.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/caption/subcaption.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/todonotes/todonotes.sty
+(c:/texlive/2024/texmf-dist/tex/latex/base/ifthen.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/xkeyval/xkeyval.sty
+(c:/texlive/2024/texmf-dist/tex/generic/xkeyval/xkeyval.tex
+(c:/texlive/2024/texmf-dist/tex/generic/xkeyval/xkvutils.tex)))
+(c:/texlive/2024/texmf-dist/tex/latex/xcolor/xcolor.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-cfg/color.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-def/pdftex.def)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/mathcolor.ltx))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfutil-common.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfutil-latex.def)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfrcs.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/pgf.revision.tex)))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/basiclayer/pgfcore.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/graphicx.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/graphics.sty
+(c:/texlive/2024/texmf-dist/tex/latex/graphics/trig.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/graphics-cfg/graphics.cfg)))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/systemlayer/pgfsys.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeyslibraryfiltered.co
+de.tex)) (c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgf.cfg)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-pdftex.def
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-common-pdf.def))
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsyssoftpath.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/systemlayer/pgfsysprotocol.code.tex
+)) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcore.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathutil.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathparser.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.basic.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.trigonometric
+.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.random.code.t
+ex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.comparison.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.base.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.round.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.misc.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.integerarithm
+etics.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathcalc.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfint.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.cod
+e.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorescopes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code
+.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreobjects.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathprocessing.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreshade.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreimage.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreexternal.code.tex
+) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorelayers.code.tex
+)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransparency.code
+.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.tex
+) (c:/texlive/2024/texmf-dist/tex/generic/pgf/basiclayer/pgfcorerdf.code.tex)))
+ (c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduleplot.code.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-0-65.st
+y)
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-1-18.st
+y)) (c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgffor.sty
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/utilities/pgfkeys.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/pgf/math/pgfmath.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmodulematrix.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarytopaths.code.tex)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarypositioning.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/setspace/setspace.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/pgfplots/pgfplots.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.revision.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotscore.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/sys/pgfplotssysgeneric.code.te
+x))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/pgfplotslibrary.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldpgfs
+upp_loader.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryfpu.code.tex)
+Package pgfplots: loading complementary utilities for your pgf version...
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldpgfs
+upp_pgfutil-common-lists.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsliststru
+cture.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsliststru
+ctureext.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsarray.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsmatrix.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/numtable/pgfplotstableshared.c
+ode.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsdeque.co
+de.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.data.code.
+tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.verb.code.te
+x)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/pgflibrarypgfplots.surfsh
+ading.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/sys/pgflibrarypgfplots.surfsha
+ding.pgfsys-pdftex.def)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotscolormap.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/util/pgfplotscolor.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplothandler.code.t
+ex
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplotimage.code.tex
+))) (c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.scaling.code.tex)
+
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.t
+ex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.errorbars.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.markers.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/pgfplots.paths.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.t
+ex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.pathmorphing.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydec
+orations.pathmorphing.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarydecorations.pathreplacing.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydec
+orations.pathreplacing.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.conto
+urlua.code.tex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryplotmarks.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.
+tex)))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarypatterns.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibrarypatterns.code.t
+ex))
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarymatrix.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarycalc.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.cod
+e.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryangles.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryquotes.code.tex)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+brarybackgrounds.code.tex)
+(c:/texlive/2024/texmf-dist/tex/latex/geometry/geometry.sty
+(c:/texlive/2024/texmf-dist/tex/generic/iftex/ifvtex.sty
+(c:/texlive/2024/texmf-dist/tex/generic/iftex/iftex.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/tools/layout.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/blindtext/blindtext.sty
+(c:/texlive/2024/texmf-dist/tex/latex/tools/xspace.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/siunitx/siunitx.sty
+(c:/texlive/2024/texmf-dist/tex/latex/translations/translations.sty
+(c:/texlive/2024/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+(c:/texlive/2024/texmf-dist/tex/generic/infwarerr/infwarerr.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/tools/array.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/amsfonts.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/multirow/bigdelim.sty
+(c:/texlive/2024/texmf-dist/tex/latex/multirow/multirow.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/algorithms/algorithm.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/algorithms/algorithmic.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.group
+plots.code.tex) (c:/texlive/2024/texmf-dist/tex/latex/amsfonts/euscript.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/wrapfig/wrapfig.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype.sty
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype-pdftex.def)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/microtype.cfg))
+(c:/texlive/2024/texmf-dist/tex/latex/svg/svg.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrbase.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlfile.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlfile-hook.sty
+(c:/texlive/2024/texmf-dist/tex/latex/koma-script/scrlogo.sty))))
+(c:/texlive/2024/texmf-dist/tex/latex/trimspaces/trimspaces.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/tools/shellesc.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/transparent/transparent.sty
+(c:/texlive/2024/texmf-dist/tex/latex/transparent/transparent-nometadata.sty
+(c:/texlive/2024/texmf-dist/tex/latex/auxhook/auxhook.sty)))
+(c:/texlive/2024/texmf-dist/tex/latex/booktabs/booktabs.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzli
+braryshapes.geometric.code.tex
+(c:/texlive/2024/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.g
+eometric.code.tex))
+(c:/texlive/2024/texmf-dist/tex/latex/tocbibind/tocbibind.sty
+
+Package tocbibind Note: Using section or other style headings.
+
+) (c:/texlive/2024/texmf-dist/tex/latex/titlesec/titlesec.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/amssymb.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/marvosym/marvosym.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/ragged2e/ragged2e.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/psnfss/helvet.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/jknapltx/mathrsfs.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/natbib/natbib.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/fancyhdr/fancyhdr.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/colortbl/colortbl.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/framed/framed.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/hyperref.sty
+(c:/texlive/2024/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/pdfescape/pdfescape.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hycolor/hycolor.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/nameref.sty
+(c:/texlive/2024/texmf-dist/tex/latex/refcount/refcount.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/gettitlestring/gettitlestring.sty))
+(c:/texlive/2024/texmf-dist/tex/generic/stringenc/stringenc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/pd1enc.def)
+(c:/texlive/2024/texmf-dist/tex/generic/intcalc/intcalc.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/puenc.def)
+(c:/texlive/2024/texmf-dist/tex/latex/url/url.sty)
+(c:/texlive/2024/texmf-dist/tex/generic/bitset/bitset.sty
+(c:/texlive/2024/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/base/atbegshi-ltx.sty))
+(c:/texlive/2024/texmf-dist/tex/latex/hyperref/hpdftex.def
+(c:/texlive/2024/texmf-dist/tex/latex/base/atveryend-ltx.sty)
+(c:/texlive/2024/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty
+(c:/texlive/2024/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty))))
+(c:/texlive/2024/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
+
+LaTeX Warning: Unused global option(s):
+    [12pt].
+
+
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.aux)
+(c:/texlive/2024/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+) (c:/texlive/2024/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
+(c:/texlive/2024/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))
+
+Package todonotes Warning: The length marginparwidth is less than 2cm and will 
+most likely cause issues with the appearance of inserted todonotes. The issue c
+an be solved by adding a line like \setlength {\marginparwidth }{2cm} prior to 
+loading the todonotes package. on input line 5.
+
+Package pgfplots notification 'compat/show suggested version=true': document ha
+s been generated with the most recent feature set (\pgfplotsset{compat=1.18}).
+
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+
+(c:/texlive/2024/texmf-dist/tex/latex/translations/translations-basic-dictionar
+y-english.trsl) (c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-cmr.cfg)
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.out)
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.out)
+(c:/texlive/2024/texmf-dist/tex/latex/psnfss/ot1phv.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsa.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-msa.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd)
+(c:/texlive/2024/texmf-dist/tex/latex/microtype/mt-msb.cfg)
+(c:/texlive/2024/texmf-dist/tex/latex/jknapltx/ursfs.fd)
+Overfull \hbox (5.03963pt too wide) in paragraph at lines 26--26
+[][][]\OT1/cmr/m/n/12 (-20) adjust 
+
+Overfull \hbox (5.03963pt too wide) in paragraph at lines 26--26
+[][][]\OT1/cmr/m/n/12 (-20) adjust 
+
+[1{c:/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/texlive/202
+4/texmf-dist/fonts/enc/dvips/base/8r.enc}{c:/texlive/2024/texmf-dist/fonts/enc/
+dvips/cm-super/cm-super-ts1.enc}] (./Chapters/Chapter1.tex
+[2]
+[3]) (./Chapters/Chapter2.tex
+[4]
+[5]
+[6 <./Figures/Theory/proj_VEM.png>]
+[7]
+[8]
+[9]
+[10]
+[11]
+[12]
+[13]
+[14]
+Overfull \hbox (0.31348pt too wide) detected at line 410
+[]
+
+[15]
+[16] (./Chapters/Tikz_pictures/nem_boundary_elements.tex)
+[17]
+[18]
+[19]
+[20]
+[21]) (./Chapters/Chapter3.tex
+[22]
+Underfull \hbox (badness 10000) in paragraph at lines 11--30
+
+
+[23]
+[24]
+[25]
+[26]
+[27]) (./Chapters/Chapter4.tex
+[28] (./Figures/Theory/MBB_Beam.pdf_tex)
+[29 <./Figures/Results/MBB_design_comp.png>]
+[30 <./Figures/Theory/MBB_Beam.pdf> <./Figures/Theory/MBB_Beam.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/MBB_Beam.pdf): PDF inclusio
+n: multiple pdfs with page group included in a single page
+>]
+[31 <./Figures/Results/state_diff_refl6.png> <./Figures/Results/ref6_adapted_me
+sh.png>]
+Overfull \hbox (12.99081pt too wide) in paragraph at lines 124--125
+ [][] 
+
+Overfull \hbox (6.50128pt too wide) in paragraph at lines 164--165
+ [][] 
+
+Overfull \hbox (2.41797pt too wide) in paragraph at lines 218--219
+ [][] 
+
+[32]
+Overfull \hbox (9.4759pt too wide) in paragraph at lines 307--308
+ [][] 
+
+Overfull \hbox (8.6288pt too wide) in paragraph at lines 323--324
+ [][] 
+
+[33]
+Overfull \hbox (20.90431pt too wide) in paragraph at lines 379--380
+ [][] 
+
+Overfull \hbox (7.1426pt too wide) in paragraph at lines 393--394
+ [][] 
+(./Figures/Theory/L_cantiliver.pdf_tex)
+[34]
+[35 <./Figures/Theory/L_cantiliver.pdf> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/L_cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/L_cantiliver.pdf): PDF incl
+usion: multiple pdfs with page group included in a single page
+>]
+[36 <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt.png> <./Figures/Results/RL6_L
+1_1h2_lap3_fine_adapt_grid.png> <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt_d
+esign.png> <./Figures/Results/RL6_L1_1h2_lap3_fine_adapt_design_grid.png>])
+(./Chapters/Chapter5.tex
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+)
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.bbl
+[37]
+[38]
+[39]
+[40]
+[41]
+[42]
+[43]) (./Chapters/Appendix A.tex
+[44]
+[45]
+Overfull \vbox (29.10783pt too high) has occurred while \output is active
+[46 <./Figures/Results/MBB_grid_evolution_rl6.png>]
+[47]
+Overfull \vbox (9.429pt too high) has occurred while \output is active
+[48 <./Figures/Results/LCantilever_design_comp.png>]
+(./Figures/Theory/Cantiliver.pdf_tex))
+[49 <./Figures/Theory/Cantiliver.pdf> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Theory/Cantiliver.pdf
+
+pdfTeX warning: pdflatex.exe (file ./Figures/Theory/Cantiliver.pdf): PDF inclus
+ion: multiple pdfs with page group included in a single page
+> <./Figures/Results/Cantilever_design_comp.png>]
+(C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdf
+s/paper-build/paper-draft.aux) )
+(see the transcript file for additional information)<c:/texlive/2024/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmbsy10.pfb><c:/texlive/2024/texmf-dist/fonts/t
+ype1/public/amsfonts/cm/cmbx12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmbx8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmex10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi
+10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb><c
+:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb><c:/texlive/
+2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb><c:/texlive/2024/texmf
+-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb><c:/texlive/2024/texmf-dist/fo
+nts/type1/public/amsfonts/cmextra/cmmib8.pfb><c:/texlive/2024/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmr10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmr12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmr17.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.
+pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb><c:/tex
+live/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb><c:/texlive/2024/t
+exmf-dist/fonts/type1/public/amsfonts/cm/cmsl12.pfb><c:/texlive/2024/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2024/texmf-dist/fonts/ty
+pe1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public
+/amsfonts/cm/cmti10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmti12.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmti8
+.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb
+><c:/texlive/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0700.pfb><c:/texli
+ve/2024/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb><c:/texlive/2024/te
+xmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb><c:/texlive/2024/texmf-dist/f
+onts/type1/urw/helvetic/uhvb8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/
+helvetic/uhvr8a.pfb><c:/texlive/2024/texmf-dist/fonts/type1/urw/helvetic/uhvro8
+a.pfb>
+Output written on C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packag
+es/ToOpt3/tmp/pdfs/paper-build/paper-draft.pdf (49 pages, 4936831 bytes).
+Transcript written on C:/Users/sellmann/Promotion/Programming/Julia/Projects/Pa
+ckages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log.
+Latexmk: Getting log file 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log'
+Latexmk: Examining 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.fls'
+Latexmk: Examining 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.log'
+Latexmk: Found input bbl file 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.bbl'
+Latexmk: Log file says output to 'C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.pdf'
+Latexmk: Found bibliography file(s):
+  ./bib.bib
+Latexmk: All targets (C:/Users/sellmann/Promotion/Programming/Julia/Projects/Packages/ToOpt3/tmp/pdfs/paper-build/paper-draft.pdf) are up-to-date
+
+Reverting Windows console CPs to (in,out) = (850,65001)

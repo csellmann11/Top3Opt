@@ -48,6 +48,7 @@ include("postprocessing/topopt_vtk_export.jl")
 include("optim_run.jl")
 include("get_sparsity_pattern.jl")
 include("utils/temp_utils.jl") #TODO: move into Ju3VEM
+include("utils/benchmark_meshes.jl")
 
 const K = 1
 const U = 3
@@ -125,45 +126,8 @@ function main(
         error("Invalid b_case: $b_case")
     end
 
-    if b_case == :L_cantilever
-        MeshType = :Lquad_mesh
-    end
-
-
-
-    mesh = if MeshType == :Hexahedra
-        create_rectangular_mesh(
-            nx, ny, nz,
-            l_beam, ly, lz, StandardEl{K}
-        )
-    elseif MeshType == :Voronoi
-        dim_permute = if b_case == :pressure_plate
-            SA[1,2,3]
-        else
-            SA[1,3,2]
-        end
-
-        mesh2d = create_voronoi_mesh(
-            (0.0, 0.0),
-            (l_beam, lz),
-            nx, nz, StandardEl{K}
-        )
-        topo = remove_short_edges(mesh2d.topo)
-        topo = remove_short_edges(topo)
-        topo = remove_short_edges(topo)
-
-        _mesh = extrude_to_3d(ny, Mesh(topo,StandardEl{K}()), ly)
-        permute_coord_dimensions(_mesh, dim_permute) #swith y and z
-    elseif MeshType == :Lquad_mesh
-        mesh2d = create_L_mesh(
-            (0.0, 0.0),
-            (2.0, 2.0),
-            nx, ny, StandardEl{K}(),0.5,0.5
-        )
-        mesh = extrude_to_3d(nz, mesh2d, lz)
-    else
-        error("Invalid MeshType: $MeshType")
-    end
+    mesh = create_benchmark_mesh(b_case, MeshType,
+        l_beam, ly, lz, nx, ny, nz, StandardEl{K})
 
     if do_adaptivity_at_the_start || !do_adaptivity
         println("Refining mesh to the finest level")
