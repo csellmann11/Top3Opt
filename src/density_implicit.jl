@@ -47,16 +47,33 @@ function DensityImplicitCache(operator::SparseMatrixCSC{Float64}, eta0, beta0,
         values[k] *= -row_scale[rows[k]]
     end
     A += spdiagm(0 => ones(n))
+    all(isfinite, nonzeros(A)) || error("Nonfinite implicit density matrix coefficients")
     d = Vector(diag(A))
-    all(x -> isfinite(x) && x > 0, d) ||
-        error("Implicit density matrix requires a finite positive diagonal for Jacobi scaling")
+    if any(x -> x <= 0, d)
+        # Corrected Diamond/Taylor operators are not necessarily monotone.
+        # GMRES does not require a positive diagonal. Use positive row magnitudes
+        # as scaling weights when square-root Jacobi scaling is unavailable;
+        # this changes only the solver scaling, not the regularization equation.
+        min_diagonal,worst_row = findmin(d)
+        nonpositive_diagonals = count(x -> x <= 0, d)
+        row_magnitudes = zeros(n)
+        rows = rowvals(A)
+        values = nonzeros(A)
+        for k in eachindex(values)
+            row_magnitudes[rows[k]] += abs(values[k])
+        end
+        all(x -> isfinite(x) && x > 0, row_magnitudes) ||
+            error("Implicit density matrix has a zero row or nonfinite row magnitude")
+        @warn "Implicit density matrix has nonpositive diagonal entries; using row-magnitude scaling for GMRES. This does not establish spatial diffusion stability." nonpositive_diagonals min_diagonal worst_row
+        d = row_magnitudes
+    end
     scale = 1.0 ./ sqrt.(d)
     rows = rowvals(A)
     values = nonzeros(A)
     for col in 1:n, k in nzrange(A,col)
         values[k] *= scale[rows[k]]*scale[col]
     end
-    all(isfinite, values) || error("Nonfinite Jacobi-scaled density matrix")
+    all(isfinite, values) || error("Nonfinite scaled density matrix")
     dropzeros!(A)
     rhs = zeros(n)
     workspace = Krylov.GmresWorkspace(A,rhs; memory=min(30,n))
@@ -75,7 +92,8 @@ end
 """
     implicit_density_solve!(result, rhs, cache; rtol=1e-7, itmax=200)
 
-Solve `(I - Rhat/eta0) * result = rhs` using Jacobi-scaled GMRES. The restarted
+Solve `(I - Rhat/eta0) * result = rhs` using scaled GMRES: square-root Jacobi for
+positive diagonals, or positive row-magnitude weights otherwise. The restarted
 workspace is reused, with at most 30 Krylov vectors. Check the residual of the
 original unscaled equation before changing `result`; there is no LU or explicit
 fallback. `result` may alias `rhs`.

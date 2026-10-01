@@ -102,7 +102,8 @@ end
     @test_throws ArgumentError DensityImplicitCache(R,1.0,1.0,[NaN,1.0])
     @test_throws DimensionMismatch DensityImplicitCache(R,1.0,1.0,ones(3))
     @test_throws ErrorException DensityImplicitCache(sparse([NaN 0.0; 0.0 1.0]),1.0,1.0,h)
-    @test_throws ErrorException DensityImplicitCache(-R,0.5,1.0,h; beta_in_operator=true)
+    @test_throws ErrorException DensityImplicitCache(floatmax(Float64)*R,0.5,1.0,h; beta_in_operator=true)
+    @test_throws ErrorException DensityImplicitCache(sparse(1.0I,2,2),1.0,1.0,h; beta_in_operator=true)
     @test_throws ArgumentError density_substeps(R,1.0,1.0; update_mode=:invalid)
 
     cache = DensityImplicitCache(R,1.0,1.0,h; beta_in_operator=true)
@@ -117,4 +118,33 @@ end
     singular = DensityImplicitCache(-R,2.0,1.0,h; beta_in_operator=true)
     @test_throws ErrorException implicit_density_solve!(result,[1.0,-1.0],singular)
     @test result == original
+end
+
+@testset "Conservative nonsymmetric operators with nonpositive implicit diagonals" begin
+    # Both R*1=0 and 1'*R=0 hold, and all eigenvalues of R are nonpositive.
+    # Nonetheless A=I-R/eta has a negative (factor=10) or zero (factor=8.5)
+    # diagonal entry. Positive diagonal scaling is not a GMRES requirement.
+    for factor in (10.0,8.5)
+        R = sparse(factor .* ([1.0,2.0,-3.0]*[2.0,-3.0,1.0]') -
+            (3Matrix{Float64}(I,3,3)-ones(3,3)))
+        eta = 15.0
+        A = Matrix(I-R/eta)
+        rhs = [0.2,0.4,0.9]
+        @test iszero(R*ones(3))
+        @test iszero(R'*ones(3))
+        @test maximum(real.(eigvals(Matrix(R)))) < 1e-10
+        @test minimum(diag(A)) <= 0
+        @test !issymmetric(A)
+        cache = @test_logs (:warn,r"nonpositive diagonal entries") DensityImplicitCache(
+            R,eta,1.0,ones(3); beta_in_operator=true)
+        result = similar(rhs)
+        info = implicit_density_solve!(result,rhs,cache; rtol=1e-12)
+        @test result ≈ A \ rhs atol=1e-11
+        @test sum(result) ≈ sum(rhs) atol=1e-11
+        @test info.relative_residual < 1e-12
+        # Reusing the fallback cache preserves the constant mode too.
+        implicit_density_solve!(result,fill(0.4,3),cache; rtol=1e-12)
+        @test result ≈ fill(0.4,3) atol=1e-11
+        @test cache.operator == R
+    end
 end

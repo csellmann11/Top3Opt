@@ -1,10 +1,12 @@
 using LinearAlgebra
 using SparseArrays
+using Printf
 
 function solve_lse_hypre(
     k_global::SparseMatrixCSC,
     rhs_global::AbstractVector)
 
+    t_start = time_ns()
 
     precond = HYPRE.BoomerAMG(;
         NumFunctions=3,       # 3 DOFs for elasticity
@@ -32,8 +34,23 @@ function solve_lse_hypre(
     x = zero(b)                                                  # solution vector
 
     u = Vector{Float64}(undef, length(rhs_global))
+    t_setup = t_solve = relres = 0.0
+    iterations = 0
     try
-        @timeit to "hypre_solver" HYPRE.solve!(solver, x, A, b)
+        @timeit to "hypre_solver" begin
+            # These are the same two calls made by HYPRE.solve!. PCG setup
+            # invokes the attached BoomerAMG preconditioner's setup, so this
+            # measures PCG + AMG setup rather than preconditioner-only work.
+            t_setup_start = time_ns()
+            @timeit to "hypre_setup" HYPRE.LibHYPRE.@check HYPRE.LibHYPRE.HYPRE_ParCSRPCGSetup(solver, A, b, x)
+            t_setup = (time_ns() - t_setup_start) / 1e9
+
+            t_solve_start = time_ns()
+            @timeit to "hypre_solve" HYPRE.LibHYPRE.@check HYPRE.LibHYPRE.HYPRE_ParCSRPCGSolve(solver, A, b, x)
+            t_solve = (time_ns() - t_solve_start) / 1e9
+            iterations = HYPRE.GetNumIterations(solver)
+            relres = HYPRE.GetFinalRelativeResidualNorm(solver)
+        end
         copy!(u, x)
     finally
         # Deterministically release every HYPRE C object created above.
@@ -42,6 +59,10 @@ function solve_lse_hypre(
         foreach(Base.finalize, (A, b, x, solver, precond))
     end
 
+    @printf("[hypre] n=%d nnz=%d PCG+BoomerAMG its=%d relres=%.2e setup(PCG+AMG)=%.3fs solve=%.3fs total=%.3fs\n",
+            length(rhs_global), nnz(k_global), iterations, relres,
+            t_setup, t_solve, (time_ns() - t_start) / 1e9)
+    flush(stdout)
     return u
 
 end

@@ -90,6 +90,18 @@ GMRES with a cached matrix and workspace, reused while the mesh and operator
 remain unchanged and rebuilt at operator assembly. There are no additional
 density substeps or LU fallback.
 
+For nonpositive implicit matrix diagonals, square-root Jacobi scaling is
+replaced by positive row-magnitude scaling. Such diagonals can occur with
+Diamond's nonsymmetric correction; GMRES itself does not require them to be
+positive. This changes only the linear-system scaling, preserves the original
+operator, and still checks its unscaled residual. A warning reports the number
+of nonpositive diagonals and the worst entry; this is not a guarantee of spatial
+diffusion stability. Nonfinite coefficients and zero rows still cause an error.
+
+The `state_update` timer includes both the cached solver preparation (its
+`prepare_implicit_density` child) and the density solve/projection. Regularization
+operator assembly remains under `adaptivity`, as for explicit mode.
+
 This is an IMEX update followed by the existing volume/bounds projection, as in
 the AndersonPlasticity implementation. It is not an exact coupled solution of
 the bound-constrained backward-Euler equations. Implicit time integration also

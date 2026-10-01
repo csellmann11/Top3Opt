@@ -196,6 +196,22 @@ end
             @test all(>(0),result.number_of_states)
             @test adaptive || all(==(first(result.number_of_states)),result.number_of_states)
             @test isfile(joinpath(destination,"final_res.vtu"))
+
+            # Density timing includes implicit matrix/workspace preparation,
+            # without charging that same work to adaptation. A fixed mesh reuses
+            # its cache; adaptive runs rebuild whenever the operator is assembled.
+            density_timer = to["state_update"]
+            @test TimerOutputs.ncalls(density_timer) == 3
+            @test result.simulation_times.state_update_time == TimerOutputs.time(density_timer)/1e9
+            @test !haskey(to["adaptivity"],"prepare_implicit_density")
+            if mode == :implicit
+                @test haskey(density_timer,"prepare_implicit_density")
+                preparation_timer = density_timer["prepare_implicit_density"]
+                @test TimerOutputs.ncalls(preparation_timer) == (adaptive ? 3 : 1)
+                @test 0 < TimerOutputs.time(preparation_timer) <= TimerOutputs.time(density_timer)
+            else
+                @test !haskey(density_timer,"prepare_implicit_density")
+            end
         end
     end
     @info "Density update production smoke outputs" output_root

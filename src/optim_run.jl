@@ -66,7 +66,8 @@ function run_optimization(
     for optimization_step in 1:MAX_OPT_STEPS
 
         flush(stdout)
-        @timeit to "adaptivity" if optimization_step == 1 || do_adaptivity 
+        rebuild_operator = optimization_step == 1 || do_adaptivity
+        @timeit to "adaptivity" if rebuild_operator
 
             @timeit to "create_constraint_handler" ch = create_constraint_handler(cv,b_case);
             if flux_scheme == :strong
@@ -80,18 +81,21 @@ function run_optimization(
                 @timeit to "compute_laplace_operator_mat" laplace_operator = compute_flux_operator_mat(
                     cv,states,sim_pars; scheme=flux_scheme)
             end
-            if update_mode == :implicit
+        end
+
+        @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
+        @timeit to "state_update" begin
+            # Include solver setup in the exported density-update timing. Rebuild
+            # with each new operator, including meshes with the same cell count.
+            if update_mode == :implicit && rebuild_operator
                 @timeit to "prepare_implicit_density" implicit_cache = DensityImplicitCache(
                     laplace_operator,sim_pars.η0,sim_pars.β0,states.h_vec;
                     beta_in_operator=flux_scheme != :strong)
             end
-
-        end 
-
-        @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
-        @timeit to "state_update" state_changed = state_update!(
-            states,cv,sim_pars,laplace_operator,u,eldata_col;
-            beta_in_operator=flux_scheme != :strong,update_mode,implicit_cache)
+            state_changed = state_update!(
+                states,cv,sim_pars,laplace_operator,u,eldata_col;
+                beta_in_operator=flux_scheme != :strong,update_mode,implicit_cache)
+        end
 
 
 
