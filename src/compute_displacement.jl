@@ -1,5 +1,6 @@
 using IterativeSolvers, AlgebraicMultigrid
 using Ju3VEM.VEMUtils.Octavian: matmul!
+isdefined(@__MODULE__,:pu3d_body_load!) || include("body_loads.jl")
 
 #### INFO: 2nd try 
 
@@ -175,6 +176,8 @@ function assembly(cv::CellValues{D,U,ET},
             k_poly_space,kelement, 
             rhs_element,
             cv,element.id,cache1,cache2,γ_stab,χ)
+
+        pu3d_body_load!(rhs_element,cv,element.id,f,proj_s)
 
     
         node_ids = FixedSizeVector{Int}(undef,length(cv.vnm.map))

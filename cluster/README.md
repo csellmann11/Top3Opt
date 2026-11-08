@@ -4,13 +4,24 @@
 `job_template.sh`, following the basic layout of AndersonPlasticity's
 `run_small_solver_exp.sh`. Edit the experiment axes and fixed parameters near the
 top of the generator.
-The default sweep retains the old 16 combinations (four refinement levels, two
-meshes, adaptivity on/off), with 400 optimization steps and the current PETSc solver.
-`FLUX_SCHEME=diamond` is a fixed parameter shared by all sweep and smoke jobs;
-set it to `taylor`, `tpfa`, or `strong` to select another regularization scheme.
+The configured sweep has 32 combinations: `MBB_sym` and `L_cantilever`, four
+refinement levels, two meshes, and adaptivity on/off. It uses 200 optimization
+steps and HYPRE; the smoke run selects PETSc and five steps.
+`FLUX_SCHEME=tpfa` is the supported face-gradient approximation for all jobs.
+The former `diamond`, `taylor`, and `strong` options have been removed.
 The selected scheme appears in each job's arguments and name; it is not a sweep
-axis. All jobs use `--laplace_rescale false`, which only affects the legacy
-`strong` scheme.
+axis. Older generated jobs may pass `--laplace_rescale false`; this deprecated
+option remains accepted as a no-op. Regenerate jobs that request removed schemes.
+
+The Julia driver accepts `--regularization mean`, `local_max`, or `helmholtz`,
+and `--projection true` enables volume-preserving projection and continuation
+for any of them. Both gradient penalties also accept `--update_mode implicit`.
+Helmholtz requires `--update_mode explicit`; choose its physical smoothing length
+with `--filter_radius`. See [regularization options](../docs/regularization.md)
+for complete examples. The generator uses mean regularization with projection
+off and explicitly selects the implicit density update. Set `UPDATE_MODE=explicit`
+in the environment to override this. Regularization and projection options must
+be added to the generated Julia command to change those defaults.
 
 ## Run on the cluster
 
@@ -75,10 +86,14 @@ cluster/
 ```
 
 Example job name:
-`toopt_MBB_sym_petsc_Hexahedra_r3_atrue_btrue_fdiamond_lfalse_dtrue_s400`.
+`toopt_MBB_sym_hypre_Hexahedra_r3_atrue_btrue_ftpfa_uimplicit_lfalse_dtrue_s200`.
 Here `r` is refinement level, `a` adaptivity, `b` initial refinement, `f` flux
-scheme, `l` Laplace rescaling (always false), `d` density marking, and `s` maximum
+scheme, `u` density update mode, `l` the deprecated compatibility switch,
+`d` density marking, and `s` maximum
 optimization steps.
+Result-directory identities include a deterministic fingerprint of all exposed
+density controls, so differing regularization, projection, radius, substeps, or
+tolerances do not reuse the same result directory.
 For `L_cantilever`, `Voronoi` creates an L-shaped polygon mesh in the x–y plane
 and extrudes it through the thickness. `Hexahedra` and `Lquad_mesh` both select
 the structured L mesh; choose only one of those two to avoid duplicate runs.
@@ -118,7 +133,7 @@ runs still default to the existing repository `Results/` directory.
 
 ## Resources and solver options
 
-The full sweep uses partition `smp` and eight CPUs. Total job RAM (`--mem`) and
+The full sweep uses partition `smp` and 16 CPUs. Total job RAM (`--mem`) and
 time limits (`--time`) are selected automatically per mesh and refinement level:
 
 | Refinement level | Hexahedra RAM | Hexahedra time | Voronoi RAM | Voronoi time |

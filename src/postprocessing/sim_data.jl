@@ -26,6 +26,19 @@ end
     number_of_states ::Vector{Int} = Int[]
     number_of_dofs   ::Vector{Int} = Int[]
 
+    regularization   ::Symbol = :mean
+    update_mode      ::Symbol = :explicit
+    filter_radius    ::Float64 = 0.0
+    error_estimator  ::Symbol = :sdwr
+    pu_marking_exponent::Float64 = 1.0
+    error_history    ::Vector{NamedTuple} = NamedTuple[]
+    projection_history::Vector{NamedTuple} = NamedTuple[]
+    density_history  ::Vector{NamedTuple} = NamedTuple[]
+    final_strain_energy::Float64 = NaN
+    final_design     ::Vector{Float64} = Float64[]
+    final_density    ::Vector{Float64} = Float64[]
+    final_volumes    ::Vector{Float64} = Float64[]
+
     el_error_at_snapshots::Vector{Dict{Int,Float64}} = Vector{Dict{Int,Float64}}()
     states_at_snapshots::Vector{DesignVarInfo{D}} = Vector{DesignVarInfo{D}}()
     topology_nodes_at_snapshots::Vector{Vector{SVector{D,Float64}}} = Vector{Vector{SVector{D,Float64}}}()

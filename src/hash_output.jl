@@ -1,41 +1,29 @@
-include("utils/general_utils.jl")
+isdefined(@__MODULE__, :parse_commandline) || include("utils/general_utils.jl")
+using SHA: sha256
 
-
-
-function generate_setting_hash(
-    args = parse_commandline())
-
-
-    MAX_OPT_STEPS = args["max_opt_steps"]
-    MAX_REF_LEVEL = args["max_ref_level"]
-    MeshType = args["mesh_type"]
-    do_adaptivity = args["do_adaptivity"]
-    do_adaptivity_at_the_start = args["do_adaptivity_at_the_start"]
-    b_case = args["b_case"]
-    density_marking = args["density_marking"]
-    laplace_rescale = args["laplace_rescale"]
-    # setting_hash = hash((MAX_OPT_STEPS,
-    #     MAX_REF_LEVEL,MeshType,do_adaptivity,
-    #     do_adaptivity_at_the_start,b_case))
-    hash = """
-    s$(MAX_OPT_STEPS)
-    r$(MAX_REF_LEVEL)
-    m$(string(MeshType)[1])
-    a$(Int(do_adaptivity))
-    b$(Int(do_adaptivity_at_the_start))
-    c$(string(b_case)[1])
-    d$(Int(density_marking))
-    l$(Int(laplace_rescale))
-    f$(get(args,"flux_scheme",:diamond))
-    u$(get(args,"update_mode",:explicit))
-    """
-    return filter(!isspace, hash)  # This line removes all whitespace
+"""Stable, readable run identity including density and estimator controls.
+The deprecated Laplace-rescaling switch has no effect and is deliberately omitted.
+"""
+function generate_setting_hash(args=parse_commandline())
+    settings = (
+        "s" => args["max_opt_steps"], "r" => args["max_ref_level"],
+        "m" => args["mesh_type"], "a" => Int(args["do_adaptivity"]),
+        "b" => Int(args["do_adaptivity_at_the_start"]), "c" => args["b_case"],
+        "d" => Int(args["density_marking"]), "f" => get(args,"flux_scheme",:tpfa),
+        "e" => get(args,"error_estimator",:sdwr), "q" => get(args,"pu_marking_exponent",1.0),
+        "g" => get(args,"regularization",:mean), "u" => get(args,"update_mode",:explicit),
+        "p" => Int(get(args,"projection",false)), "R" => get(args,"filter_radius",0.0),
+        "n" => get(args,"density_substeps",0), "t" => get(args,"filter_tolerance",1e-12),
+        "v" => get(args,"density_activity_tolerance",1e-3), "S" => get(args,"solver",:petsc),
+    )
+    encoded = join((string(key,'=',value) for (key,value) in settings),';')
+    fingerprint = bytes2hex(sha256(encoded))[1:16]
+    return string("s",args["max_opt_steps"],"r",args["max_ref_level"],
+        "m",first(string(args["mesh_type"])),"a",Int(args["do_adaptivity"]),
+        "g",get(args,"regularization",:mean),"p",Int(get(args,"projection",false)),
+        '_',fingerprint)
 end
 
-function show_setting_hash()
+show_setting_hash() = display(generate_setting_hash())
 
-    args = parse_commandline()
-    
-    display(generate_setting_hash(args))
-end
-show_setting_hash()
+abspath(PROGRAM_FILE) == (@__FILE__) && show_setting_hash()

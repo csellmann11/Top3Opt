@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "4863ab6aef04cc9315215b9ee1049ebaa93fb62a"
+project_hash = "c0c424d44eb89586623fecf0dd1a1b2295b615de"
 
 [[deps.ADTypes]]
 deps = ["PrecompileTools"]
@@ -1957,12 +1957,6 @@ version = "0.5.29"
 
     [deps.TimerOutputs.weakdeps]
     FlameGraphs = "08572546-2f56-4bcf-ba4e-bab62c3a3f89"
-
-[[deps.ToOpt3]]
-deps = ["AlgebraicMultigrid", "ArgParse", "Bumper", "Chairmarks", "HYPRE", "Infiltrator", "IterativeSolvers", "JLD2", "Ju3VEM", "Krylov", "LinearSolve", "MKL", "MPI", "OrderedCollections", "PETSc", "PETSc_jll", "Pardiso", "SparseArrays", "StaticArrays", "SymRCM", "TimerOutputs"]
-path = "."
-uuid = "fa21d375-5604-4f00-a1e1-496246133ddf"
-version = "0.1.0"
 
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"

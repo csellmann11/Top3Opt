@@ -25,15 +25,14 @@ set_nprocs!(ps, Threads.nthreads()) # Sets the number of threads to use
 
 
 
-include("../src/general_utils.jl")
+include("../src/utils/general_utils.jl")
 include("../src/hash_output.jl")
 args = parse_commandline()
 include("../src/mat_states.jl")
 include("../src/laplace_operator.jl")
 include("../src/compute_displacement.jl")
 include("../src/bisection.jl")
-include("../src/mesh_processing_utils.jl")
-include("../src/neighbor_search.jl")
+include("../src/utils/mesh_processing_utils.jl")
 include("../src/refinement_utils/estiamte_element_error.jl")
 include("../src/postprocessing/sim_data.jl")
 include("../src/postprocessing/topopt_vtk_export.jl")

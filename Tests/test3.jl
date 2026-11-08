@@ -21,8 +21,7 @@ include("../src/mat_states.jl")
 include("../src/laplace_operator.jl")
 include("../src/compute_displacement.jl")
 include("../src/bisection.jl")
-include("../src/mesh_processing_utils.jl")
-include("../src/neighbor_search.jl")
+include("../src/utils/mesh_processing_utils.jl")
 
 
 const K = 1
@@ -109,26 +108,9 @@ sim_pars = SimPars(mat_law,λ,μ,χmin,η0,β0,ρ_init)
 
 
 
-x0 = states.x_vec[1]
-x1 = states.x_vec[14]
-d = x1 - x0
-min_rel_dist = find_distance_to_boundary(1,mesh.topo,x0,d)
-
-@b find_distance_to_boundary(1,$mesh.topo,$x0,$d)
-@show min_rel_dist
-min_dist = min_rel_dist * norm(d)
-
-x0 = states.x_vec[1]
-x1 = states.x_vec[2]
-d = x1 - x0
-min_dist = find_distance_to_boundary(1,mesh.topo,x0,d)
-@show min_dist
-
-
-
-@time state_neights_col, b_face_id_to_state_id = create_neigh2_list(states,cv);
-@time laplace_operator = compute_laplace_operator_mat(
-                  cv.mesh.topo,state_neights_col,b_face_id_to_state_id,states)
+# Unit coefficient gives the Laplacian used by this manufactured-field probe.
+@time laplace_operator = -Diagonal(inv.(states.area_vec)) *
+    diffusion_matrix(build_tpfa_faces(cv,states),ones(length(states.χ_vec)))
 
 
 

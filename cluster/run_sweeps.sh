@@ -11,7 +11,7 @@ for arg in "$@"; do
         -h|--help)
             echo "Usage: bash cluster/run_sweeps.sh [--dry-run] [--smoke]"
             echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
-            echo "UPDATE_MODE=explicit|implicit selects the density update (default: explicit)."
+            echo "UPDATE_MODE=explicit|implicit selects the density update (default: implicit)."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
         *) echo "Unknown argument: $arg" >&2; exit 2 ;;
@@ -30,15 +30,15 @@ ADAPTIVITY_OPTIONS=(true false)
 DENSITY_MARKING_OPTIONS=(true)
 
 # Fixed run parameters shared by every job.
-MAX_OPT_STEPS=100
+MAX_OPT_STEPS=200
 ADAPTIVITY_AT_START=true
-FLUX_SCHEME=tpfa              # Options: diamond | tpfa | taylor | strong
+FLUX_SCHEME=tpfa              # TPFA is the only supported gradient approximation.
 UPDATE_MODE=${UPDATE_MODE:-implicit} # Options: explicit | implicit; also accepts an environment override
 PETSC_GAMG_SQUARE_GRAPH=${PETSC_GAMG_SQUARE_GRAPH:-1} # PETSc only: 1 = squared graph, 0 = MIS-2
 
 case "$FLUX_SCHEME" in
-    diamond|tpfa|taylor|strong) ;;
-    *) echo "Unknown FLUX_SCHEME: $FLUX_SCHEME (choose diamond, tpfa, taylor, or strong)." >&2; exit 2 ;;
+    tpfa) ;;
+    *) echo "Unknown FLUX_SCHEME: $FLUX_SCHEME (only tpfa is supported)." >&2; exit 2 ;;
 esac
 
 case "$UPDATE_MODE" in

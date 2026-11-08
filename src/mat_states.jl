@@ -19,26 +19,16 @@ end
     return W*χ[1]^3
 end
 
-"""
-    DesignVarInfo{D}
+"""Cellwise physical density and persistent design with active-cell geometry.
 
-A struct representing the states of elements in a topology optimization problem.
-
-# Fields
-- `χ_vec::FlattenVecs{2,Float64}`: A flattened vector storing the state values (χ) for both inner and ghost states.
-- `x_vec::Vector{SVector{D,Float64}}`: A vector storing the coordinates of the centroids for inner states.
-- `el_id_to_state_id::Dict{Int,Int}`: A dictionary mapping element IDs to their corresponding state IDs.
-
-# Type Parameters
-- `D`: The dimension of the problem (e.g., 2 for 2D problems).
-
-# Notes
-- The `χ_vec` field uses `FlattenVecs` to efficiently store both inner and ghost states.
-- Only the coordinates of inner states are stored in `x_vec`.
-- The `el_id_to_state_id` dictionary allows for quick lookup of state IDs given an element ID.
+`χ_vec` is used by mechanics; `design_vec` is the unfiltered, unprojected
+optimization variable. `area_vec` contains cell volumes in 3D. Both fields are
+initialized together; after editing a custom design, call `map_design!` before
+solving mechanics. Adaptivity transfers design and then rebuilds the mapping.
 """
 struct DesignVarInfo{D}
-    χ_vec::Vector{Float64} 
+    χ_vec::Vector{Float64} # physical density used by mechanics and adaptivity
+    design_vec::Vector{Float64} # persistent unfiltered, unprojected design
     x_vec::Vector{SVector{D,Float64}}
     area_vec::Vector{Float64} #TODO: rename to elsize_vec
     h_vec::Vector{Float64} 
@@ -64,6 +54,7 @@ function fill_states!(states::DesignVarInfo{D},cv::CellValues{D,U},ρ_init) wher
         area                   = vol_data.integrals[1]
 
         states.χ_vec[state_id]               = ρ_init
+        states.design_vec[state_id]          = ρ_init
         states.x_vec[state_id]               = bc
         states.area_vec[state_id]            = area
         states.h_vec[state_id]               = hvol
@@ -75,6 +66,7 @@ function resize_states!(states::DesignVarInfo{D},
     n_states::Int) where {D}
     
     resize!(states.χ_vec,n_states)
+    resize!(states.design_vec,n_states)
     resize!(states.x_vec,n_states)
     resize!(states.area_vec,n_states)
     resize!(states.h_vec,n_states)
@@ -96,7 +88,7 @@ function DesignVarInfo{D}(cv::CellValues{D,U},ρ_init) where {D,U}
     h_vec              = Vector{Float64}(undef,n_states)
     el_id_to_state_id  = OrderedDict{Int,Int}()
 
-    states = DesignVarInfo(χ_vec,x_vec,area_vec,h_vec,el_id_to_state_id)
+    states = DesignVarInfo(χ_vec,similar(χ_vec),x_vec,area_vec,h_vec,el_id_to_state_id)
     fill_states!(states,cv,ρ_init)
 
     return states
@@ -104,94 +96,65 @@ end
 
 
 
+"""Reusable conservative transfer storage, independent of filtering/projection."""
+struct DensityTransferWorkspace
+    element_to_state::Dict{Int,Int}
+    design::Vector{Float64}
+    volume::Vector{Float64}
+end
+DensityTransferWorkspace() = DensityTransferWorkspace(Dict{Int,Int}(),Float64[],Float64[])
+
+function backup_design!(work::DensityTransferWorkspace, states::DesignVarInfo)
+    empty!(work.element_to_state)
+    merge!(work.element_to_state,states.el_id_to_state_id)
+    resize!(work.design,length(states.design_vec))
+    resize!(work.volume,length(states.area_vec))
+    copyto!(work.design,states.design_vec)
+    copyto!(work.volume,states.area_vec)
+    return work
+end
+
+"""Inherit a parent's design or volume-average old children during coarsening."""
+function transferred_design(element, work::DensityTransferWorkspace)
+    old = work.element_to_state
+    haskey(old,element.id) && return work.design[old[element.id]]
+    haskey(old,element.parent_id) && return work.design[old[element.parent_id]]
+    mass,total = 0.0,0.0
+    for child in element.childs
+        sid = get(old,child,0)
+        sid != 0 || error("Missing design transfer child $child")
+        mass += work.volume[sid]*work.design[sid]
+        total += work.volume[sid]
+    end
+    total > 0 || error("Cannot transfer design to element $(element.id)")
+    return mass/total
+end
+
+"""Transfer persistent design; remap physical density before the next mechanical solve.
+
+Physical density is temporarily initialized from design. The driver then applies
+its rebuilt filter and projection; transferring physical density alone would
+lose the design history. The optional workspace avoids new field backups.
+"""
 function update_states_after_mesh_adaption!(states::DesignVarInfo,
-    cv::CellValues{D,U},
-    ref_marker::Vector{Bool},
-    coarse_marker::Vector{Bool}) where {D,U}	
-
-    topo      = cv.mesh.topo
-    e2s_old   = copy(states.el_id_to_state_id)
-    χ_vec_old = copy(states.χ_vec)
-
-    n_states = length(RootIterator{4}(topo))
-    resize_states!(states,n_states)
-    fill_states!(states,cv,0.0) # here rho init is just a dummy
-
-    e2s = states.el_id_to_state_id
-
-    for element in RootIterator{4}(topo) 
-        parent_id = element.parent_id 
-        child_ids = element.childs 
-
-        #Info: element comes from refinement
-        if parent_id != 0 && ref_marker[parent_id]
-            parents_old_state_id = e2s_old[parent_id]
-            χ_parent             = χ_vec_old[parents_old_state_id]
-            # element gets parent density 
-            states.χ_vec[e2s[element.id]] = χ_parent
-        elseif !isempty(child_ids) && all(coarse_marker[child_ids])
-            #Info: element comes from coarseing 
-
-            χ_sum = 0.0 
-            for child_id in child_ids 
-                χ_sum += χ_vec_old[e2s_old[child_id]]
-            end
-            states.χ_vec[e2s[element.id]] = χ_sum / length(child_ids)
-
-        else #INFO: element is not new, just state_id changed
-            states.χ_vec[e2s[element.id]] = χ_vec_old[e2s_old[element.id]]
-        end
+        cv::CellValues{D,U},ref_marker::AbstractVector{Bool},coarse_marker::AbstractVector{Bool};
+        workspace::DensityTransferWorkspace=DensityTransferWorkspace()) where {D,U}
+    backup_design!(workspace,states)
+    topo = cv.mesh.topo
+    resize_states!(states,length(RootIterator{D+1}(topo)))
+    fill_states!(states,cv,0.0)
+    for (id,sid) in states.el_id_to_state_id
+        value = transferred_design(get_volumes(topo)[id],workspace)
+        states.design_vec[sid] = value
+        states.χ_vec[sid] = value
     end
     return states
 end
 
-
-
-
-
-function update_states_after_mesh_adaption!(states::DesignVarInfo,
-    cv::CellValues{D,U},
-    eldata_col::Dict{Int},
-    ref_marker::Vector{Bool},
-    coarse_marker::Vector{Bool}) where {D,U}	
-
-    topo      = cv.mesh.topo
-    e2s_old   = copy(states.el_id_to_state_id)
-    χ_vec_old = copy(states.χ_vec)
-    
-
-    n_states = length(RootIterator{4}(topo))
-    resize_states!(states,n_states)
-    fill_states!(states,cv,0.0) # here rho init is just a dummy
-
-    e2s = states.el_id_to_state_id
-
-    # for element in RootIterator{4}(topo) 
-    for (el_id,state_id) in e2s
-        element = get_volumes(topo)[el_id]
-        parent_id = element.parent_id 
-        child_ids = element.childs 
-
-        #Info: element comes from refinement
-        if parent_id != 0 && ref_marker[parent_id]
-            parents_old_state_id = e2s_old[parent_id]
-            χ_parent             = χ_vec_old[parents_old_state_id]
-            # element gets parent density 
-            states.χ_vec[state_id] = χ_parent
-        elseif !isempty(child_ids) && any(coarse_marker[child_ids])
-            #Info: element comes from coarseing 
-
-            χ_sum = 0.0 
-            for child_id in child_ids 
-                χ_sum += χ_vec_old[e2s_old[child_id]]
-            end
-            states.χ_vec[state_id] = χ_sum / length(child_ids)
-
-        else #INFO: element is not new, just state_id changed
-            states.χ_vec[state_id] = χ_vec_old[e2s_old[el_id]]
-        end
-    end
-    return states
+# Retain the previous positional call used by existing mesh scripts.
+function update_states_after_mesh_adaption!(states::DesignVarInfo,cv::CellValues,
+        eldata_col::Dict,ref_marker::AbstractVector{Bool},coarse_marker::AbstractVector{Bool};kwargs...)
+    return update_states_after_mesh_adaption!(states,cv,ref_marker,coarse_marker;kwargs...)
 end
 
 

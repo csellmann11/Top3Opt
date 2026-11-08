@@ -1,5 +1,5 @@
 using Ju3VEM.VEMUtils: trail_zeros3,vtk_volume_helper
-using Ju3VEM.VEMGeo: get_iterative_area_vertex_ids, iterate_volume_areas, get_unique_values
+using Ju3VEM.VEMGeo: get_iterative_area_vertex_ids, iterate_volume_areas, get_unique_values, get_first
 using Ju3VEM.VEMUtils: WriteVTK
 using Ju3VEM.VEMUtils.WriteVTK: VTKPolyhedron, VTKPointData, VTKCellData, vtk_grid
 
@@ -116,7 +116,9 @@ function write_vtu_file(cv::CellValues{D,U},
         
         if !isempty(cell_data_col)
             for i in eachindex(cell_data_col)
-                vtk["cell_data_$i", VTKCellData()] = cell_data_col[i]
+                values = cell_data_col[i]
+                # VTK has no Bool type; expand activity masks only at export.
+                vtk["cell_data_$i", VTKCellData()] = eltype(values) == Bool ? UInt8.(values) : values
             end
         end
 
@@ -131,5 +133,3 @@ function write_vtu_file(cv::CellValues{D,U},
     
     nothing
 end
-
-

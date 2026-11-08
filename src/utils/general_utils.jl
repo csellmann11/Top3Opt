@@ -4,8 +4,9 @@ using ArgParse
 function def_rhs_fun(x)
     SA[0.0, 0.0, 0.0]
 end
+pu3d_body_iszero(::typeof(def_rhs_fun)) = true
 
-function parse_commandline()
+function parse_commandline(argv=ARGS)
     s = ArgParseSettings()
     @add_arg_table! s begin
         "--max_opt_steps","-s"
@@ -36,20 +37,57 @@ function parse_commandline()
             help = "Toogle if elements are marked for refinement if density is growing"
             arg_type = Bool
             default  = true
+        "--error_estimator"
+            help = "Adaptive error indicator: sdwr or pu_dwr"
+            arg_type = Symbol
+            default = :sdwr
+        "--pu_marking_exponent"
+            help = "PU-DWR marking weight: cell volume times physical density to this power"
+            arg_type = Float64
+            default = 1.0
         "--laplace_rescale","-l"
-            help = "Toogle if the distance between two nodes is rescaled for the computation of the laplace operator"
+            help = "Deprecated compatibility option; TPFA does not use Laplace rescaling"
             arg_type = Bool
             default  = true
         "--flux_scheme"
-            help = "Regularization: diamond (harmonic beta plus tangential correction), tpfa, taylor (variable-beta product rule), or strong (legacy; uses laplace_rescale)"
+            help = "Face-gradient approximation (tpfa only)"
             arg_type = Symbol
-            default = :diamond
-            range_tester = x -> x in (:diamond, :tpfa, :taylor, :strong)
+            default = :tpfa
+            range_tester = x -> x == :tpfa
+        "--regularization"
+            help = "Density regularization: mean, local_max, or helmholtz"
+            arg_type = Symbol
+            default = :mean
+            range_tester = x -> x in (:mean, :local_max, :helmholtz)
         "--update_mode"
-            help = "Density update: explicit or implicit regularization"
+            help = "Density update: explicit or implicit (implicit is available for gradient penalties only)"
             arg_type = Symbol
             default = :explicit
             range_tester = x -> x in (:explicit, :implicit)
+        "--projection"
+            help = "Enable volume-preserving smooth projection with automatic continuation"
+            arg_type = Bool
+            default = false
+        "--filter_radius"
+            help = "Helmholtz radius in physical units; zero selects the initial smallest cell diameter"
+            arg_type = Float64
+            default = 0.0
+            range_tester = x -> isfinite(x) && x >= 0
+        "--density_substeps"
+            help = "Requested density substeps; zero uses the legacy gradient count or one Helmholtz design step"
+            arg_type = Int
+            default = 0
+            range_tester = x -> x >= 0
+        "--filter_tolerance"
+            help = "Relative tolerance for Helmholtz forward/adjoint solves"
+            arg_type = Float64
+            default = 1e-12
+            range_tester = x -> isfinite(x) && 0 < x < 1
+        "--density_activity_tolerance"
+            help = "Absolute physical-density change used by adaptive mesh marking"
+            arg_type = Float64
+            default = 1e-3
+            range_tester = x -> isfinite(x) && 0 <= x <= 1
         "--rhs_fun","-f"
             help = "Right hand side function"
             arg_type = Function
@@ -59,9 +97,14 @@ function parse_commandline()
             arg_type = Symbol
             default  = :petsc
     end
-    return parse_args(s)
-
-
+    args = parse_args(argv,s)
+    args["error_estimator"] in (:sdwr, :pu_dwr) ||
+        throw(ArgumentError("error_estimator must be sdwr or pu_dwr"))
+    isfinite(args["pu_marking_exponent"]) && args["pu_marking_exponent"] >= 0 ||
+        throw(ArgumentError("pu_marking_exponent must be finite and nonnegative"))
+    args["regularization"] == :helmholtz && args["update_mode"] != :explicit &&
+        throw(ArgumentError("Helmholtz uses an explicit design update; choose --update_mode explicit"))
+    return args
 end
 
 

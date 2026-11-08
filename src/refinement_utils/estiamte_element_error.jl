@@ -1,5 +1,7 @@
 using Ju3VEM
 
+isdefined(@__MODULE__, :PU3DCache) || include("pu_dwr.jl")
+
 function project_states_to_nodes(
     eldata_col::Dict{Int,<:ElData},
     cv::CellValues{D,U},
@@ -79,14 +81,15 @@ end
 
 function mark_elements_for_adaption(
     cv::CellValues{D,U},
-    element_error::Dict{Int,Float64},
+    element_error::Union{Dict{Int,Float64},AbstractVector{<:Real}},
     states       ::DesignVarInfo,
-    state_changed::AbstractVector{Float64},
+    state_changed::AbstractVector{<:Real},
     max_ref_level::Int,
-    no_coarsening_marker::Vector{Bool},
+    no_coarsening_marker::AbstractVector{Bool},
     density_marking::Bool,
     upper_error_bound::Float64 = 16.0,
-    lower_error_bound::Float64 = 0.25
+    lower_error_bound::Float64 = 0.25;
+    vertex_scaling::Bool = true
     ) where {D,U}
 
     topo = cv.mesh.topo
@@ -103,17 +106,17 @@ function mark_elements_for_adaption(
     for (el_id,state_id) in e2s
 
         n_vertices = length(get_volume_node_ids(topo,el_id))
-        upper_error_bound = lower_error_bound * 4*n_vertices
-        error  = element_error[el_id]
+        refinement_bound = vertex_scaling ? lower_error_bound * 4*n_vertices : upper_error_bound
+        error  = element_error isa AbstractVector ? element_error[state_id] : element_error[el_id]
         element = get_volumes(topo)[el_id]
         ref_level = element.refinement_level
         dχi    = state_changed[state_id]
  
         has_parent = element.parent_id != 0
 
-        # is true if density is growing and density marking is enabled
-        density_growth = dχi > 0.0 && density_marking
-        if (density_growth || error > m_error * upper_error_bound) &&  ref_level < max_ref_level 
+        # Cached activity includes physical changes from filtering/projection.
+        density_active = !iszero(dχi) && density_marking
+        if (density_active || error > m_error * refinement_bound) &&  ref_level < max_ref_level
             ref_marker[el_id] = true
         elseif error < m_error * lower_error_bound && has_parent && dχi == 0.0
             (el_id <= length(no_coarsening_marker) && no_coarsening_marker[el_id]) && continue
@@ -165,8 +168,8 @@ end
 
 
 function adapt_mesh(cv::CellValues{D,U},
-    coarse_marker::Vector{Bool},
-    ref_marker::Vector{Bool}) where {D,U}
+    coarse_marker::AbstractVector{Bool},
+    ref_marker::AbstractVector{Bool}) where {D,U}
 
     topo = cv.mesh.topo
     for element in RootIterator{4}(topo)

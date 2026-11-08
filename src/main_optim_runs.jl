@@ -41,7 +41,6 @@ include("laplace_operator.jl")
 include("compute_displacement.jl")
 include("bisection.jl")
 include("utils/mesh_processing_utils.jl")
-include("neighbor_search.jl")
 include("refinement_utils/estiamte_element_error.jl")
 include("postprocessing/sim_data.jl")
 include("postprocessing/topopt_vtk_export.jl")
@@ -61,7 +60,6 @@ do_adaptivity_at_the_start = args["do_adaptivity_at_the_start"]
 b_case = args["b_case"]
 rhs_fun = args["rhs_fun"]
 density_marking = args["density_marking"]
-laplace_rescale = args["laplace_rescale"]
 
 
 
@@ -84,9 +82,13 @@ println("do_adaptivity_at_the_start: $do_adaptivity_at_the_start")
 println("b_case: $b_case")
 println("rhs_fun: $rhs_fun")
 println("density_marking: $density_marking")
-println("laplace_rescale: $laplace_rescale")
+println("error_estimator: ", args["error_estimator"])
+println("pu_marking_exponent: ", args["pu_marking_exponent"])
 println("flux_scheme: ", args["flux_scheme"])
 println("update_mode: ", args["update_mode"])
+println("regularization: ", args["regularization"])
+println("projection: ", args["projection"])
+println("filter_radius: ", args["filter_radius"])
 println("Linear solver: $LINEAR_SOLVER")
 println("Number of threads: $(Threads.nthreads())")
 println("Number of BLAS threads: $(BLAS.get_num_threads())")
@@ -101,7 +103,6 @@ function main(
     do_adaptivity::Bool,
     do_adaptivity_at_the_start::Bool,
     density_marking::Bool,
-    laplace_rescale::Bool,
     rhs_fun::F,
     b_case::Symbol) where {F<:Function}
 
@@ -176,9 +177,16 @@ function main(
         MAX_OPT_STEPS=MAX_OPT_STEPS,
         MAX_REF_LEVEL=MAX_REF_LEVEL,
         density_marking=density_marking,
-        laplace_rescale=laplace_rescale,
+        error_estimator=args["error_estimator"],
+        pu_marking_exponent=args["pu_marking_exponent"],
         flux_scheme=args["flux_scheme"],
         update_mode=args["update_mode"],
+        regularization=args["regularization"],
+        projection=args["projection"],
+        filter_radius=args["filter_radius"],
+        density_substeps=args["density_substeps"],
+        filter_tolerance=args["filter_tolerance"],
+        density_activity_tolerance=args["density_activity_tolerance"],
         take_snapshots_at= Int[1, 10, 20, 30, 50, 100, 200],
         do_adaptivity=do_adaptivity,
         b_case=b_case
@@ -200,7 +208,5 @@ main(
     MAX_OPT_STEPS, MAX_REF_LEVEL,
     MeshType, do_adaptivity,
     do_adaptivity_at_the_start,
-    density_marking,laplace_rescale,
+    density_marking,
     rhs_fun, b_case) 
-
-

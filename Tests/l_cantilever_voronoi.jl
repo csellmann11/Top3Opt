@@ -5,7 +5,7 @@
 include("mechanics.jl")
 using Ju3VEM.VEMGeo: _refine!
 include("../src/utils/benchmark_meshes.jl")
-include("../src/diamond_flux.jl")
+include("../src/laplace_operator.jl")
 
 const L_GEO = Ju3VEM.VEMGeo
 

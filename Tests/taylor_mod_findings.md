@@ -1,3 +1,5 @@
+> Historical record of superseded gradient approximations. TPFA is now the only supported face-gradient approximation; executable comparison scripts referenced below have been removed. See [current regularization documentation](../docs/regularization.md).
+
 # Taylor regularization and adaptive MOD: controlled investigation
 
 Date: 2026-10-01. Production ToOpt3 revision: `365ad0ae3889d92dca6118295e684bfc241db473`.
