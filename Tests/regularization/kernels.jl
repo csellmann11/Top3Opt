@@ -177,11 +177,27 @@ end
     cache = DensityCache(faces,5.0)
     design = copy(initial)
     result = advance_density!(design,[1.,20.,3.,2.,1.],identity,cache;
-        options=DensityOptions(regularization=:local_max,diagnostics=true),eta0=1.0,rho,lower=0.001)
-    @test length(result.records) > 1
+        options=DensityOptions(regularization=:local_max,diagnostics=true,max_substeps=10000),
+        eta0=1.0,rho,lower=0.001)
+    @test length(result.records) > 10
     @test all(row.diffusion_cfl <= 0.95+1e-12 for row in result.records)
     @test last(result.records).pseudo_time ≈ 1.0
     @test dot(faces.area,design)/sum(faces.area) ≈ rho atol=2e-10
+    # A substep cap spreads the unit time over at most max_substeps substeps.
+    cache = DensityCache(faces,5.0)
+    design = copy(initial)
+    result = advance_density!(design,[1.,20.,3.,2.,1.],identity,cache;
+        options=DensityOptions(regularization=:local_max,diagnostics=true,max_substeps=10),eta0=1.0,rho,lower=0.001)
+    @test length(result.records) == 10
+    @test last(result.records).pseudo_time ≈ 1.0
+    @test dot(faces.area,design)/sum(faces.area) ≈ rho atol=2e-10
+    # The local boost is capped at the peak-to-mean ratio max_boost (default 10).
+    cache = DensityCache(faces,0.02)
+    opts = DensityOptions(regularization=:local_max)
+    update_coefficients!(cache,[1.,500.,3.,2.,1.],1.0,opts)
+    @test maximum(cache.beta_relative) == 10.0
+    update_coefficients!(cache,[1.,500.,3.,2.,1.],1.0,opts;max_boost=50.0)
+    @test maximum(cache.beta_relative) == 50.0
 end
 
 @testset "Diagnostics and snapshots preserve all density update paths" begin

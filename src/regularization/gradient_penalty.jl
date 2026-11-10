@@ -1,8 +1,15 @@
-"""Choose a substep that ends at the outer time boundary and satisfies explicit CFL."""
-function gradient_step_size(cache,options,eta0,nominal_dt,elapsed)
+"""Choose a substep that ends at the outer time boundary and satisfies explicit CFL.
+
+At most `options.max_substeps` substeps are taken: the remaining time is spread
+over the remaining substeps when the request or the CFL bound would need more.
+An explicit step may then exceed the bound; `evolve_gradient_design!` reports it.
+"""
+function gradient_step_size(cache,options,eta0,nominal_dt,elapsed,substep)
     rate = options.integrator == :explicit || options.diagnostics ? diffusion_rate(cache,eta0) : 0.0
-    dt = min(nominal_dt,1.0-elapsed)
+    remaining = 1.0-elapsed
+    dt = min(nominal_dt,remaining)
     options.integrator == :explicit && rate > 0 && (dt=min(dt,0.95/rate))
+    dt = max(dt,remaining/(options.max_substeps-substep+1))
     return dt,rate
 end
 
@@ -62,13 +69,20 @@ end
 function evolve_gradient_design!(chi,physical,p,refresh!::F,cache,work::W,settings::S,nominal_dt) where {F,W,S}
     options = settings.options
     elapsed = 0.0
+    cfl_excess = 0.0
     for substep in 1:options.max_substeps
         step = gradient_substep!(chi,physical,p,refresh!,cache,work,settings,
             substep,nominal_dt,elapsed)
         last_substep = elapsed+step.dt >= 1-8eps(Float64)
         observe_gradient_step!(cache,chi,physical,p,work,settings,step,substep,elapsed,last_substep)
         elapsed += step.dt
-        last_substep && return (changed=cache.changed,records=work.records)
+        options.integrator == :explicit && (cfl_excess=max(cfl_excess,step.dt*step.rate/0.95))
+        if last_substep
+            cfl_excess > 1+1e-12 && println("[density] explicit update capped at ",
+                options.max_substeps," substeps; step is ",round(cfl_excess,sigdigits=3),
+                "x the stability limit (use update_mode=implicit to avoid this)")
+            return (changed=cache.changed,records=work.records)
+        end
     end
     error("Density update exceeded $(options.max_substeps) substeps at time $elapsed")
 end
@@ -123,7 +137,7 @@ function gradient_substep!(chi,physical,p,refresh!::F,cache,work,settings,subste
         copyto!(cache.trial,cache.old)
         trial = (system_updated=false,system_seconds=0.0,solve_seconds=0.0)
     else
-        dt,rate = gradient_step_size(cache,options,eta0,nominal_dt,elapsed)
+        dt,rate = gradient_step_size(cache,options,eta0,nominal_dt,elapsed,substep)
         trial = gradient_trial!(cache,work.driving,scale.value,dt,eta0,options)
     end
     timer = diagnostic_timer(options)

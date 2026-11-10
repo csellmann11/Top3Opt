@@ -68,8 +68,10 @@ end
 
 """Freeze the normalized coefficient for one density substep.
 
-For `:local_max`, beta_hat[i] = beta0[i] * max(1, max(abs(p[j])) / scale),
-where j is the cell itself or a direct TPFA face neighbor. The physical beta
+For `:local_max`, beta_hat[i] = beta0[i] * clamp(max(abs(p[j])) / scale, 1, max_boost),
+where j is the cell itself or a direct TPFA face neighbor. `max_boost` caps the
+peak-to-mean force ratio: the boost is otherwise unbounded at stress peaks and
+the stiffest cell alone sets the explicit stability limit. The physical beta
 is scale * beta_hat; eta remains eta0 * scale. This is the former adaptive
 regularization rule, not a differentiated, fixed objective in p(chi).
 
@@ -77,17 +79,18 @@ The existing face graph supplies neighbors. Read each neighbor's original p
 so a single traversal cannot propagate a peak beyond its direct neighbors.
 The trial buffer is free until the subsequent density solve/projection.
 """
-function update_coefficients!(cache::DensityCache, p, scale, options)
+function update_coefficients!(cache::DensityCache, p, scale, options; max_boost=10.0)
+    max_boost >= 1 || throw(ArgumentError("max_boost must be at least one"))
     relative, candidate = cache.beta_relative, cache.trial
     if options.regularization == :local_max
         for i in eachindex(p)
-            candidate[i] = max(1.0,abs(p[i])/scale)
+            candidate[i] = clamp(abs(p[i])/scale,1.0,max_boost)
         end
         faces = cache.faces
         for f in eachindex(faces.left)
             i, j = faces.left[f], faces.right[f]
-            candidate[i] = max(candidate[i],abs(p[j])/scale)
-            candidate[j] = max(candidate[j],abs(p[i])/scale)
+            candidate[i] = max(candidate[i],min(abs(p[j])/scale,max_boost))
+            candidate[j] = max(candidate[j],min(abs(p[i])/scale,max_boost))
         end
     else
         # The same cache can switch back from local to uniform regularization.

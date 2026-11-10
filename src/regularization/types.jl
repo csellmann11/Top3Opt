@@ -27,7 +27,8 @@ Base.@kwdef struct DensityOptions
     substeps::Int = 0
     diagnostics::Bool = false
     volume_tolerance::Float64 = 1e-10
-    max_substeps::Int = 10000
+    # Hard cap per optimization step; an explicit step may then exceed its CFL bound.
+    max_substeps::Int = 1000
     filter_tolerance::Float64 = 1e-12
     implicit_tolerance::Float64 = 1e-10
     implicit_max_iterations::Int = 1000

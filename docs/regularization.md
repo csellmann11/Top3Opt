@@ -39,7 +39,10 @@ explicit design update with elliptic forward/adjoint solves; requesting its
 `implicit` update is an error. Zero substeps retains the original gradient
 subdivision count (one step for implicit) and selects one Helmholtz design step.
 Explicit gradient updates additionally satisfy the current TPFA diffusion CFL
-bound, including the local sensitivity boost.
+bound, including the local sensitivity boost, up to at most 1000 substeps per
+optimization step (`DensityOptions.max_substeps`). Beyond that the step exceeds
+the bound and a `[density] explicit update capped` line is printed. The
+`local_max` boost is capped at 10 (`max_boost` keyword of `update_coefficients!`).
 
 ## Design and physical density
 
@@ -61,7 +64,7 @@ The current 3D baseline is retained:
 ```text
 base_i = 2 * beta0 * h_i²
 mean:      beta_hat_i = base_i
-local_max: beta_hat_i = base_i * max(1, max(abs(q_j), j=i and face neighbors)/s)
+local_max: beta_hat_i = base_i * clamp(max(abs(q_j), j=i and face neighbors)/s, 1, 10)
 beta_i = s * beta_hat_i
 eta = eta0 * s
 ```
