@@ -16,12 +16,14 @@ option remains accepted as a no-op. Regenerate jobs that request removed schemes
 The Julia driver accepts `--regularization mean`, `local_max`, or `helmholtz`,
 and `--projection true` enables volume-preserving projection and continuation
 for any of them. Both gradient penalties also accept `--update_mode implicit`.
-Helmholtz requires `--update_mode explicit`; choose its physical smoothing length
-with `--filter_radius`. See [regularization options](../docs/regularization.md)
-for complete examples. The generator uses mean regularization with projection
-off and explicitly selects the implicit density update. Set `UPDATE_MODE=explicit`
-in the environment to override this. Regularization and projection options must
-be added to the generated Julia command to change those defaults.
+Helmholtz requires `--update_mode explicit`. All three use the per-cell coefficient
+2·β0·h_i² (Helmholtz as r²_i); `--filter_radius` overrides Helmholtz with a uniform
+radius. See [regularization options](../docs/regularization.md) for complete examples.
+The generator defaults to `REGULARIZATION=mean`, `PROJECTION=false` and
+`UPDATE_MODE=implicit`; override them in the environment, e.g.
+`REGULARIZATION=helmholtz PROJECTION=true bash cluster/run_sweeps.sh`. Helmholtz with
+the implicit update prints a warning and switches to explicit. The available values
+are listed as comments at the top of `run_sweeps.sh`.
 
 ## Run on the cluster
 

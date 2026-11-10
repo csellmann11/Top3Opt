@@ -1,29 +1,44 @@
-function HelmholtzCache(faces::TPFAFaces, h::AbstractVector, radius::Real)
+"""Per-cell squared radii r²_i (the runner passes 2*beta0*h_i^2, as for the penalties)."""
+function HelmholtzCache(faces::TPFAFaces, radius2::AbstractVector)
     n = length(faces.area)
     cache = HelmholtzCache(faces,zeros(n),TPFAAssemblyWorkspace(),spzeros(n,n),Diagonal(zeros(n)),
         CgWorkspace(n,n,Vector{Float64}),zeros(n),zeros(n),zeros(n),zeros(n),zeros(n),
         Float64[],Float64[],zeros(n),falses(n),nothing,(;))
-    return rebuild_filter!(cache,faces,h,radius)
+    return rebuild_filter!(cache,faces,radius2)
 end
+
+"""Uniform physical radius r0, mapped through regularization_coefficient(r0²,h_i)."""
+HelmholtzCache(faces::TPFAFaces, h::AbstractVector, radius::Real) =
+    HelmholtzCache(faces,uniform_filter_radius2(faces,h,radius))
 
 """Reuse face arrays and dense work across remeshing; rebuild only the sparse operator.
 The Krylov workspace is replaced only when the number of active cells changes.
 """
-function rebuild_filter!(cache::HelmholtzCache,faces::TPFAFaces,h,radius)
-    validate_filter_mesh(faces,h,radius)
+function rebuild_filter!(cache::HelmholtzCache,faces::TPFAFaces,radius2::AbstractVector)
+    validate_filter_mesh(faces,radius2)
     cache.faces = faces
     resize!(cache.radius2,length(faces.area))
-    @. cache.radius2 = regularization_coefficient(radius^2,h)
+    copyto!(cache.radius2,radius2)
     assemble_filter_operator!(cache)
     resize_filter_workspace!(cache,length(faces.area))
     return cache
 end
 
-function validate_filter_mesh(faces,h,radius)
-    n = length(faces.area)
-    n > 0 && length(h) == n || throw(DimensionMismatch("Filter mesh"))
+rebuild_filter!(cache::HelmholtzCache,faces::TPFAFaces,h::AbstractVector,radius::Real) =
+    rebuild_filter!(cache,faces,uniform_filter_radius2(faces,h,radius))
+
+function uniform_filter_radius2(faces,h,radius)
+    length(h) == length(faces.area) || throw(DimensionMismatch("Filter mesh"))
     isfinite(radius) && radius > 0 || throw(ArgumentError("Filter radius must be finite and positive"))
     all(x -> isfinite(x) && x > 0,h) || throw(ArgumentError("Invalid cell diameter"))
+    return [regularization_coefficient(radius^2,hi) for hi in h]
+end
+
+function validate_filter_mesh(faces,radius2)
+    n = length(faces.area)
+    n > 0 && length(radius2) == n || throw(DimensionMismatch("Filter mesh"))
+    all(x -> isfinite(x) && x >= 0,radius2) ||
+        throw(ArgumentError("Filter radius² must be finite and nonnegative"))
     all(x -> isfinite(x) && x > 0,faces.area) || throw(ArgumentError("Invalid cell area"))
     return nothing
 end

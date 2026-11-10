@@ -17,7 +17,7 @@ does not expect a `ToOpt3` package module.
 | `--regularization helmholtz` | Forward/adjoint Helmholtz filter | |
 | `--projection true` | Smooth volume-preserving projection and automatic continuation | `false` |
 | `--update_mode explicit` / `implicit` | Explicit or semi-implicit gradient-penalty update | `explicit` |
-| `--filter_radius` | Physical Helmholtz radius; zero selects the initial minimum cell diameter | `0.0` |
+| `--filter_radius` | Uniform Helmholtz radius override; zero uses r²_i = 2·β0·h_i², the same coefficient as the gradient penalties | `0.0` |
 | `--density_substeps` | Requested subdivisions of one optimization time unit | `0` |
 | `--filter_tolerance` | Relative tolerance of Helmholtz forward/adjoint solves | `1e-12` |
 | `--density_activity_tolerance` | Physical-density change used by adaptive marking | `1e-3` |

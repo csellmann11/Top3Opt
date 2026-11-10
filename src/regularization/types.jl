@@ -109,7 +109,7 @@ FilterDiagnostics(n) = FilterDiagnostics(ntuple(_ -> zeros(n),4)...)
 
 """
 Helmholtz operator B = M + K(r²), with the baseline coefficient chosen by
-regularization_coefficient(r0²,h_i); currently uniform r²_i = r0².
+r²_i = 2*beta0*h_i^2 by default (as for the penalties), or a uniform r0² override.
 The caller owns the persistent unfiltered design; this cache owns only geometry,
 solver work, and update scratch. Rebuild after remapping the design on a new mesh.
 

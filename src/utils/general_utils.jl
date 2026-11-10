@@ -69,7 +69,7 @@ function parse_commandline(argv=ARGS)
             arg_type = Bool
             default = false
         "--filter_radius"
-            help = "Helmholtz radius in physical units; zero selects the initial smallest cell diameter"
+            help = "Uniform Helmholtz radius override; zero uses r²_i = 2*beta0*h_i^2 like the gradient penalties"
             arg_type = Float64
             default = 0.0
             range_tester = x -> isfinite(x) && x >= 0

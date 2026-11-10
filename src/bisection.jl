@@ -57,14 +57,20 @@ function compute_strain_energy(dh,eldata_col,u,states,sim_pars)
         dh,eldata_col,u,states,sim_pars)
 end
 
-"""Build on mesh changes only. Helmholtz retains its work arrays across remeshing."""
+"""Build on mesh changes only. Helmholtz retains its work arrays across remeshing.
+
+All regularizations share the per-cell coefficient 2*beta0*h_i^2: the gradient
+penalties use it as beta_i, Helmholtz as r²_i. A positive `radius` overrides
+Helmholtz with a uniform physical radius; zero keeps the beta0 scaling.
+"""
 function prepare_density_cache(cache,cv,states,pars,options,radius)
     faces = build_tpfa_faces(cv,states)
-    if options.regularization == :helmholtz
-        return cache isa HelmholtzCache ? rebuild_filter!(cache,faces,states.h_vec,radius) :
-            HelmholtzCache(faces,states.h_vec,radius)
-    end
     beta = [2pars.β0*h^2 for h in states.h_vec]
+    if options.regularization == :helmholtz
+        radius2 = radius > 0 ? fill(Float64(radius)^2,length(beta)) : beta
+        return cache isa HelmholtzCache ? rebuild_filter!(cache,faces,radius2) :
+            HelmholtzCache(faces,radius2)
+    end
     return DensityCache(faces,beta)
 end
 

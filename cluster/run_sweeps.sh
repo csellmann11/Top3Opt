@@ -12,6 +12,7 @@ for arg in "$@"; do
             echo "Usage: bash cluster/run_sweeps.sh [--dry-run] [--smoke]"
             echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
             echo "UPDATE_MODE=explicit|implicit selects the density update (default: implicit)."
+            echo "REGULARIZATION=mean|local_max|helmholtz (default: mean); PROJECTION=true|false (default: false)."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
         *) echo "Unknown argument: $arg" >&2; exit 2 ;;
@@ -29,11 +30,28 @@ MESH_TYPES=(Hexahedra Voronoi)
 ADAPTIVITY_OPTIONS=(true false)
 DENSITY_MARKING_OPTIONS=(true)
 
-# Fixed run parameters shared by every job.
+# Fixed run parameters shared by every job. Settings written as ${NAME:-default}
+# can also be overridden from the submitting environment, e.g.
+#   REGULARIZATION=helmholtz PROJECTION=true bash cluster/run_sweeps.sh --dry-run
+#
+# Available options:
+#   BENCHMARK_CASES  MBB_sym | Cantilever_sym | Bending_Beam_sym | simple_lever | pressure_plate | L_cantilever
+#   SOLVERS          petsc | hypre
+#   MESH_TYPES       Hexahedra | Voronoi
+#   ADAPTIVITY_OPTIONS, DENSITY_MARKING_OPTIONS, ADAPTIVITY_AT_START   true | false
+#   FLUX_SCHEME      tpfa (only option)
+#   UPDATE_MODE      explicit | implicit           (implicit only for mean/local_max)
+#   REGULARIZATION   mean      gradient penalty, beta_i = 2*beta0*h_i^2
+#                    local_max gradient penalty, beta_i boosted by the neighbor max |p|
+#                    helmholtz PDE filter, r²_i = 2*beta0*h_i^2 (forces UPDATE_MODE=explicit)
+#   PROJECTION       true | false                  smooth volume-preserving projection
+#   PETSC_GAMG_SQUARE_GRAPH  1 | 0                 PETSc only: squared graph | MIS-2
 MAX_OPT_STEPS=200
 ADAPTIVITY_AT_START=true
 FLUX_SCHEME=tpfa              # TPFA is the only supported gradient approximation.
-UPDATE_MODE=${UPDATE_MODE:-implicit} # Options: explicit | implicit; also accepts an environment override
+UPDATE_MODE=${UPDATE_MODE:-implicit} # Options: explicit | implicit
+REGULARIZATION=${REGULARIZATION:-mean} # Options: mean | local_max | helmholtz
+PROJECTION=${PROJECTION:-false}        # Options: true | false
 PETSC_GAMG_SQUARE_GRAPH=${PETSC_GAMG_SQUARE_GRAPH:-1} # PETSc only: 1 = squared graph, 0 = MIS-2
 
 case "$FLUX_SCHEME" in
@@ -45,6 +63,21 @@ case "$UPDATE_MODE" in
     explicit|implicit) ;;
     *) echo "Unknown UPDATE_MODE: $UPDATE_MODE (choose explicit or implicit)." >&2; exit 2 ;;
 esac
+
+case "$REGULARIZATION" in
+    mean|local_max|helmholtz) ;;
+    *) echo "Unknown REGULARIZATION: $REGULARIZATION (choose mean, local_max or helmholtz)." >&2; exit 2 ;;
+esac
+
+case "$PROJECTION" in
+    true|false) ;;
+    *) echo "Invalid PROJECTION: $PROJECTION (choose true or false)." >&2; exit 2 ;;
+esac
+
+if [[ "$REGULARIZATION" == helmholtz && "$UPDATE_MODE" == implicit ]]; then
+    echo "Warning: helmholtz has no implicit update; switched UPDATE_MODE to explicit." >&2
+    UPDATE_MODE=explicit
+fi
 
 case "$PETSC_GAMG_SQUARE_GRAPH" in
     0|1) ;;
@@ -137,7 +170,7 @@ for solver in "${SOLVERS[@]}"; do
 for mesh in "${MESH_TYPES[@]}"; do
 for adapt in "${ADAPTIVITY_OPTIONS[@]}"; do
 for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
-    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_u${UPDATE_MODE}_lfalse_d${density}_s${MAX_OPT_STEPS}"
+    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_u${UPDATE_MODE}_g${REGULARIZATION}_p${PROJECTION}_lfalse_d${density}_s${MAX_OPT_STEPS}"
     JOB_SCRIPT="$JOB_DIR/$NAME.sh"
     if [[ -n "$MEM_PER_CPU" ]]; then
         MEMORY_OPTION=--mem-per-cpu
@@ -149,7 +182,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
     JOB_TIME_LIMIT=${TIME_LIMIT:-$(suggested_resource "$mesh" "$ref" time)}
     ARGS=(-c "$benchmark" --solver "$solver" -r "$ref" -m "$mesh"
         -a "$adapt" -b "$ADAPTIVITY_AT_START" --flux_scheme "$FLUX_SCHEME" --laplace_rescale false
-        --update_mode "$UPDATE_MODE"
+        --update_mode "$UPDATE_MODE" --regularization "$REGULARIZATION" --projection "$PROJECTION"
         -d "$density" -s "$MAX_OPT_STEPS")
     {
         printf '#!/bin/bash -l\n'
@@ -179,7 +212,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
         SUBMISSION=$(sbatch --parsable "$JOB_SCRIPT")
     fi
     printf '%s\t%s\t%s\n' "$NAME" "$JOB_SCRIPT" "$SUBMISSION" >> "$JOB_DIR/submissions.tsv"
-    echo "$SUBMISSION: $NAME (update_mode=$UPDATE_MODE, $MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
+    echo "$SUBMISSION: $NAME (update_mode=$UPDATE_MODE, regularization=$REGULARIZATION, projection=$PROJECTION, $MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
     COUNT=$((COUNT + 1))
 done; done; done; done; done; done
 

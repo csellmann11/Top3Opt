@@ -84,9 +84,9 @@ function run_optimization(
 
     t_now = time()
 
-    # Radius zero selects the initial minimum cell diameter once, so remeshing
-    # does not change the physical filter length.
-    radius = filter_radius == 0 ? minimum(states.h_vec) : filter_radius
+    # Radius zero gives Helmholtz the penalty coefficient r²_i = 2*beta0*h_i^2;
+    # a positive value overrides it with a uniform physical radius.
+    radius = filter_radius
     density_projection = DensityProjection(projection_options,states.area_vec;rho_min=sim_pars.χmin)
     transfer = DensityTransferWorkspace()
     workspace = DensityMechanicalWorkspace(length(states.χ_vec))
