@@ -12,12 +12,18 @@ end
     rho = dot(faces.area,initial)/sum(faces.area)
     reference = similar(initial)
     scale = driving_scale(initial,force,faces.area,0.001).value
-    project_volume!(reference,initial+force/(15scale),faces.area,rho,0.001)
     for integrator in (:explicit,:semi_implicit), method in (:mean,:local_max)
+        options = DensityOptions(;integrator,regularization=method)
+        # local_max divides each cell's force and volume multiplier by its boost,
+        # also without diffusion; mean has a unit boost.
+        boost = DensityCache(faces,0.0)
+        update_coefficients!(boost,force,scale,options)
+        b = boost.beta_relative
+        project_volume!(reference,initial+force./(15scale.*b),faces.area,rho,0.001;
+            weights=method == :mean ? nothing : 1 ./b)
         cache = DensityCache(faces,0.0)
         design = copy(initial)
-        advance_density!(design,force,identity,cache;
-            options=DensityOptions(;integrator,regularization=method),eta0=15.0,rho,lower=0.001)
+        advance_density!(design,force,identity,cache;options,eta0=15.0,rho,lower=0.001)
         @test design ≈ reference atol=2e-12
         @test all(iszero,nonzeros(cache.stiffness))
         @test nnz(cache.stiffness) > 5 # Structural face entries remain cached.
@@ -52,7 +58,8 @@ end
     @test update_coefficients!(cache,force,2.0,opts)
     @test cache.base_beta == baseline
     @test cache.beta_relative == [10.0,10.0,10.0,1.5,1.0]
-    expected = diffusion_matrix(faces,baseline.*cache.beta_relative)
+    # The boost is a per-cell time scale: the operator stays the baseline one.
+    expected = diffusion_matrix(faces,baseline)
     @test cache.stiffness ≈ expected
     @test issymmetric(expected)
     @test expected*ones(5) ≈ zeros(5) atol=1e-15
@@ -89,11 +96,17 @@ end
         opts = DensityOptions(;integrator,regularization=method,substeps=1,
             implicit_tolerance=1e-13,diagnostics=true)
         update_coefficients!(cache,pulled,scale,opts)
-        K = copy(cache.stiffness)
-        trial = integrator == :explicit ? initial+(pulled/scale-K*initial./faces.area)/eta0 :
-            (Diagonal(faces.area)+K/eta0)\(faces.area.*(initial+pulled/(eta0*scale)))
+        K,boost = copy(cache.stiffness),copy(cache.beta_relative)
+        @test K ≈ diffusion_matrix(faces,baseline)
+        @test (maximum(boost) > 1) == (method == :local_max)
+        # eta_i = eta0*b_i: the boost divides the cell's force and volume multiplier.
+        system = Diagonal(faces.area)+K/eta0
+        trial = integrator == :explicit ? initial+(pulled./(scale.*boost)-K*initial./faces.area)/eta0 :
+            system\(faces.area.*(initial+pulled./(eta0*scale.*boost)))
+        weights = method == :mean ? nothing :
+            integrator == :explicit ? 1 ./boost : system\(faces.area./boost)
         expected = similar(initial)
-        project_volume!(expected,trial,faces.area,rho,lower)
+        project_volume!(expected,trial,faces.area,rho,lower;weights)
         result = advance_density!(design,copy(force),identity,cache;options=opts,
             eta0,rho,lower,physical,density_projection=projection)
         @test design ≈ expected atol=2e-12
@@ -191,13 +204,71 @@ end
     @test length(result.records) == 10
     @test last(result.records).pseudo_time ≈ 1.0
     @test dot(faces.area,design)/sum(faces.area) ≈ rho atol=2e-10
-    # The local boost is capped at the peak-to-mean ratio max_boost (default 10).
+    # The local boost is uncapped; it does not enter the operator or the stability limit.
     cache = DensityCache(faces,0.02)
     opts = DensityOptions(regularization=:local_max)
+    rate = diffusion_rate(cache,15.0)
     update_coefficients!(cache,[1.,500.,3.,2.,1.],1.0,opts)
-    @test maximum(cache.beta_relative) == 10.0
-    update_coefficients!(cache,[1.,500.,3.,2.,1.],1.0,opts;max_boost=50.0)
-    @test maximum(cache.beta_relative) == 50.0
+    @test maximum(cache.beta_relative) == 500.0
+    @test diffusion_rate(cache,15.0) == rate
+end
+
+@testset "Weighted volume projection" begin
+    volumes, y, lower = [1.0,2.0,0.5,3.0], [0.9,0.2,1.4,-0.3], 0.001
+    uniform, unit = zeros(4), zeros(4)
+    project_volume!(uniform,y,volumes,0.4,lower)
+    project_volume!(unit,y,volumes,0.4,lower;weights=ones(4))
+    @test unit == uniform
+    weights = [1.0,0.01,0.5,2.0]
+    chi = zeros(4)
+    p = project_volume!(chi,y,volumes,0.4,lower;weights)
+    @test dot(volumes,chi)/sum(volumes) ≈ 0.4 atol=1e-10
+    @test chi == clamp.(y.-p.shift.*weights,lower,1.0)
+    @test_throws ArgumentError project_volume!(chi,y,volumes,0.4,lower;weights=[1.0,0.0,1.0,1.0])
+end
+
+@testset "A force peak does not shrink the explicit time step" begin
+    n = 40
+    faces = TPFAFaces(ones(n),collect(1:n-1),collect(2:n),ones(n-1),fill(0.5,n-1),fill(0.5,n-1))
+    initial = [0.3+0.1sin(i) for i in 1:n]
+    rho = dot(faces.area,initial)/n
+    runs = map((:mean,:local_max)) do regularization
+        cache = DensityCache(faces,0.5)
+        chi = copy(initial)
+        force = ones(n)
+        force[7] = 1e6
+        result = advance_density!(chi,force,identity,cache;
+            options=DensityOptions(;integrator=:explicit,regularization,diagnostics=true),
+            eta0=1.0,rho,lower=0.001)
+        (;chi,cache,result)
+    end
+    mean, peak = runs
+    @test maximum(peak.cache.beta_relative) > 1e3
+    @test length(peak.result.records) == length(mean.result.records) > 1
+    @test all(row.diffusion_cfl <= 0.95+1e-12 for row in peak.result.records)
+    @test dot(faces.area,peak.chi)/n ≈ rho atol=1e-10
+    @test all(0.001 .<= peak.chi .<= 1)
+    @test argmax(peak.chi .- initial) == 7 # The peak cell still gains the most material.
+end
+
+@testset "A stationary local state has a uniform volume multiplier" begin
+    # Explicit fixed point: p/s - b*(K chi)/area equals one multiplier on free cells.
+    n = 30
+    faces = TPFAFaces(ones(n),collect(1:n-1),collect(2:n),ones(n-1),fill(0.5,n-1),fill(0.5,n-1))
+    chi = fill(0.4,n)
+    profile = [1+4exp(-((i-10)/3)^2) for i in 1:n]
+    refresh! = p -> (@. p = profile)
+    cache = DensityCache(faces,2.0)
+    options = DensityOptions(integrator=:explicit,regularization=:local_max)
+    for _ in 1:1500
+        advance_density!(chi,zeros(n),refresh!,cache;options,eta0=2.0,rho=0.4,lower=0.001)
+    end
+    scale = driving_scale(chi,profile,faces.area,0.001).value
+    residual = profile./scale .- cache.beta_relative.*(cache.stiffness*chi)./faces.area
+    free = findall(x -> 0.001+1e-6 < x < 1-1e-6,chi)
+    @test length(free) > 5
+    @test maximum(residual[free])-minimum(residual[free]) < 1e-6
+    @test maximum(cache.beta_relative) > 1.5
 end
 
 @testset "Diagnostics and snapshots preserve all density update paths" begin

@@ -19,7 +19,7 @@ function DensityCache(faces::TPFAFaces, beta0::Union{Real,AbstractVector})
         stored_index(K,faces.right[f],faces.left[f])) for f in 1:nf]
     return DensityCache(faces,b,ones(n),K,diagonal_indices,face_indices,
         nothing,Diagonal(Float64[]),nothing,true,NaN,NaN,
-        zeros(n),zeros(n),zeros(n),Float64[],zeros(n),falses(n),nothing,(;))
+        zeros(n),zeros(n),zeros(n),zeros(n),Float64[],zeros(n),falses(n),nothing,(;))
 end
 
 """Harmonic face coefficient, including an insulating zero-coefficient cell."""
@@ -66,31 +66,44 @@ function diffusion_matrix(faces::TPFAFaces, beta::AbstractVector,work=TPFAAssemb
         work.csr_rowptr,work.csr_cols,work.csr_values,rows,cols,vals)
 end
 
-"""Freeze the normalized coefficient for one density substep.
+"""Freeze the local boost for one density substep.
 
-For `:local_max`, beta_hat[i] = beta0[i] * clamp(max(abs(p[j])) / scale, 1, max_boost),
-where j is the cell itself or a direct TPFA face neighbor. `max_boost` caps the
-peak-to-mean force ratio: the boost is otherwise unbounded at stress peaks and
-the stiffest cell alone sets the explicit stability limit. The physical beta
-is scale * beta_hat; eta remains eta0 * scale. This is the former adaptive
-regularization rule, not a differentiated, fixed objective in p(chi).
+For `:local_max`, with the mean force `scale`,
+
+    b_i = max(1, max(abs(p[j])) / scale),   j = i or a direct TPFA face neighbor.
+
+The boost scales the regularization and the viscosity of a cell together,
+beta_i = b_i * beta0_i and eta_i = b_i * eta0 (both times `scale`):
+
+    eta0 * b_i * dchi_i/dt = p_i/scale - lambda - gamma_i - b_i * (K chi)_i / area_i
+
+with K the baseline operator. Dividing by b_i,
+
+    eta0 * dchi_i/dt = (p_i/scale - lambda - gamma_i)/b_i - (K chi)_i / area_i,
+
+shows that the boost only divides the driving force and the multipliers of a
+cell. The stationary balance is that of a locally boosted beta, but diffusion
+keeps the baseline operator: the explicit stability limit and the implicit
+system are those of `:mean`, so a single force peak no longer dictates the time
+step and the boost needs no cap. Neither the stiffness matrix nor the implicit
+system depends on the boost. This is not a differentiated, fixed objective in
+p(chi).
 
 The existing face graph supplies neighbors. Read each neighbor's original p
 so a single traversal cannot propagate a peak beyond its direct neighbors.
 The trial buffer is free until the subsequent density solve/projection.
 """
-function update_coefficients!(cache::DensityCache, p, scale, options; max_boost=10.0)
-    max_boost >= 1 || throw(ArgumentError("max_boost must be at least one"))
+function update_coefficients!(cache::DensityCache, p, scale, options)
     relative, candidate = cache.beta_relative, cache.trial
     if options.regularization == :local_max
         for i in eachindex(p)
-            candidate[i] = clamp(abs(p[i])/scale,1.0,max_boost)
+            candidate[i] = max(1.0,abs(p[i])/scale)
         end
         faces = cache.faces
         for f in eachindex(faces.left)
             i, j = faces.left[f], faces.right[f]
-            candidate[i] = max(candidate[i],min(abs(p[j])/scale,max_boost))
-            candidate[j] = max(candidate[j],min(abs(p[i])/scale,max_boost))
+            candidate[i] = max(candidate[i],abs(p[j])/scale)
+            candidate[j] = max(candidate[j],abs(p[i])/scale)
         end
     else
         # The same cache can switch back from local to uniform regularization.
@@ -99,23 +112,6 @@ function update_coefficients!(cache::DensityCache, p, scale, options; max_boost=
     end
     candidate == relative && return false
     copyto!(relative,candidate)
-    values = nonzeros(cache.stiffness)
-    fill!(values,0.0)
-    faces = cache.faces
-    for f in eachindex(faces.left)
-        i, j = faces.left[f], faces.right[f]
-        bi = cache.base_beta[i]*relative[i]
-        bj = cache.base_beta[j]*relative[j]
-        conductance = tpfa_conductance(faces.length[f],faces.distance_left[f],faces.distance_right[f],bi,bj)
-        isfinite(conductance) && conductance >= 0 ||
-            throw(ArgumentError("Invalid local face conductance at face $f"))
-        ij, ji = cache.face_indices[f]
-        values[ij] -= conductance
-        values[ji] -= conductance
-        values[cache.diagonal_indices[i]] += conductance
-        values[cache.diagonal_indices[j]] += conductance
-    end
-    cache.system_dirty = true
     return true
 end
 
@@ -159,6 +155,32 @@ function solve_density_system!(cache,options)
     return solver.stats.niter
 end
 
+"""Response of the unconstrained trial to a unit volume multiplier.
+
+A uniform multiplier lambda moves cell i by -lambda*w_i. Without a boost w = 1
+(`nothing`), the plain uniform shift. With the boost the explicit response is
+w_i = 1/b_i; the semi-implicit one is the diffusion solve of that load,
+(M + dt/eta0*K) w = M/b, so the multiplier stays uniform in the solved equation.
+The implicit system must already be prepared for the current substep.
+"""
+function volume_response!(cache::DensityCache,options)
+    relative = cache.beta_relative
+    all(isone,relative) && return nothing
+    weights = cache.volume_weight
+    if options.integrator == :semi_implicit
+        @. weights = cache.faces.area/relative
+        solver = cache.solver::CgWorkspace{Float64,Float64,Vector{Float64}}
+        cg!(solver,cache.system,weights;M=cache.preconditioner,atol=0.0,
+            rtol=options.implicit_tolerance,itmax=options.implicit_max_iterations,history=false)
+        solver.stats.solved || error("Implicit volume-response solve failed: $(solver.stats.status)")
+        copyto!(weights,solver.x)
+    else
+        @. weights = 1/relative
+    end
+    return weights
+end
+
+"""Largest explicit diffusion rate of the baseline operator, independent of the boost."""
 function diffusion_rate(cache, eta0)
     values = nonzeros(cache.stiffness)
     rate = 0.0

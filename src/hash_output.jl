@@ -17,6 +17,10 @@ function generate_setting_hash(args=parse_commandline())
         "v" => get(args,"density_activity_tolerance",1e-3), "S" => get(args,"solver",:petsc),
     )
     encoded = join((string(key,'=',value) for (key,value) in settings),';')
+    # Appended only when changed, so identities of default-parameter runs are stable.
+    beta0, eta0 = get(args,"beta0",1.0), get(args,"eta0",15.0)
+    beta0 == 1.0 || (encoded *= string(";B=",beta0))
+    eta0 == 15.0 || (encoded *= string(";E=",eta0))
     fingerprint = bytes2hex(sha256(encoded))[1:16]
     return string("s",args["max_opt_steps"],"r",args["max_ref_level"],
         "m",first(string(args["mesh_type"])),"a",Int(args["do_adaptivity"]),

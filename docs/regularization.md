@@ -17,6 +17,8 @@ does not expect a `ToOpt3` package module.
 | `--regularization helmholtz` | Forward/adjoint Helmholtz filter | |
 | `--projection true` | Smooth volume-preserving projection and automatic continuation | `false` |
 | `--update_mode explicit` / `implicit` | Explicit or semi-implicit gradient-penalty update | `explicit` |
+| `--beta0` | Regularization strength; per-cell coefficient `2*beta0*h_i²` | `1.0` |
+| `--eta0` | Viscosity of the density update | `15.0` |
 | `--filter_radius` | Uniform Helmholtz radius override; zero uses r²_i = 2·β0·h_i², the same coefficient as the gradient penalties | `0.0` |
 | `--density_substeps` | Requested subdivisions of one optimization time unit | `0` |
 | `--filter_tolerance` | Relative tolerance of Helmholtz forward/adjoint solves | `1e-12` |
@@ -42,7 +44,7 @@ Explicit gradient updates additionally satisfy the current TPFA diffusion CFL
 bound, including the local sensitivity boost, up to at most 1000 substeps per
 optimization step (`DensityOptions.max_substeps`). Beyond that the step exceeds
 the bound and a `[density] explicit update capped` line is printed. The
-`local_max` boost is capped at 10 (`max_boost` keyword of `update_coefficients!`).
+`local_max` boost does not enter this bound: it is the same as for `mean`.
 
 ## Design and physical density
 
@@ -64,10 +66,37 @@ The current 3D baseline is retained:
 ```text
 base_i = 2 * beta0 * h_i²
 mean:      beta_hat_i = base_i
-local_max: beta_hat_i = base_i * clamp(max(abs(q_j), j=i and face neighbors)/s, 1, 10)
+local_max: b_i = max(1, max(abs(q_j), j=i and face neighbors)/s)
+           beta_hat_i = base_i * b_i,   eta_i = eta0 * s * b_i
 beta_i = s * beta_hat_i
-eta = eta0 * s
+eta = eta0 * s            (mean)
 ```
+
+For `local_max` the boost `b_i` scales the regularization and the viscosity of a
+cell together. With the baseline TPFA operator `K` (coefficient `base_i`), the
+volume multiplier `lambda` and the bound multiplier `gamma_i`,
+
+```text
+eta0 * b_i * dchi_i/dt = q_i/s - lambda - gamma_i - b_i * (K chi)_i / volume_i
+```
+
+and, divided by `b_i`, the form that is integrated:
+
+```text
+eta0 * dchi_i/dt = (q_i/s - lambda - gamma_i) / b_i - (K chi)_i / volume_i
+```
+
+- The stationary state is that of a locally boosted `beta`: at a force peak the
+  regularization is `b_i` times stronger relative to the force.
+- Diffusion keeps the baseline operator, so the explicit stability limit and the
+  implicit system are those of `mean`. One force peak does not shrink the time
+  step, and the boost needs no cap. On cubes the limit is `eta0 >= 12*beta0*dt`.
+- A peak cell with `b_i = abs(q_i)/s` has the normalized force `+-1`: it moves as
+  fast as an average cell. Whether a cell gains material is still decided by
+  comparing its full force with `lambda`.
+- The volume multiplier is divided by `b_i` as well: the projection uses
+  `chi_i = clamp(y_i - shift*w_i, lower, 1)` with `w_i = 1/b_i` (explicit) or
+  `(M + dt/eta0*K) w = M/b` (semi-implicit, one extra CG solve per substep).
 
 Here `q` is the physical force pulled back through projection, and `s` is its
 volume/grayness-weighted mean magnitude with binary and zero-force safeguards.

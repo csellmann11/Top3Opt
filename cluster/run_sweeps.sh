@@ -13,6 +13,7 @@ for arg in "$@"; do
             echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
             echo "UPDATE_MODE=explicit|implicit selects the density update (default: implicit)."
             echo "REGULARIZATION=mean|local_max|helmholtz (default: mean); PROJECTION=true|false (default: false)."
+            echo "BETA0=<number >= 0> (default: 1.0); ETA0=<number > 0> (default: 15.0)."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
         *) echo "Unknown argument: $arg" >&2; exit 2 ;;
@@ -42,9 +43,12 @@ DENSITY_MARKING_OPTIONS=(true)
 #   FLUX_SCHEME      tpfa (only option)
 #   UPDATE_MODE      explicit | implicit           (implicit only for mean/local_max)
 #   REGULARIZATION   mean      gradient penalty, beta_i = 2*beta0*h_i^2
-#                    local_max gradient penalty, beta_i boosted by the neighbor max |p|
+#                    local_max gradient penalty, beta_i and eta_i boosted by the neighbor max |p|
 #                    helmholtz PDE filter, r²_i = 2*beta0*h_i^2 (forces UPDATE_MODE=explicit)
 #   PROJECTION       true | false                  smooth volume-preserving projection
+#   BETA0            number >= 0                   regularization strength; coefficient 2*beta0*h_i^2
+#   ETA0             number > 0                    viscosity; larger = smaller density steps.
+#                                                  Explicit stability on cubes: eta0 >= 12*beta0/substeps
 #   PETSC_GAMG_SQUARE_GRAPH  1 | 0                 PETSc only: squared graph | MIS-2
 MAX_OPT_STEPS=200
 ADAPTIVITY_AT_START=true
@@ -52,6 +56,8 @@ FLUX_SCHEME=tpfa              # TPFA is the only supported gradient approximatio
 UPDATE_MODE=${UPDATE_MODE:-implicit} # Options: explicit | implicit
 REGULARIZATION=${REGULARIZATION:-mean} # Options: mean | local_max | helmholtz
 PROJECTION=${PROJECTION:-false}        # Options: true | false
+BETA0=${BETA0:-1.0}                    # Regularization strength beta0 (>= 0)
+ETA0=${ETA0:-15.0}                     # Viscosity eta0 (> 0)
 PETSC_GAMG_SQUARE_GRAPH=${PETSC_GAMG_SQUARE_GRAPH:-1} # PETSc only: 1 = squared graph, 0 = MIS-2
 
 case "$FLUX_SCHEME" in
@@ -73,6 +79,14 @@ case "$PROJECTION" in
     true|false) ;;
     *) echo "Invalid PROJECTION: $PROJECTION (choose true or false)." >&2; exit 2 ;;
 esac
+
+number_pattern='^[0-9]+([.][0-9]+)?([eE][-+]?[0-9]+)?$'
+if [[ ! "$BETA0" =~ $number_pattern ]]; then
+    echo "Invalid BETA0: $BETA0 (use a nonnegative number such as 1.0 or 5e-1)." >&2; exit 2
+fi
+if [[ ! "$ETA0" =~ $number_pattern || "$ETA0" =~ ^0*([.]0*)?([eE].*)?$ ]]; then
+    echo "Invalid ETA0: $ETA0 (use a positive number such as 15.0)." >&2; exit 2
+fi
 
 if [[ "$REGULARIZATION" == helmholtz && "$UPDATE_MODE" == implicit ]]; then
     echo "Warning: helmholtz has no implicit update; switched UPDATE_MODE to explicit." >&2
@@ -170,7 +184,7 @@ for solver in "${SOLVERS[@]}"; do
 for mesh in "${MESH_TYPES[@]}"; do
 for adapt in "${ADAPTIVITY_OPTIONS[@]}"; do
 for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
-    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_u${UPDATE_MODE}_g${REGULARIZATION}_p${PROJECTION}_lfalse_d${density}_s${MAX_OPT_STEPS}"
+    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_u${UPDATE_MODE}_g${REGULARIZATION}_p${PROJECTION}_B${BETA0}_E${ETA0}_lfalse_d${density}_s${MAX_OPT_STEPS}"
     JOB_SCRIPT="$JOB_DIR/$NAME.sh"
     if [[ -n "$MEM_PER_CPU" ]]; then
         MEMORY_OPTION=--mem-per-cpu
@@ -183,6 +197,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
     ARGS=(-c "$benchmark" --solver "$solver" -r "$ref" -m "$mesh"
         -a "$adapt" -b "$ADAPTIVITY_AT_START" --flux_scheme "$FLUX_SCHEME" --laplace_rescale false
         --update_mode "$UPDATE_MODE" --regularization "$REGULARIZATION" --projection "$PROJECTION"
+        --beta0 "$BETA0" --eta0 "$ETA0"
         -d "$density" -s "$MAX_OPT_STEPS")
     {
         printf '#!/bin/bash -l\n'
@@ -212,7 +227,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
         SUBMISSION=$(sbatch --parsable "$JOB_SCRIPT")
     fi
     printf '%s\t%s\t%s\n' "$NAME" "$JOB_SCRIPT" "$SUBMISSION" >> "$JOB_DIR/submissions.tsv"
-    echo "$SUBMISSION: $NAME (update_mode=$UPDATE_MODE, regularization=$REGULARIZATION, projection=$PROJECTION, $MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
+    echo "$SUBMISSION: $NAME (update_mode=$UPDATE_MODE, regularization=$REGULARIZATION, projection=$PROJECTION, beta0=$BETA0, eta0=$ETA0, $MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
     COUNT=$((COUNT + 1))
 done; done; done; done; done; done
 

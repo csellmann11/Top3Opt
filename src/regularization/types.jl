@@ -59,9 +59,18 @@ struct DiagnosticWorkspace
     trial::Vector{Float64}
     projected::Vector{Float64}
     physical_before::Vector{Float64}
+    weights::Vector{Float64}
 end
-DiagnosticWorkspace(n::Int) = DiagnosticWorkspace(ntuple(_ -> zeros(n),5)...)
+DiagnosticWorkspace(n::Int) = DiagnosticWorkspace(ntuple(_ -> zeros(n),6)...)
 
+"""
+`stiffness` is always the baseline TPFA operator K(base_beta). `beta_relative`
+is the local boost b_i >= 1 of `:local_max` (all ones for `:mean`): it scales
+both beta_i and the viscosity eta_i, so the update divides the driving force and
+the multipliers of a cell by b_i and never changes `stiffness` or the system.
+`volume_weight` is the response of the unconstrained update to a unit volume
+multiplier, used by `project_volume!`.
+"""
 mutable struct DensityCache
     faces::TPFAFaces
     base_beta::Vector{Float64}
@@ -78,6 +87,7 @@ mutable struct DensityCache
     old::Vector{Float64}
     rhs::Vector{Float64}
     trial::Vector{Float64}
+    volume_weight::Vector{Float64}
     design_driving::Vector{Float64}
     activity_reference::Vector{Float64}
     changed::BitVector

@@ -17,13 +17,27 @@ function driving_scale(chi, p, area, lower)
             floored=abs(raw)<floor, gray_weight=denom/total)
 end
 
-"""Area-metric projection: chi_i=clamp(y_i-shift, lower, 1), at prescribed volume."""
-function project_volume!(chi, y, area, rho, lower; tolerance=1e-10)
+@inline volume_weight(::Nothing,i) = 1.0
+@inline volume_weight(weights,i) = weights[i]
+
+"""Area-metric projection: chi_i=clamp(y_i-shift*w_i, lower, 1), at prescribed volume.
+The positive `weights` w_i are the response of cell i to a unit volume multiplier;
+`nothing` is the uniform shift w_i = 1.
+"""
+function project_volume!(chi, y, area, rho, lower; tolerance=1e-10, weights=nothing)
     0 <= lower < 1 && lower <= rho <= 1 || throw(ArgumentError("Require 0 <= lower < 1 and lower <= rho <= 1"))
     tolerance > 0 || throw(ArgumentError("Projection tolerance must be positive"))
     all(isfinite, y) || throw(ArgumentError("Nonfinite density before projection"))
+    weights === nothing || all(x -> isfinite(x) && x > 0, weights) ||
+        throw(ArgumentError("Volume weights must be finite and positive"))
     total = sum(area)
-    lo, hi = minimum(y)-1.0, maximum(y)-lower
+    # Shifts that put every cell at the upper (lo) or lower (hi) bound.
+    lo, hi = Inf, -Inf
+    for i in eachindex(y)
+        w = volume_weight(weights,i)
+        lo = min(lo,(y[i]-1.0)/w)
+        hi = max(hi,(y[i]-lower)/w)
+    end
     if rho == lower || rho == 1
         fill!(chi,rho)
         return (shift=rho == lower ? hi : lo,iterations=0,error=0.0)
@@ -32,7 +46,7 @@ function project_volume!(chi, y, area, rho, lower; tolerance=1e-10)
     # The piecewise-linear mass equation is solved exactly by Newton whenever
     # its active set is unchanged. A bracket makes bound crossings reliable.
     for iteration in 0:100
-        mass,free_volume = projected_mass!(chi,y,area,shift,lower)
+        mass,free_volume = projected_mass!(chi,y,area,shift,lower,weights)
         volume = mass/total
         abs(volume-rho) <= tolerance && return (shift=shift,iterations=iteration,error=volume-rho)
         volume > rho ? (lo=shift) : (hi=shift)
@@ -43,14 +57,15 @@ function project_volume!(chi, y, area, rho, lower; tolerance=1e-10)
 end
 
 """Evaluate projected mass and its active-set derivative in one cell pass."""
-function projected_mass!(chi,y,area,shift,lower)
+function projected_mass!(chi,y,area,shift,lower,weights=nothing)
     mass = free_volume = 0.0
     @inbounds for i in eachindex(chi,y,area)
-        trial = y[i]-shift
+        w = volume_weight(weights,i)
+        trial = y[i]-shift*w
         value = clamp(trial,lower,1.0)
         chi[i] = value
         mass += area[i]*value
-        lower < trial < 1.0 && (free_volume += area[i])
+        lower < trial < 1.0 && (free_volume += area[i]*w)
     end
     return mass,free_volume
 end

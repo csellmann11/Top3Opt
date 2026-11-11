@@ -89,6 +89,8 @@ println("update_mode: ", args["update_mode"])
 println("regularization: ", args["regularization"])
 println("projection: ", args["projection"])
 println("filter_radius: ", args["filter_radius"])
+println("beta0: ", args["beta0"])
+println("eta0: ", args["eta0"])
 println("Linear solver: $LINEAR_SOLVER")
 println("Number of threads: $(Threads.nthreads())")
 println("Number of BLAS threads: $(BLAS.get_num_threads())")
@@ -156,8 +158,8 @@ function main(
     mat_law = Helmholtz{3,3}(Ψlin_totopt, (λ, μ, 1.0))
 
     χmin = 1e-03
-    η0 = 15.0
-    sim_pars = SimPars(mat_law, λ, μ, χmin, η0, 1.0, ρ_init)
+    η0 = args["eta0"]
+    sim_pars = SimPars(mat_law, λ, μ, χmin, η0, args["beta0"], ρ_init)
 
     # Get project root directory (robust to where script is called from)
     project_root = dirname(@__DIR__)

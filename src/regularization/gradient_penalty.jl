@@ -15,9 +15,15 @@ end
 
 """Form the unconstrained explicit or semi-implicit gradient-penalty trial.
 Implicit diffusion reuses its matrix, preconditioner and CG workspace.
+
+The local boost b (`cache.beta_relative`, ones for `:mean`) divides only the
+driving force, see `update_coefficients!`; diffusion uses the baseline K:
+
+    explicit:       chi = old + dt/eta0 * (p/(scale*b) - K*old/area)
+    semi-implicit:  (M + dt/eta0*K) chi = M*(old + dt/eta0*p/(scale*b))
 """
 function gradient_trial!(cache,driving,scale,dt,eta0,options)
-    area, old = cache.faces.area, cache.old
+    area, old, boost = cache.faces.area, cache.old, cache.beta_relative
     a = dt/eta0
     system_seconds = solve_seconds = 0.0
     system_updated = false
@@ -25,13 +31,13 @@ function gradient_trial!(cache,driving,scale,dt,eta0,options)
         timer = options.diagnostics ? time_ns() : UInt64(0)
         system_updated = prepare_density_system!(cache,dt,eta0)
         system_seconds = options.diagnostics ? (time_ns()-timer)*1e-9 : 0.0
-        @. cache.rhs = area*(old+a*(driving/scale))
+        @. cache.rhs = area*(old+(a/boost)*(driving/scale))
         timer = options.diagnostics ? time_ns() : UInt64(0)
         solve_density_system!(cache,options)
         solve_seconds = options.diagnostics ? (time_ns()-timer)*1e-9 : 0.0
     else
         mul!(cache.rhs,cache.stiffness,old)
-        @. cache.trial = (old+a*(driving/scale))-a*(cache.rhs/area)
+        @. cache.trial = (old+(a/boost)*(driving/scale))-a*(cache.rhs/area)
     end
     return (;system_updated,system_seconds,solve_seconds)
 end
@@ -136,12 +142,15 @@ function gradient_substep!(chi,physical,p,refresh!::F,cache,work,settings,subste
         dt,rate = min(nominal_dt,1.0-elapsed),0.0
         copyto!(cache.trial,cache.old)
         trial = (system_updated=false,system_seconds=0.0,solve_seconds=0.0)
+        weights = nothing
     else
         dt,rate = gradient_step_size(cache,options,eta0,nominal_dt,elapsed,substep)
         trial = gradient_trial!(cache,work.driving,scale.value,dt,eta0,options)
+        weights = volume_response!(cache,options)
     end
     timer = diagnostic_timer(options)
-    projection = project_volume!(chi,cache.trial,cache.faces.area,rho,lower;tolerance=options.volume_tolerance)
+    projection = project_volume!(chi,cache.trial,cache.faces.area,rho,lower;
+        tolerance=options.volume_tolerance,weights)
     projection_apply!(physical,density_projection,chi)
     projection_seconds = diagnostic_seconds(options,timer)
     mark_physical_activity!(cache.changed,physical,cache.activity_reference,options)

@@ -68,6 +68,16 @@ function parse_commandline(argv=ARGS)
             help = "Enable volume-preserving smooth projection with automatic continuation"
             arg_type = Bool
             default = false
+        "--beta0"
+            help = "Regularization strength beta0; the per-cell coefficient is 2*beta0*h_i^2"
+            arg_type = Float64
+            default = 1.0
+            range_tester = x -> isfinite(x) && x >= 0
+        "--eta0"
+            help = "Viscosity eta0 of the density update; larger values give smaller density steps"
+            arg_type = Float64
+            default = 15.0
+            range_tester = x -> isfinite(x) && x > 0
         "--filter_radius"
             help = "Uniform Helmholtz radius override; zero uses r²_i = 2*beta0*h_i^2 like the gradient penalties"
             arg_type = Float64

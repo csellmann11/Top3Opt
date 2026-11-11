@@ -1,10 +1,12 @@
 # Optional diagnostics; these kernels run only when requested.
+"""Normalized regularization force -b_i*(K chi)_i/area_i, including the local boost."""
 function regularization_forces!(work,cache,chi)
     mul!(work.reg_before,cache.stiffness,cache.old)
     mul!(work.reg_after,cache.stiffness,chi)
     for i in eachindex(chi)
-        work.reg_before[i] /= -cache.faces.area[i]
-        work.reg_after[i] /= -cache.faces.area[i]
+        factor = -cache.beta_relative[i]/cache.faces.area[i]
+        work.reg_before[i] *= factor
+        work.reg_after[i] *= factor
     end
 end
 
@@ -116,8 +118,13 @@ function gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options)
     stationarity = maximum(i -> abs(work.projected[i]-old[i]),eachindex(chi))
     split_defect = 0.0
     if options.integrator == :semi_implicit
-        @. work.trial = old+a*(p/s+work.reg_after)
-        project_volume!(work.projected,work.trial,area,rho,lower;tolerance=options.volume_tolerance)
+        # Fully implicit constrained step; reg_after carries b, so dividing by b
+        # leaves baseline diffusion and the boosted-down force and multiplier.
+        boost = cache.beta_relative
+        @. work.trial = old+(a/boost)*(p/s+work.reg_after)
+        weights = all(isone,boost) ? nothing : (@. work.weights = 1/boost)
+        project_volume!(work.projected,work.trial,area,rho,lower;
+            tolerance=options.volume_tolerance,weights)
         split_defect = maximum(i -> abs(work.projected[i]-chi[i]),eachindex(chi))
     end
     return stationarity,split_defect
