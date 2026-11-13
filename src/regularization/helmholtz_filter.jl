@@ -30,7 +30,7 @@ rebuild_filter!(cache::HelmholtzCache,faces::TPFAFaces,h::AbstractVector,radius:
 function uniform_filter_radius2(faces,h,radius)
     length(h) == length(faces.area) || throw(DimensionMismatch("Filter mesh"))
     isfinite(radius) && radius > 0 || throw(ArgumentError("Filter radius must be finite and positive"))
-    all(x -> isfinite(x) && x > 0,h) || throw(ArgumentError("Invalid cell diameter"))
+    all(x -> isfinite(x) && x > 0,h) || throw(ArgumentError("Invalid cell size"))
     return [regularization_coefficient(radius^2,hi) for hi in h]
 end
 

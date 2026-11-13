@@ -69,9 +69,9 @@ function parse_commandline(argv=ARGS)
             arg_type = Bool
             default = false
         "--beta0"
-            help = "Regularization strength beta0; the per-cell coefficient is 2*beta0*h_i^2"
+            help = "Regularization strength beta0; the per-cell coefficient is 2*beta0*h_i^2 with h_i = cbrt(cell volume). beta0 = 1 is the value above which a one-cell 0->1 interface cannot be stationary under local_max"
             arg_type = Float64
-            default = 1.0
+            default = 3.0
             range_tester = x -> isfinite(x) && x >= 0
         "--eta0"
             help = "Viscosity eta0 of the density update; larger values give smaller density steps"

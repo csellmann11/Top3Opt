@@ -12,6 +12,7 @@ function check_tpfa_mesh(mesh)
     faces = build_tpfa_faces(cv,states)
     n = length(states.χ_vec)
     @test faces.area === states.area_vec
+    @test states.h_vec ≈ cbrt.(states.area_vec)
     @test all(>(0),faces.length)
     @test all(>(0),faces.distance_left)
     @test all(>(0),faces.distance_right)
@@ -47,6 +48,8 @@ end
     faces,states = check_tpfa_mesh(mesh)
     @test length(faces.left) == 54
     @test sum(faces.length) ≈ 6.0 atol=1e-10
+    # Explicit diffusion rate of an interior cube for beta0 = eta0 = 1.
+    @test diffusion_rate(DensityCache(faces,2 .* states.h_vec.^2),1.0) ≈ 12
     element = collect(RootIterator{4}(mesh.topo))[14]
     Ju3VEM.VEMGeo._refine!(element,mesh.topo)
     mesh = Mesh(mesh.topo,StandardEl{1}())

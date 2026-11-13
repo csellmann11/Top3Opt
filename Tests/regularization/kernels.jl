@@ -57,7 +57,7 @@ end
     opts = DensityOptions(regularization=:local_max)
     @test update_coefficients!(cache,force,2.0,opts)
     @test cache.base_beta == baseline
-    @test cache.beta_relative == [10.0,10.0,10.0,1.5,1.0]
+    @test cache.beta_relative == LOCAL_MAX_BOOST_SCALE.*[10.0,10.0,10.0,1.5,1.0]
     # The boost is a per-cell time scale: the operator stays the baseline one.
     expected = diffusion_matrix(faces,baseline)
     @test cache.stiffness ≈ expected
@@ -209,7 +209,7 @@ end
     opts = DensityOptions(regularization=:local_max)
     rate = diffusion_rate(cache,15.0)
     update_coefficients!(cache,[1.,500.,3.,2.,1.],1.0,opts)
-    @test maximum(cache.beta_relative) == 500.0
+    @test maximum(cache.beta_relative) == LOCAL_MAX_BOOST_SCALE*500.0
     @test diffusion_rate(cache,15.0) == rate
 end
 

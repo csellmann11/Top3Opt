@@ -9,7 +9,7 @@ include("../src/hash_output.jl")
     @test !defaults["projection"]
     @test defaults["filter_radius"] == 0.0
     @test defaults["density_substeps"] == 0
-    @test defaults["beta0"] == 1.0 && defaults["eta0"] == 15.0
+    @test defaults["beta0"] == 3.0 && defaults["eta0"] == 15.0
     scaled = parse_commandline(["--beta0","0.5","--eta0","30"])
     @test scaled["beta0"] == 0.5 && scaled["eta0"] == 30.0
     for regularization in ("mean","local_max","helmholtz"), projection in ("false","true")
@@ -25,6 +25,8 @@ include("../src/hash_output.jl")
     @test generate_setting_hash(defaults) == generate_setting_hash(parse_commandline(String[]))
     @test generate_setting_hash(defaults) == generate_setting_hash(parse_commandline(["--laplace_rescale","false"]))
     original = generate_setting_hash(defaults)
+    # Arguments without a beta0 key get the identity of the CLI default.
+    @test generate_setting_hash(delete!(copy(defaults),"beta0")) == original
     for (key,value) in ("regularization"=>:local_max,"update_mode"=>:implicit,
             "projection"=>true,"filter_radius"=>0.02,"density_substeps"=>2,
             "filter_tolerance"=>1e-10,"density_activity_tolerance"=>0.01,

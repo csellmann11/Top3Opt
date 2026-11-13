@@ -79,7 +79,7 @@ end
     compute_flux_operator_mat(cv, states, sim_pars; scheme=:tpfa)
 
 Compatibility assembly for the conservative strong-form operator `-M^-1 K`,
-with the existing 3D baseline coefficient `2*sim_pars.β0*h_i^2`.
+with the 3D baseline coefficient `2*sim_pars.β0*h_i^2`, `h_i = cbrt(cell volume)`.
 The optimization kernels retain `K` and update its values in place instead.
 TPFA is the only supported gradient approximation.
 """

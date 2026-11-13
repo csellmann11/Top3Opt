@@ -13,7 +13,7 @@ for arg in "$@"; do
             echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
             echo "UPDATE_MODE=explicit|implicit selects the density update (default: implicit)."
             echo "REGULARIZATION=mean|local_max|helmholtz (default: mean); PROJECTION=true|false (default: false)."
-            echo "BETA0=<number >= 0> (default: 1.0); ETA0=<number > 0> (default: 15.0)."
+            echo "BETA0=<number >= 0> (default: 3.0); ETA0=<number > 0> (default: 15.0)."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
         *) echo "Unknown argument: $arg" >&2; exit 2 ;;
@@ -42,13 +42,16 @@ DENSITY_MARKING_OPTIONS=(true)
 #   ADAPTIVITY_OPTIONS, DENSITY_MARKING_OPTIONS, ADAPTIVITY_AT_START   true | false
 #   FLUX_SCHEME      tpfa (only option)
 #   UPDATE_MODE      explicit | implicit           (implicit only for mean/local_max)
-#   REGULARIZATION   mean      gradient penalty, beta_i = 2*beta0*h_i^2
+#   REGULARIZATION   mean      gradient penalty, beta_i = 2*beta0*h_i^2, h_i = cbrt(cell volume)
 #                    local_max gradient penalty, beta_i and eta_i boosted by the neighbor max |p|
 #                    helmholtz PDE filter, r²_i = 2*beta0*h_i^2 (forces UPDATE_MODE=explicit)
 #   PROJECTION       true | false                  smooth volume-preserving projection
-#   BETA0            number >= 0                   regularization strength; coefficient 2*beta0*h_i^2
+#   BETA0            number >= 0                   regularization strength; coefficient 2*beta0*h_i^2.
+#                                                  Above beta0 = 1 a one-cell 0->1 interface cannot
+#                                                  be stationary under local_max
 #   ETA0             number > 0                    viscosity; larger = smaller density steps.
 #                                                  Explicit stability on cubes: eta0 >= 12*beta0/substeps
+#                                                  (14*beta0/substeps at a 2:1 interface)
 #   PETSC_GAMG_SQUARE_GRAPH  1 | 0                 PETSc only: squared graph | MIS-2
 MAX_OPT_STEPS=200
 ADAPTIVITY_AT_START=true
@@ -56,7 +59,7 @@ FLUX_SCHEME=tpfa              # TPFA is the only supported gradient approximatio
 UPDATE_MODE=${UPDATE_MODE:-implicit} # Options: explicit | implicit
 REGULARIZATION=${REGULARIZATION:-mean} # Options: mean | local_max | helmholtz
 PROJECTION=${PROJECTION:-false}        # Options: true | false
-BETA0=${BETA0:-1.0}                    # Regularization strength beta0 (>= 0)
+BETA0=${BETA0:-3.0}                    # Regularization strength beta0 (>= 0)
 ETA0=${ETA0:-15.0}                     # Viscosity eta0 (> 0)
 PETSC_GAMG_SQUARE_GRAPH=${PETSC_GAMG_SQUARE_GRAPH:-1} # PETSc only: 1 = squared graph, 0 = MIS-2
 

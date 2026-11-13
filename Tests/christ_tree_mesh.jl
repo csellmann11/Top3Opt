@@ -157,7 +157,7 @@ function compute_von_mises_stresses(
         node_ids = elem_data.node_ids
         dofs     = get_dofs(cv.dh,node_ids)
         uel      = @view u[dofs]
-        h        = states.h_vec[state_id]
+        h        = elem_data.hvol
         uπ       = sol_proj(base,uel,stretch(proj_s,Val(3)))
         bc       = states.x_vec[state_id]
         ∇u       = ∇x(uπ,h,zero(bc))

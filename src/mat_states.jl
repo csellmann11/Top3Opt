@@ -31,7 +31,7 @@ struct DesignVarInfo{D}
     design_vec::Vector{Float64} # persistent unfiltered, unprojected design
     x_vec::Vector{SVector{D,Float64}}
     area_vec::Vector{Float64} #TODO: rename to elsize_vec
-    h_vec::Vector{Float64} 
+    h_vec::Vector{Float64} # regularization length cbrt(cell volume); mechanics uses ElData.hvol
 
     el_id_to_state_id::OrderedDict{Int,Int}
 end
@@ -50,14 +50,13 @@ function fill_states!(states::DesignVarInfo{D},cv::CellValues{D,U},ρ_init) wher
     for (state_id,element) in enumerate(RootIterator{D+1}(topo))
         vol_data = precompute_volume_monomials(element.id,topo,cv.facedata_col,Val(1))
         bc                     = vol_data.vol_bc
-        hvol                   = vol_data.hvol 
         area                   = vol_data.integrals[1]
 
         states.χ_vec[state_id]               = ρ_init
         states.design_vec[state_id]          = ρ_init
         states.x_vec[state_id]               = bc
         states.area_vec[state_id]            = area
-        states.h_vec[state_id]               = hvol
+        states.h_vec[state_id]               = cbrt(area)
         states.el_id_to_state_id[element.id] = state_id
     end
 end

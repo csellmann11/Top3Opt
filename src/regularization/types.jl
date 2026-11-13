@@ -65,7 +65,7 @@ DiagnosticWorkspace(n::Int) = DiagnosticWorkspace(ntuple(_ -> zeros(n),6)...)
 
 """
 `stiffness` is always the baseline TPFA operator K(base_beta). `beta_relative`
-is the local boost b_i >= 1 of `:local_max` (all ones for `:mean`): it scales
+is the local boost b_i >= 1/2 of `:local_max` (all ones for `:mean`): it scales
 both beta_i and the viscosity eta_i, so the update divides the driving force and
 the multipliers of a cell by b_i and never changes `stiffness` or the system.
 `volume_weight` is the response of the unconstrained update to a unit volume
@@ -120,7 +120,8 @@ FilterDiagnostics(n) = FilterDiagnostics(ntuple(_ -> zeros(n),4)...)
 
 """
 Helmholtz operator B = M + K(r²), with the baseline coefficient chosen by
-r²_i = 2*beta0*h_i^2 by default (as for the penalties), or a uniform r0² override.
+r²_i = 2*beta0*h_i^2, h_i = cbrt(cell volume), by default (as for the penalties),
+or a uniform r0² override.
 The caller owns the persistent unfiltered design; this cache owns only geometry,
 solver work, and update scratch. Rebuild after remapping the design on a new mesh.
 

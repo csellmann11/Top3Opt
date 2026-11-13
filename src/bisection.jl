@@ -36,7 +36,7 @@ function compute_strain_energy!(
 
         node_ids = elem_data.node_ids 
         bc   = states.x_vec[state_id]  
-        h    = states.h_vec[state_id]
+        h    = elem_data.hvol # VEM scaling length (cell diameter)
 
         setsize!(dofs,(length(node_ids)*U,))
         get_dofs!(dofs.array,dh,node_ids)
@@ -62,6 +62,7 @@ end
 All regularizations share the per-cell coefficient 2*beta0*h_i^2: the gradient
 penalties use it as beta_i, Helmholtz as r²_i. A positive `radius` overrides
 Helmholtz with a uniform physical radius; zero keeps the beta0 scaling.
+The regularization length is h_i = cbrt(cell volume), the edge length on cubes.
 """
 function prepare_density_cache(cache,cv,states,pars,options,radius)
     faces = build_tpfa_faces(cv,states)
@@ -95,7 +96,7 @@ function state_update!(states::DesignVarInfo,cv::CellValues,pars::SimPars,
         result = advance_filtered_design!(states.design_vec,states.χ_vec,workspace.driving,
             refresh!,cache;options,eta0=pars.η0,rho=pars.ρ_init,lower=pars.χmin,density_projection)
     else
-        legacy_substeps = options.integrator == :semi_implicit ? 1 : max(1,4ceil(Int,24pars.β0/pars.η0))
+        legacy_substeps = options.integrator == :semi_implicit ? 1 : max(1,4ceil(Int,8pars.β0/pars.η0))
         result = advance_density!(states.design_vec,workspace.driving,refresh!,cache;
             options,eta0=pars.η0,rho=pars.ρ_init,lower=pars.χmin,legacy_substeps,
             physical=states.χ_vec,density_projection)

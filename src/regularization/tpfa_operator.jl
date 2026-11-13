@@ -9,7 +9,7 @@ function DensityCache(faces::TPFAFaces, beta0::Union{Real,AbstractVector})
     end
     all(1 <= i <= n && 1 <= j <= n && i != j for (i,j) in zip(faces.left,faces.right)) ||
         throw(ArgumentError("Invalid TPFA face connectivity"))
-    # The caller owns the baseline policy (in 3D: 2*beta0*h_i^2).
+    # The caller owns the baseline policy (in 3D: 2*beta0*h_i^2, h_i = cbrt(cell volume)).
     b = beta0 isa Real ? fill(Float64(beta0),n) : Float64.(beta0)
     length(b) == n || throw(DimensionMismatch("Baseline regularization coefficient"))
     all(x -> isfinite(x) && x >= 0,b) || throw(ArgumentError("beta0 must be finite and nonnegative"))
@@ -66,11 +66,28 @@ function diffusion_matrix(faces::TPFAFaces, beta::AbstractVector,work=TPFAAssemb
         work.csr_rowptr,work.csr_cols,work.csr_values,rows,cols,vals)
 end
 
+"""Fixed calibration of the `:local_max` boost against `:mean`.
+
+With the boost max(1, m_i) alone, `:local_max` acts like `:mean` with roughly twice
+beta0 and eta0, because the boost exceeds one along most interfaces. The factor 1/2
+compensates this on average, so both schemes can use the same beta0 and eta0. It is a
+constant, not a field statistic: the normalized force (p_i/scale - lambda)/b_i of a cell
+with p_i >= lambda is bounded by 1/LOCAL_MAX_BOOST_SCALE = 2 for every force field.
+The value was calibrated on 2D benchmarks.
+
+With the baseline coefficient beta_i = 2*beta0*h_i^2 on a uniform grid, a 0->1 density
+jump across one face gives the normalized diffusion beta_i/h_i^2 = 2*beta0 in the solid
+cell against a normalized force of at most 2, so for beta0 > 1 such an unresolved
+interface cannot be stationary.
+"""
+const LOCAL_MAX_BOOST_SCALE = 0.5
+
 """Freeze the local boost for one density substep.
 
 For `:local_max`, with the mean force `scale`,
 
-    b_i = max(1, max(abs(p[j])) / scale),   j = i or a direct TPFA face neighbor.
+    m_i = max(abs(p[j])) / scale,   j = i or a direct TPFA face neighbor,
+    b_i = LOCAL_MAX_BOOST_SCALE * max(1, m_i).
 
 The boost scales the regularization and the viscosity of a cell together,
 beta_i = b_i * beta0_i and eta_i = b_i * eta0 (both times `scale`):
@@ -105,6 +122,7 @@ function update_coefficients!(cache::DensityCache, p, scale, options)
             candidate[i] = max(candidate[i],abs(p[j])/scale)
             candidate[j] = max(candidate[j],abs(p[i])/scale)
         end
+        candidate .*= LOCAL_MAX_BOOST_SCALE
     else
         # The same cache can switch back from local to uniform regularization.
         all(isone,relative) && return false

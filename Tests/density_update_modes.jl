@@ -12,6 +12,15 @@ function density_fixture()
     return cv,states,pars
 end
 
+@testset "Regularization coefficient 2*beta0*cbrt(volume)^2" begin
+    cv,states,pars = density_fixture()
+    coefficient = 2pars.β0 .* cbrt.(states.area_vec).^2
+    @test prepare_density_cache(nothing,cv,states,pars,DensityOptions(),0.0).base_beta ≈ coefficient
+    # Radius zero gives Helmholtz the same coefficient as r²_i.
+    helmholtz = DensityOptions(regularization=:helmholtz)
+    @test prepare_density_cache(nothing,cv,states,pars,helmholtz,0.0).radius2 ≈ coefficient
+end
+
 @testset "Conservative persistent design and remapping" begin
     unequal = DensityTransferWorkspace(Dict(11=>1,12=>2),[0.2,0.8],[1.0,3.0])
     @test transferred_design((id=10,parent_id=0,childs=[11,12]),unequal) ≈ 0.65

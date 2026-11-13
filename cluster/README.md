@@ -17,10 +17,12 @@ The Julia driver accepts `--regularization mean`, `local_max`, or `helmholtz`,
 and `--projection true` enables volume-preserving projection and continuation
 for any of them. Both gradient penalties also accept `--update_mode implicit`.
 Helmholtz requires `--update_mode explicit`. All three use the per-cell coefficient
-2·β0·h_i² (Helmholtz as r²_i); `--filter_radius` overrides Helmholtz with a uniform
-radius. See [regularization options](../docs/regularization.md) for complete examples.
+2·β0·h_i² with h_i = cbrt(cell volume) (Helmholtz as r²_i); `--filter_radius` overrides
+Helmholtz with a uniform radius. Above β0 = 1 a one-cell 0→1 interface cannot be
+stationary under `local_max`.
+See [regularization options](../docs/regularization.md) for complete examples.
 The generator defaults to `REGULARIZATION=mean`, `PROJECTION=false`,
-`UPDATE_MODE=implicit`, `BETA0=1.0` and `ETA0=15.0`; override them in the
+`UPDATE_MODE=implicit`, `BETA0=3.0` and `ETA0=15.0`; override them in the
 environment, e.g.
 `REGULARIZATION=helmholtz PROJECTION=true BETA0=0.5 bash cluster/run_sweeps.sh`.
 `BETA0` and `ETA0` are passed to the driver as `--beta0` and `--eta0`. Helmholtz with
