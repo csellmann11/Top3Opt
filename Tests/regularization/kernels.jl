@@ -84,7 +84,8 @@ end
     force = [1.0,20.0,3.0,2.0,1.0]
     lower,eta0 = 0.001,15.0
     rho = dot(faces.area,initial)/sum(faces.area)
-    for method in (:mean,:local_max), integrator in (:explicit,:semi_implicit), enabled in (false,true)
+    for method in (:mean,:local_max,:local_lambda), integrator in (:explicit,:semi_implicit), enabled in (false,true)
+        method == :local_lambda && integrator == :semi_implicit && continue
         cache = DensityCache(faces,baseline)
         design,physical = copy(initial),copy(initial)
         projection = DensityProjection(DensityProjectionOptions(enabled=enabled,beta_initial=4.0),
@@ -98,7 +99,7 @@ end
         update_coefficients!(cache,pulled,scale,opts)
         K,boost = copy(cache.stiffness),copy(cache.beta_relative)
         @test K ≈ diffusion_matrix(faces,baseline)
-        @test (maximum(boost) > 1) == (method == :local_max)
+        @test (maximum(boost) > 1) == (method != :mean)
         # eta_i = eta0*b_i: the boost divides the cell's force and volume multiplier.
         system = Diagonal(faces.area)+K/eta0
         trial = integrator == :explicit ? initial+(pulled./(scale.*boost)-K*initial./faces.area)/eta0 :
@@ -109,6 +110,14 @@ end
         project_volume!(expected,trial,faces.area,rho,lower;weights)
         result = advance_density!(design,copy(force),identity,cache;options=opts,
             eta0,rho,lower,physical,density_projection=projection)
+        if method == :local_lambda
+            # Fixed point: the explicit step with the final boost max(r,|l|/2), diffusion included.
+            l = only(result.records).lambda/scale
+            final = max.(boost,abs(l)/2)
+            @test cache.beta_relative ≈ final
+            @test norm(K*initial./faces.area)/eta0 > 1e-6 # diffusion is far above atol
+            expected = clamp.(initial .+ ((pulled./scale .- l)./final .- K*initial./faces.area)./eta0,lower,1.0)
+        end
         @test design ≈ expected atol=2e-12
         @test dot(faces.area,physical)/sum(faces.area) ≈ rho atol=2e-10
         @test all(lower .<= physical .<= 1)
@@ -170,8 +179,8 @@ end
     faces = kernel_faces()
     initial = [0.2,0.4,0.6,0.3,0.5]
     rho = dot(faces.area,initial)/sum(faces.area)
-    for method in (:mean,:local_max,:helmholtz), integrator in (:explicit,:semi_implicit)
-        method == :helmholtz && integrator == :semi_implicit && continue
+    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit)
+        method in (:helmholtz,:local_lambda) && integrator == :semi_implicit && continue
         cache = method == :helmholtz ? HelmholtzCache(faces,ones(5),0.2) : DensityCache(faces,0.02)
         design,physical = copy(initial),copy(initial)
         opts = DensityOptions(;integrator,regularization=method)
@@ -276,8 +285,8 @@ end
     initial = [0.2,0.4,0.6,0.3,0.5]
     rho = dot(faces.area,initial)/sum(faces.area)
     weights = [1.0,20.0,3.0,2.0,1.0]
-    for method in (:mean,:local_max,:helmholtz), integrator in (:explicit,:semi_implicit), enabled in (false,true)
-        method == :helmholtz && integrator == :semi_implicit && continue
+    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit), enabled in (false,true)
+        method in (:helmholtz,:local_lambda) && integrator == :semi_implicit && continue
         results = map(1:3) do mode
             cache = method == :helmholtz ? HelmholtzCache(faces,ones(5),0.2) : DensityCache(faces,0.02)
             design,physical = copy(initial),copy(initial)
@@ -330,11 +339,70 @@ function kernel_allocations(n,method,integrator,enabled)
 end
 
 @testset "Steady mesh updates reuse mesh-sized storage" begin
-    for method in (:mean,:local_max,:helmholtz), integrator in (:explicit,:semi_implicit), enabled in (false,true)
-        method == :helmholtz && integrator == :semi_implicit && continue
+    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit), enabled in (false,true)
+        method in (:helmholtz,:local_lambda) && integrator == :semi_implicit && continue
         small = kernel_allocations(20,method,integrator,enabled)
         large = kernel_allocations(2000,method,integrator,enabled)
         @test large <= small+1024
         @test large < 8192
     end
+end
+
+@testset "local_lambda drops the mean floor and bounds the net force by 2" begin
+    n = 30
+    faces = TPFAFaces(ones(n),collect(1:n-1),collect(2:n),ones(n-1),fill(0.5,n-1),fill(0.5,n-1))
+    chi = fill(0.4,n)
+    force = [i <= 10 ? 0.0 : 1.0+4exp(-((i-20)/3)^2) for i in 1:n]
+    refresh! = p -> copyto!(p,force)
+    cache = DensityCache(faces,0.5)
+    options = DensityOptions(integrator=:explicit,regularization=:local_lambda,substeps=1,diagnostics=true)
+    result = advance_density!(chi,zeros(n),refresh!,cache;options,eta0=15.0,rho=0.4,lower=0.001)
+    @test length(result.records) == 1
+    record = only(result.records)
+    scale = driving_scale(fill(0.4,n),force,faces.area,0.001).value
+    @test record.p_avg == scale
+    l = record.lambda/scale
+    @test l > 0
+    m = [maximum(abs(force[j]) for j in max(1,i-1):min(n,i+1))/scale for i in 1:n]
+    @test cache.beta_relative ≈ 0.5 .* max.(m,abs(l),LOCAL_LAMBDA_GUARD)
+    # A cell in a zero-force neighbourhood carries exactly the multiplier floor, not the mean floor 1/2.
+    @test cache.beta_relative[1] ≈ 0.5abs(l)
+    @test minimum(cache.beta_relative) < 0.5
+    @test maximum(abs,(force./scale .- l)./cache.beta_relative) <= 2+1e-10
+    @test isapprox(dot(faces.area,chi)/sum(faces.area),0.4;atol=1e-9)
+    # The explicit update with the final boost reproduces the accepted design.
+    a = 1/15.0
+    K = diffusion_matrix(faces,fill(0.5,n))
+    old = fill(0.4,n)
+    @test chi ≈ clamp.(old .+ a.*((force./scale .- l)./cache.beta_relative .- K*old./faces.area),0.001,1.0) atol=1e-12
+    # The mean force cancels: scaling p leaves the design unchanged.
+    scaled = fill(0.4,n)
+    advance_density!(scaled,zeros(n),p -> (@. p = 7.5*force),DensityCache(faces,0.5);
+        options,eta0=15.0,rho=0.4,lower=0.001)
+    @test scaled ≈ chi atol=1e-10
+    # local_max is unchanged: its mean floor keeps zero-force cells at 1/2.
+    floored = DensityCache(faces,0.5)
+    advance_density!(fill(0.4,n),zeros(n),refresh!,floored;
+        options=DensityOptions(integrator=:explicit,regularization=:local_max,substeps=1),
+        eta0=15.0,rho=0.4,lower=0.001)
+    @test floored.beta_relative ≈ 0.5 .* max.(1.0,m)
+    # Signed forces: the bracket still needs a sign change; a target out of reach is an error.
+    signed = [sin(i/3) for i in 1:n]
+    design = fill(0.4,n)
+    advance_density!(design,zeros(n),p -> copyto!(p,signed),DensityCache(faces,0.5);
+        options,eta0=15.0,rho=0.4,lower=0.001)
+    @test isapprox(dot(faces.area,design)/sum(faces.area),0.4;atol=1e-9)
+    @test all(0.001 .<= design .<= 1)
+    @test_throws ErrorException advance_density!(fill(0.4,n),zeros(n),refresh!,DensityCache(faces,0.5);
+        options,eta0=100.0,rho=0.9,lower=0.001)
+    @test_throws ArgumentError advance_density!(fill(0.4,n),zeros(n),refresh!,DensityCache(faces,0.5);
+        options=DensityOptions(integrator=:semi_implicit,regularization=:local_lambda),
+        eta0=15.0,rho=0.4,lower=0.001)
+    # Box ends fix the design as in the plain projection; an invalid target is an argument error.
+    for target in (0.001,1.0)
+        ends = fill(0.4,n)
+        advance_density!(ends,zeros(n),refresh!,DensityCache(faces,0.5);options,eta0=15.0,rho=target,lower=0.001)
+        @test all(==(target),ends)
+    end
+    @test_throws ArgumentError project_volume_floored!(zeros(n),DensityCache(faces,0.5),force,1.0,0.1,1.5,0.001)
 end

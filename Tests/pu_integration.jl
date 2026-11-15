@@ -36,7 +36,7 @@ end
 
 @testset "PU-DWR production adaptive runs" begin
     output_root = mktempdir(;prefix="toopt3-pu-dwr-",cleanup=false)
-    for regularization in (:mean,:local_max,:helmholtz)
+    for regularization in (:mean,:local_max,:local_lambda,:helmholtz)
         mesh = create_rectangular_mesh(12,2,2,3.,0.5,1.,StandardEl{1})
         lambda,mu = E_ν_to_lame(210.e3,0.33)
         pars = SimPars(Helmholtz{3,3}(Ψlin_totopt,(lambda,mu,1.)),lambda,mu,1e-3,15.,1.,0.3)
@@ -44,7 +44,7 @@ end
         result = run_optimization(mesh,x -> SA[0.,0.,0.],pars;
             vtk_folder_name=destination,MAX_OPT_STEPS=3,MAX_REF_LEVEL=2,
             error_estimator=:pu_dwr,regularization,projection=true,
-            update_mode=regularization == :helmholtz ? :explicit : :implicit,
+            update_mode=regularization in (:helmholtz,:local_lambda) ? :explicit : :implicit,
             filter_radius=0.15,take_snapshots_at=[1],do_adaptivity=true)
         @test result.error_estimator == :pu_dwr
         @test result.pu_marking_exponent == 1.0

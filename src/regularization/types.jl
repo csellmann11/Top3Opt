@@ -65,7 +65,8 @@ DiagnosticWorkspace(n::Int) = DiagnosticWorkspace(ntuple(_ -> zeros(n),6)...)
 
 """
 `stiffness` is always the baseline TPFA operator K(base_beta). `beta_relative`
-is the local boost b_i >= 1/2 of `:local_max` (all ones for `:mean`): it scales
+is the local boost b_i >= 1/2 of `:local_max` (b_i = max(m_i,|lambda|/s)/2 after a
+`:local_lambda` step; all ones for `:mean`): it scales
 both beta_i and the viscosity eta_i, so the update divides the driving force and
 the multipliers of a cell by b_i and never changes `stiffness` or the system.
 `volume_weight` is the response of the unconstrained update to a unit volume

@@ -12,7 +12,7 @@ for arg in "$@"; do
             echo "Usage: bash cluster/run_sweeps.sh [--dry-run] [--smoke]"
             echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
             echo "UPDATE_MODE=explicit|implicit selects the density update (default: implicit)."
-            echo "REGULARIZATION=mean|local_max|helmholtz (default: mean); PROJECTION=true|false (default: false)."
+            echo "REGULARIZATION=mean|local_max|local_lambda|helmholtz (default: mean); PROJECTION=true|false (default: false)."
             echo "BETA0=<number >= 0> (default: 3.0); ETA0=<number > 0> (default: 15.0)."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
@@ -44,6 +44,8 @@ DENSITY_MARKING_OPTIONS=(true)
 #   UPDATE_MODE      explicit | implicit           (implicit only for mean/local_max)
 #   REGULARIZATION   mean      gradient penalty, beta_i = 2*beta0*h_i^2, h_i = cbrt(cell volume)
 #                    local_max gradient penalty, beta_i and eta_i boosted by the neighbor max |p|
+#                    local_lambda  local_max without the mean floor: boost max(neighbor max |p|, |lambda|)/2
+#                              (forces UPDATE_MODE=explicit)
 #                    helmholtz PDE filter, r²_i = 2*beta0*h_i^2 (forces UPDATE_MODE=explicit)
 #   PROJECTION       true | false                  smooth volume-preserving projection
 #   BETA0            number >= 0                   regularization strength; coefficient 2*beta0*h_i^2.
@@ -57,7 +59,7 @@ MAX_OPT_STEPS=200
 ADAPTIVITY_AT_START=true
 FLUX_SCHEME=tpfa              # TPFA is the only supported gradient approximation.
 UPDATE_MODE=${UPDATE_MODE:-implicit} # Options: explicit | implicit
-REGULARIZATION=${REGULARIZATION:-mean} # Options: mean | local_max | helmholtz
+REGULARIZATION=${REGULARIZATION:-mean} # Options: mean | local_max | local_lambda | helmholtz
 PROJECTION=${PROJECTION:-false}        # Options: true | false
 BETA0=${BETA0:-3.0}                    # Regularization strength beta0 (>= 0)
 ETA0=${ETA0:-15.0}                     # Viscosity eta0 (> 0)
@@ -74,8 +76,8 @@ case "$UPDATE_MODE" in
 esac
 
 case "$REGULARIZATION" in
-    mean|local_max|helmholtz) ;;
-    *) echo "Unknown REGULARIZATION: $REGULARIZATION (choose mean, local_max or helmholtz)." >&2; exit 2 ;;
+    mean|local_max|local_lambda|helmholtz) ;;
+    *) echo "Unknown REGULARIZATION: $REGULARIZATION (choose mean, local_max, local_lambda or helmholtz)." >&2; exit 2 ;;
 esac
 
 case "$PROJECTION" in
@@ -91,8 +93,8 @@ if [[ ! "$ETA0" =~ $number_pattern || "$ETA0" =~ ^0*([.]0*)?([eE].*)?$ ]]; then
     echo "Invalid ETA0: $ETA0 (use a positive number such as 15.0)." >&2; exit 2
 fi
 
-if [[ "$REGULARIZATION" == helmholtz && "$UPDATE_MODE" == implicit ]]; then
-    echo "Warning: helmholtz has no implicit update; switched UPDATE_MODE to explicit." >&2
+if [[ "$REGULARIZATION" =~ ^(helmholtz|local_lambda)$ && "$UPDATE_MODE" == implicit ]]; then
+    echo "Warning: $REGULARIZATION has no implicit update; switched UPDATE_MODE to explicit." >&2
     UPDATE_MODE=explicit
 fi
 

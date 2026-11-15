@@ -13,20 +13,21 @@ The selected scheme appears in each job's arguments and name; it is not a sweep
 axis. Older generated jobs may pass `--laplace_rescale false`; this deprecated
 option remains accepted as a no-op. Regenerate jobs that request removed schemes.
 
-The Julia driver accepts `--regularization mean`, `local_max`, or `helmholtz`,
+The Julia driver accepts `--regularization mean`, `local_max`, `local_lambda`, or `helmholtz`,
 and `--projection true` enables volume-preserving projection and continuation
-for any of them. Both gradient penalties also accept `--update_mode implicit`.
-Helmholtz requires `--update_mode explicit`. All three use the per-cell coefficient
+for any of them. `mean` and `local_max` also accept `--update_mode implicit`.
+Helmholtz and `local_lambda` require `--update_mode explicit`. All four use the per-cell coefficient
 2·β0·h_i² with h_i = cbrt(cell volume) (Helmholtz as r²_i); `--filter_radius` overrides
 Helmholtz with a uniform radius. Above β0 = 1 a one-cell 0→1 interface cannot be
-stationary under `local_max`.
+stationary under `local_max`. `local_lambda` drops the `local_max` mean floor and puts the
+current volume multiplier into the boost, `b_i = max(m_i, |lambda|/s)/2`.
 See [regularization options](../docs/regularization.md) for complete examples.
 The generator defaults to `REGULARIZATION=mean`, `PROJECTION=false`,
 `UPDATE_MODE=implicit`, `BETA0=3.0` and `ETA0=15.0`; override them in the
 environment, e.g.
 `REGULARIZATION=helmholtz PROJECTION=true BETA0=0.5 bash cluster/run_sweeps.sh`.
-`BETA0` and `ETA0` are passed to the driver as `--beta0` and `--eta0`. Helmholtz with
-the implicit update prints a warning and switches to explicit. The available values
+`BETA0` and `ETA0` are passed to the driver as `--beta0` and `--eta0`. Helmholtz and
+`local_lambda` with the implicit update print a warning and switch to explicit. The available values
 are listed as comments at the top of `run_sweeps.sh`.
 
 ## Run on the cluster

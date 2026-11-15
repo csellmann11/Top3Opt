@@ -55,12 +55,12 @@ function parse_commandline(argv=ARGS)
             default = :tpfa
             range_tester = x -> x == :tpfa
         "--regularization"
-            help = "Density regularization: mean, local_max, or helmholtz"
+            help = "Density regularization: mean, local_max, local_lambda (explicit only), or helmholtz"
             arg_type = Symbol
             default = :mean
-            range_tester = x -> x in (:mean, :local_max, :helmholtz)
+            range_tester = x -> x in (:mean, :local_max, :local_lambda, :helmholtz)
         "--update_mode"
-            help = "Density update: explicit or implicit (implicit is available for gradient penalties only)"
+            help = "Density update: explicit or implicit (implicit is available for mean and local_max only)"
             arg_type = Symbol
             default = :explicit
             range_tester = x -> x in (:explicit, :implicit)
@@ -114,6 +114,8 @@ function parse_commandline(argv=ARGS)
         throw(ArgumentError("pu_marking_exponent must be finite and nonnegative"))
     args["regularization"] == :helmholtz && args["update_mode"] != :explicit &&
         throw(ArgumentError("Helmholtz uses an explicit design update; choose --update_mode explicit"))
+    args["regularization"] == :local_lambda && args["update_mode"] != :explicit &&
+        throw(ArgumentError("local_lambda needs the current multiplier in the boost; choose --update_mode explicit"))
     return args
 end
 

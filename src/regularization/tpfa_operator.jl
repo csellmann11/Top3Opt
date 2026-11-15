@@ -82,12 +82,25 @@ interface cannot be stationary.
 """
 const LOCAL_MAX_BOOST_SCALE = 0.5
 
+"""Normalized boost floor of `:local_lambda`; only guards a zero force against zero."""
+const LOCAL_LAMBDA_GUARD = 1e-12
+
 """Freeze the local boost for one density substep.
 
 For `:local_max`, with the mean force `scale`,
 
     m_i = max(abs(p[j])) / scale,   j = i or a direct TPFA face neighbor,
     b_i = LOCAL_MAX_BOOST_SCALE * max(1, m_i).
+
+`:local_lambda` drops the mean-force floor 1 and uses the current normalized
+volume multiplier l = lambda/scale instead,
+
+    b_i(l) = LOCAL_MAX_BOOST_SCALE * max(m_i, |l|, LOCAL_LAMBDA_GUARD),
+
+so `scale` cancels from the update and |(p_i/scale - l)/b_i| <= 2 for p >= 0
+and l >= 0 (<= 4 for signed p or l < 0).
+Here only the peak part max(m_i, GUARD) is frozen; the |l| floor needs the
+current multiplier and is applied by `project_volume_floored!` (explicit only).
 
 The boost scales the regularization and the viscosity of a cell together,
 beta_i = b_i * beta0_i and eta_i = b_i * eta0 (both times `scale`):
@@ -112,9 +125,10 @@ The trial buffer is free until the subsequent density solve/projection.
 """
 function update_coefficients!(cache::DensityCache, p, scale, options)
     relative, candidate = cache.beta_relative, cache.trial
-    if options.regularization == :local_max
+    if options.regularization in (:local_max,:local_lambda)
+        floor = options.regularization == :local_max ? 1.0 : LOCAL_LAMBDA_GUARD
         for i in eachindex(p)
-            candidate[i] = max(1.0,abs(p[i])/scale)
+            candidate[i] = max(floor,abs(p[i])/scale)
         end
         faces = cache.faces
         for f in eachindex(faces.left)

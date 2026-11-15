@@ -70,6 +70,82 @@ function projected_mass!(chi,y,area,shift,lower,weights=nothing)
     return mass,free_volume
 end
 
+"""Explicit `:local_lambda` projection with the current |lambda| in the boost.
+
+With the normalized multiplier l, q = p/scale, a = dt/eta0 and r the frozen peak
+boost (`cache.beta_relative`, see `update_coefficients!`), the boost is
+b_i(l) = max(r_i, |l|/2) and
+
+    chi_i(l) = clamp(z_i + a*(q_i - l)/b_i(l), lower, 1),
+
+where z = trial - a*q/r is the explicit diffusion part. b is evaluated inside
+the bisection, so the accepted state is the fixed point of boost and multiplier.
+For q >= 0 the volume is continuous and decreasing in l >= 0, and the pull
+toward void saturates at 2a: the bracket is therefore grown from l = 0 by
+doubling in the direction of the volume excess instead of being taken from the
+all-at-bound shifts. With signed q (e.g. the projection pullback) or l < 0
+monotonicity is not guaranteed; bisection keeps a sign change and an
+unreachable target is an error. The final boost
+max(r_i, |l|/2) is written back to `cache.beta_relative`. The returned shift a*l
+matches the standard projection, so diagnostics read the same lambda.
+"""
+function project_volume_floored!(chi,cache,driving,scale,a,rho,lower;tolerance=1e-10)
+    0 <= lower < 1 && lower <= rho <= 1 || throw(ArgumentError("Require 0 <= lower < 1 and lower <= rho <= 1"))
+    tolerance > 0 || throw(ArgumentError("Projection tolerance must be positive"))
+    trial, relative, area = cache.trial, cache.beta_relative, cache.faces.area
+    all(isfinite, trial) || throw(ArgumentError("Nonfinite density before projection"))
+    # A box end fixes the design, as in `project_volume!`; the multiplier is then
+    # not unique and is reported as 0 with the frozen peak boost.
+    if rho == lower || rho == 1
+        fill!(chi,rho)
+        return (shift=0.0,iterations=0,error=0.0)
+    end
+    total = sum(area)
+    # Captures only variables that are never reassigned here, so nothing is boxed.
+    volume_at!(l) = floored_volume!(chi,trial,relative,driving,area,scale,a,lower,l)/total
+    volume = volume_at!(0.0)
+    abs(volume-rho) <= tolerance && return (shift=0.0,iterations=0,error=volume-rho)
+    # Grow the bracket away from l = 0 until the volume crosses rho.
+    direction = volume > rho ? 1.0 : -1.0
+    near, far = 0.0, direction
+    iterations = 0
+    while (volume_at!(far) > rho) == (direction > 0)
+        iterations += 1
+        iterations <= 200 || error("Floored volume projection: no bracket for rho=$rho ",
+            "(volume target unreachable in one step, each cell moves at most 2*dt/eta0)")
+        near, far = far, 2far
+    end
+    # Invariant: volume(lo) > rho >= volume(hi), also without monotonicity.
+    lo, hi = minmax(near,far)
+    l = far
+    for iteration in 1:200
+        l = lo+(hi-lo)/2
+        volume = volume_at!(l)
+        iterations += 1
+        abs(volume-rho) <= tolerance && break
+        hi-lo <= 4eps(max(abs(lo),abs(hi))) && break
+        volume > rho ? (lo=l) : (hi=l)
+    end
+    volume = volume_at!(l)
+    abs(volume-rho) <= tolerance || error("Floored volume projection failed: error=$(volume-rho)")
+    boost_floor = LOCAL_MAX_BOOST_SCALE*abs(l)
+    @. relative = max(relative,boost_floor)
+    return (shift=a*l,iterations=iterations,error=volume-rho)
+end
+
+"""Mass of chi_i(l) = clamp(z_i + a*(q_i - l)/max(r_i,|l|/2), lower, 1), written into chi."""
+function floored_volume!(chi,trial,relative,driving,area,scale,a,lower,l)
+    boost_floor = LOCAL_MAX_BOOST_SCALE*abs(l)
+    mass = 0.0
+    @inbounds for i in eachindex(chi,trial,relative,driving,area)
+        q = driving[i]/scale
+        z = trial[i]-a*q/relative[i]
+        chi[i] = clamp(z+a*(q-l)/max(relative[i],boost_floor),lower,1.0)
+        mass += area[i]*chi[i]
+    end
+    return mass
+end
+
 """Grayness index and actual area fractions, with theta=(chi-lower)/(1-lower)."""
 function grayness_metrics(chi,area,lower)
     total = sum(area)
@@ -92,8 +168,10 @@ end
 
 function validate_density_options(options::DensityOptions, eta0, legacy_substeps)
     options.integrator in (:explicit,:semi_implicit) || throw(ArgumentError("Unknown density integrator"))
-    options.regularization in (:mean,:local_max,:helmholtz) || throw(ArgumentError(
-        "Use regularization=:mean, :local_max, or :helmholtz"))
+    options.regularization in (:mean,:local_max,:local_lambda,:helmholtz) || throw(ArgumentError(
+        "Use regularization=:mean, :local_max, :local_lambda, or :helmholtz"))
+    options.regularization == :local_lambda && options.integrator != :explicit &&
+        throw(ArgumentError("local_lambda needs the current multiplier in the boost; select integrator=:explicit"))
     options.regularization == :helmholtz && options.integrator != :explicit &&
         throw(ArgumentError("Helmholtz uses an explicit design step and elliptic filter solves; select integrator=:explicit"))
     isfinite(eta0) && eta0 > 0 || throw(ArgumentError("eta0 must be finite and positive"))

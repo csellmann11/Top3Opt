@@ -12,7 +12,7 @@ include("../src/hash_output.jl")
     @test defaults["beta0"] == 3.0 && defaults["eta0"] == 15.0
     scaled = parse_commandline(["--beta0","0.5","--eta0","30"])
     @test scaled["beta0"] == 0.5 && scaled["eta0"] == 30.0
-    for regularization in ("mean","local_max","helmholtz"), projection in ("false","true")
+    for regularization in ("mean","local_max","local_lambda","helmholtz"), projection in ("false","true")
         args = parse_commandline(["--regularization",regularization,"--projection",projection])
         @test args["regularization"] == Symbol(regularization)
         @test args["projection"] == (projection == "true")
@@ -22,6 +22,8 @@ include("../src/hash_output.jl")
         @test args["update_mode"] == :implicit
     end
     @test_throws ArgumentError parse_commandline(["--regularization","helmholtz","--update_mode","implicit"])
+    @test_throws ArgumentError parse_commandline(["--regularization","local_lambda","--update_mode","implicit"])
+    @test parse_commandline(["--regularization","local_lambda","--update_mode","explicit"])["update_mode"] == :explicit
     @test generate_setting_hash(defaults) == generate_setting_hash(parse_commandline(String[]))
     @test generate_setting_hash(defaults) == generate_setting_hash(parse_commandline(["--laplace_rescale","false"]))
     original = generate_setting_hash(defaults)

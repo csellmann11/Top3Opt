@@ -24,7 +24,7 @@ end
 @testset "Conservative persistent design and remapping" begin
     unequal = DensityTransferWorkspace(Dict(11=>1,12=>2),[0.2,0.8],[1.0,3.0])
     @test transferred_design((id=10,parent_id=0,childs=[11,12]),unequal) ≈ 0.65
-    for regularization in (:mean,:local_max,:helmholtz), projected in (false,true)
+    for regularization in (:mean,:local_max,:local_lambda,:helmholtz), projected in (false,true)
         cv,states,pars = density_fixture()
         options = DensityOptions(regularization=regularization)
         proj = DensityProjection(DensityProjectionOptions(enabled=projected),states.area_vec;rho_min=pars.χmin)
@@ -69,8 +69,8 @@ end
 
 @testset "All production 3D regularization combinations" begin
     output_root = mktempdir(;prefix="toopt3-regularization-",cleanup=false)
-    for regularization in (:mean,:local_max,:helmholtz), projected in (false,true), adaptive in (false,true)
-        modes = regularization == :helmholtz ? (:explicit,) : (:explicit,:implicit)
+    for regularization in (:mean,:local_max,:local_lambda,:helmholtz), projected in (false,true), adaptive in (false,true)
+        modes = regularization in (:helmholtz,:local_lambda) ? (:explicit,) : (:explicit,:implicit)
         for mode in modes
             @testset "$regularization projection=$projected adaptive=$adaptive mode=$mode" begin
                 cv,states,pars = density_fixture()

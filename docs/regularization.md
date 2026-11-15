@@ -6,7 +6,7 @@ include entry point for `src/regularization/load.jl`; it defines small functions
 and reusable caches in the caller's scope, without a package module. Launch the
 full 3D optimization through `src/main_optim_runs.jl`.
 Both the existing sDWR and the optional [3D PU-DWR estimator](pu_dwr.md) work with
-all three regularizations and optional projection.
+all regularizations and optional projection.
 `Project.toml` is an unnamed script environment, so dependency precompilation
 does not expect a `ToOpt3` package module.
 
@@ -14,6 +14,7 @@ does not expect a `ToOpt3` package module.
 | --- | --- | --- |
 | `--regularization mean` | Gradient penalty with mean-force scaling | `mean` |
 | `--regularization local_max` | Gradient penalty with direct-neighbor sensitivity boost | |
+| `--regularization local_lambda` | `local_max` without the mean floor, current `abs(lambda)` in the boost (explicit only) | |
 | `--regularization helmholtz` | Forward/adjoint Helmholtz filter | |
 | `--projection true` | Smooth volume-preserving projection and automatic continuation | `false` |
 | `--update_mode explicit` / `implicit` | Explicit or semi-implicit gradient-penalty update | `explicit` |
@@ -33,12 +34,13 @@ Run from the repository root, for example:
 ```text
 julia --project=. src/main_optim_runs.jl --regularization mean --projection true
 julia --project=. src/main_optim_runs.jl --regularization local_max --update_mode implicit --projection true
+julia --project=. src/main_optim_runs.jl --regularization local_lambda --update_mode explicit --projection true
 julia --project=. src/main_optim_runs.jl --regularization helmholtz --filter_radius 0.02 --projection true
 ```
 
 The same option names are keywords of `run_optimization`. Helmholtz uses an
 explicit design update with elliptic forward/adjoint solves; requesting its
-`implicit` update is an error. Zero substeps selects `max(1, 4*ceil(8*beta0/eta0))`
+`implicit` update is an error, as for `local_lambda`. Zero substeps selects `max(1, 4*ceil(8*beta0/eta0))`
 explicit gradient substeps (eight at the defaults; one step for implicit) and one
 Helmholtz design step.
 Explicit gradient updates additionally satisfy the current TPFA diffusion CFL
@@ -120,6 +122,36 @@ eta0 * dchi_i/dt = (q_i/s - lambda - gamma_i) / b_i - (K chi)_i / volume_i
 - The volume multiplier is divided by `b_i` as well: the projection uses
   `chi_i = clamp(y_i - shift*w_i, lower, 1)` with `w_i = 1/b_i` (explicit) or
   `(M + dt/eta0*K) w = M/b` (semi-implicit, one extra CG solve per substep).
+
+### local_lambda
+
+`local_lambda` replaces the mean floor 1 of `local_max` by the current normalized
+volume multiplier `l` (the `lambda` of the equations above; diagnostics report `s*l`):
+
+```text
+b_i(l) = max(m_i, abs(l), 1e-12)/2          (1e-12 = LOCAL_LAMBDA_GUARD, guards 0/0 only)
+chi_i  = clamp(chi_i + a*((q_i/s - l)/b_i(l) - (K chi)_i/volume_i), lower, 1),   a = dt/eta0
+```
+
+- Because `b_i` depends on `l`, the multiplier is the fixed point of boost and
+  volume constraint: `project_volume_floored!` re-evaluates `b_i(l)` inside a
+  bisection on `l`. For `q >= 0` the volume is continuous and decreasing in `l >= 0`,
+  but the pull toward void saturates at `2a`, so the bracket is grown from `l = 0` by
+  doubling in the direction of the volume excess. The final boost `max(m_i, abs(l))/2`
+  is stored as `beta_boost`.
+- For `q >= 0` and `l >= 0` the normalized force satisfies
+  `abs((q_i/s - l)/b_i) <= 2` in every cell and both directions, so one step moves a
+  cell by at most `2a` plus diffusion. Cells whose force and face neighbors' forces
+  are below `abs(l)` carry `b_i = abs(l)/2`.
+- `s` cancels from the update, `(q_i/s - l)/b_i = 2*(q_i - s*l)/max(max_j abs(q_j), abs(s*l))`
+  (j = i and face neighbors). Diffusion keeps the baseline operator, so the CFL limit
+  is that of `mean`; a capped explicit step that runs past it can make the volume
+  target unreachable, which is an error here.
+- With signed forces (`q_i < 0`, e.g. the projection pullback) or `l < 0` the bound
+  is 4 and monotonicity is not guaranteed; the bisection keeps a sign change and
+  stops with an error if a step cannot reach the volume target.
+- Only the explicit update is available, because the boost needs the multiplier of
+  the current step.
 
 Here `q` is the physical force pulled back through projection, and `s` is its
 volume/grayness-weighted mean magnitude with binary and zero-force safeguards.

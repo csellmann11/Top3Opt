@@ -86,7 +86,9 @@ function evolve_gradient_design!(chi,physical,p,refresh!::F,cache,work::W,settin
         if last_substep
             cfl_excess > 1+1e-12 && println("[density] explicit update capped at ",
                 options.max_substeps," substeps; step is ",round(cfl_excess,sigdigits=3),
-                "x the stability limit (use update_mode=implicit to avoid this)")
+                "x the stability limit (",options.regularization == :local_lambda ?
+                "raise max_substeps or eta0; local_lambda is explicit only" :
+                "use update_mode=implicit to avoid this",")")
             return (changed=cache.changed,records=work.records)
         end
     end
@@ -95,7 +97,7 @@ end
 
 function validate_gradient_update(chi,physical,p,cache,options,eta0,lower,legacy_substeps,projection)
     validate_density_options(options,eta0,legacy_substeps)
-    options.regularization in (:mean,:local_max) ||
+    options.regularization in (:mean,:local_max,:local_lambda) ||
         throw(ArgumentError("Helmholtz requires a persistent design and HelmholtzCache"))
     length(chi) == length(physical) == length(p) == length(cache.faces.area) ||
         throw(DimensionMismatch("Density vectors"))
@@ -143,14 +145,20 @@ function gradient_substep!(chi,physical,p,refresh!::F,cache,work,settings,subste
         copyto!(cache.trial,cache.old)
         trial = (system_updated=false,system_seconds=0.0,solve_seconds=0.0)
         weights = nothing
+        floored = false
     else
         dt,rate = gradient_step_size(cache,options,eta0,nominal_dt,elapsed,substep)
         trial = gradient_trial!(cache,work.driving,scale.value,dt,eta0,options)
-        weights = volume_response!(cache,options)
+        # `:local_lambda` (explicit only) puts the current |lambda| into the boost.
+        floored = options.regularization == :local_lambda
+        weights = floored ? nothing : volume_response!(cache,options)
     end
     timer = diagnostic_timer(options)
-    projection = project_volume!(chi,cache.trial,cache.faces.area,rho,lower;
-        tolerance=options.volume_tolerance,weights)
+    projection = floored ?
+        project_volume_floored!(chi,cache,work.driving,scale.value,dt/eta0,rho,lower;
+            tolerance=options.volume_tolerance) :
+        project_volume!(chi,cache.trial,cache.faces.area,rho,lower;
+            tolerance=options.volume_tolerance,weights)
     projection_apply!(physical,density_projection,chi)
     projection_seconds = diagnostic_seconds(options,timer)
     mark_physical_activity!(cache.changed,physical,cache.activity_reference,options)
