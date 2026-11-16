@@ -6,6 +6,21 @@ allowed_update(scaling,integrator) = !(scaling == :local_lambda && integrator ==
 """Force of a quadratic objective per cell, p = f0 - k*(x - xstar) (positive = grow)."""
 quadratic_force(f0,k,xstar) = (p,x) -> (@. p = f0-k*(x-xstar))
 
+"""Reference of the neighborhood secant for a step dx and a force change dp: the
+clamped fit over the cell and its face neighbors (once per shared face)."""
+function neighborhood_secant(faces,dx,dp)
+    A = faces.area
+    num = A .* max.(.-dp.*dx,0.0)
+    den = A .* dx.^2
+    N, M = copy(num), copy(den)
+    for f in eachindex(faces.left)
+        i,j = faces.left[f],faces.right[f]
+        N[i] += num[j]; M[i] += den[j]
+        N[j] += num[i]; M[j] += den[i]
+    end
+    return [M[i] > A[i]*1e-24 ? N[i]/M[i] : 0.0 for i in eachindex(dx)]
+end
+
 """Move-limit box of the specification, built independently of `move_box!`."""
 function reference_box(old,lower,limit,p)
     lo = [min(max(lower,max(x^p-limit,0.0)^(1/p)),x) for x in old]
@@ -117,7 +132,8 @@ end
         x = copy(x0)
         advance_density!(x,zeros(5),p -> refresh!(p,x),cache;options,eta0,rho,lower)
         x1 = copy(x)
-        # Second entry: secant curvature D = EMA(max(-dp/dx,0)) = k/2 (exact for a quadratic).
+        # Second entry: D = EMA of the neighborhood secant, half the first measurement.
+        Dexpected = neighborhood_secant(faces,x1.-x0,.-k.*(x1.-x0))./2
         p1 = refresh!(zeros(5),x1)
         q_scale = driving_scale(x1,p1,faces.area,lower).value
         frozen = DensityCache(faces,0.02)
@@ -125,7 +141,7 @@ end
         boost = frozen.beta_relative
         result = advance_density!(x,zeros(5),p -> refresh!(p,x),cache;options,eta0,rho,lower)
         D = cache.damping
-        @test D ≈ k/2 rtol=1e-12
+        @test D ≈ Dexpected rtol=1e-12
         @test cache.damping_active
         K = diffusion_matrix(faces,fill(0.02,5))
         q = p1/q_scale
@@ -152,8 +168,43 @@ end
         end
         @test x ≈ expected atol=2e-10
         @test dot(faces.area,x)/sum(faces.area) ≈ rho atol=2e-10
-        @test only(result.records).damping_max ≈ maximum(k)/2
+        @test only(result.records).damping_max ≈ maximum(Dexpected)
     end
+end
+
+@testset "The secant is a clamped fit over the face neighborhood" begin
+    faces = kernel_faces()                   # faces (1,2) twice, (2,3), (3,4); cell 5 isolated
+    A = faces.area
+    previous = [0.2,0.4,0.6,0.3,0.5]
+    x = [0.25,0.35,0.6,0.4,0.45]             # cell 3 did not move
+    k = [3.0,40.0,8.0,1.0,6.0]
+    dx = x .- previous
+    cache = DensityCache(faces,0.02)
+    update_secant_damping!(cache,previous,zeros(5))
+    @test cache.secant_valid && !cache.damping_active && all(iszero,cache.damping)
+    update_secant_damping!(cache,x,.-k.*dx)
+    measured = 2 .* cache.damping
+    @test measured ≈ neighborhood_secant(faces,dx,.-k.*dx)
+    @test measured[5] ≈ k[5]                 # no neighbor: its own secant
+    @test measured[3] ≈ (A[2]*k[2]*dx[2]^2+A[4]*k[4]*dx[4]^2)/(A[2]*dx[2]^2+A[4]*dx[4]^2)
+    @test measured[1] ≈ (A[1]*k[1]*dx[1]^2+2A[2]*k[2]*dx[2]^2)/(A[1]*dx[1]^2+2A[2]*dx[2]^2)
+    for i in 1:5                             # a weighted mean of the stencil's curvatures
+        N = i == 5 ? [5] : i == 1 ? [1,2] : i == 4 ? [3,4] : [i-1,i,i+1]
+        @test minimum(k[N]) - 1e-12 <= measured[i] <= maximum(k[N]) + 1e-12
+    end
+    # Each term is clamped before the sum: cell 2's force rises with its step and
+    # does not cancel the damping of cells 1 and 3.
+    reset_secant!(cache)
+    dp = .-k.*dx; dp[2] = 50.0*dx[2]
+    update_secant_damping!(cache,previous,zeros(5)); update_secant_damping!(cache,x,dp)
+    measured = 2 .* cache.damping
+    @test measured[1] ≈ A[1]*k[1]*dx[1]^2/(A[1]*dx[1]^2+2A[2]*dx[2]^2)
+    @test measured[2] > 0 && measured[3] ≈ A[4]*k[4]*dx[4]^2/(A[2]*dx[2]^2+A[4]*dx[4]^2)
+    @test -(A[1]*dp[1]*dx[1]+2A[2]*dp[2]*dx[2])/(A[1]*dx[1]^2+2A[2]*dx[2]^2) < 0  # plain fit: clipped
+    # A force that grows with the step everywhere measures nothing.
+    reset_secant!(cache)
+    update_secant_damping!(cache,previous,zeros(5)); update_secant_damping!(cache,x,dx)
+    @test all(iszero,cache.damping) && !cache.damping_active
 end
 
 @testset "Damping uses the full outer step, not the substep length" begin
@@ -179,7 +230,7 @@ end
         result = advance_density!(x,zeros(5),frozen!,cache;options,eta0,rho,lower)
         D = cache.damping
         @test cache.damping_active
-        @test D ≈ k/2 rtol=1e-12
+        @test D ≈ neighborhood_secant(faces,x1.-x0,.-k.*(x1.-x0))./2 rtol=1e-12
         function replay(T)
             y,trial = copy(x1),similar(x1)
             clipped = 0

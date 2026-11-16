@@ -148,20 +148,34 @@ function update_coefficients!(cache::DensityCache, p, scale, options)
     return true
 end
 
-"""Smallest design change |x^k - x^(k-1)| that defines a secant curvature."""
+"""Smallest rms design change |x^k - x^(k-1)| of a neighborhood that defines a secant curvature."""
 const SECANT_MIN_STEP = 1e-12
 
 """Secant reaction damping (`diag`): update the measured curvature at an outer entry.
 
 With the design x and the design driving force p (positive = wants to grow,
 after the projection pullback) at the entries k-1 and k of two consecutive
-outer iterations,
+outer iterations, dx = x^k - x^(k-1), dp = p^k - p^(k-1), and N_i the cell i
+and its face neighbors,
 
-    D_new,i = max(-(p_i^k - p_i^(k-1))/(x_i^k - x_i^(k-1)), 0)   (0 if |dx_i| <= 1e-12),
+    D_new,i = sum_{j in N_i} A_j*max(-dp_j*dx_j, 0) / sum_{j in N_i} A_j*dx_j^2
+              (0 if sum_{j in N_i} A_j*dx_j^2 <= A_i*1e-24),
     D_i    <- D_new,i/2 + D_i/2                                  (all cells),
 
-with D = 0 without history. D_i >= 0 estimates how fast the force of cell i
-falls when it grows. It enters as an additional per-cell viscosity over the full
+with D = 0 without history. Without the inner clamp D_new is the least-squares
+solution of the secant equation D*dx_j = -dp_j over N_i, the curvature along the
+step measured on the neighborhood. A per-cell secant -dp_i/dx_i also contains
+the neighbors' influence on p_i and is unbounded for a cell that barely moved;
+neighboring cells then get very different viscosities and a smooth force
+produces a cell-scale pattern. The weights dx_j^2 give a cell that dominates
+the movement of its neighborhood its own secant, and a cell that barely moved
+the one of its neighbors. Each term is clamped at zero before the sum: damping
+is only meant for a force that falls as the cell grows, and a cell whose force
+rises with its step would otherwise cancel the damping of its neighborhood.
+A neighbor sharing several faces with cell i counts once per face.
+
+D_i >= 0 estimates how fast the force falls when the neighborhood of cell i
+grows. It enters as an additional per-cell viscosity over the full
 outer step T = 1: the viscosity eta*b_i becomes eta*b_i + D_i/s (s the force
 scale, q = p/s), i.e. with r_i = D_i/(s*eta*b_i)
 
@@ -184,9 +198,28 @@ function update_secant_damping!(cache::DensityCache,x,p)
     active = false
     if cache.secant_valid
         D, x0, p0 = cache.damping, cache.secant_design, cache.secant_force
-        @inbounds for i in eachindex(x,p)
+        # Secant over the cell and its face neighbors: numerator
+        # sum A_j*max(-dp_j*dx_j,0), denominator sum A_j*dx_j^2. Both buffers are
+        # free until the trial of this substep.
+        faces, numerator, denominator = cache.faces, cache.trial, cache.rhs
+        area = faces.area
+        @inbounds for i in eachindex(x,p,x0,p0,numerator,denominator)
             dx = x[i]-x0[i]
-            measured = abs(dx) > SECANT_MIN_STEP ? max(-(p[i]-p0[i])/dx,0.0) : 0.0
+            numerator[i] = area[i]*max(-(p[i]-p0[i])*dx,0.0)
+            denominator[i] = area[i]*dx*dx
+        end
+        # Each face once, both directions; x0/p0 still hold the previous entry.
+        @inbounds for f in eachindex(faces.left)
+            i, j = faces.left[f], faces.right[f]
+            dxi, dxj = x[i]-x0[i], x[j]-x0[j]
+            ni = area[i]*max(-(p[i]-p0[i])*dxi,0.0)
+            nj = area[j]*max(-(p[j]-p0[j])*dxj,0.0)
+            numerator[i] += nj; denominator[i] += area[j]*dxj*dxj
+            numerator[j] += ni; denominator[j] += area[i]*dxi*dxi
+        end
+        @inbounds for i in eachindex(D,numerator,denominator)
+            moved = denominator[i] > area[i]*SECANT_MIN_STEP^2
+            measured = moved ? numerator[i]/denominator[i] : 0.0
             D[i] = 0.5measured+0.5D[i]
             active |= D[i] > 0
         end
