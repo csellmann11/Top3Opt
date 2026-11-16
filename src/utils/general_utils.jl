@@ -6,8 +6,10 @@ function def_rhs_fun(x)
 end
 pu3d_body_iszero(::typeof(def_rhs_fun)) = true
 
-function parse_commandline(argv=ARGS)
-    s = ArgParseSettings()
+"""Parse the driver options. Removed names (`--update_mode`, `--regularization
+mean|local_max|local_lambda`) are rejected; `exc_handler` lets tests catch errors."""
+function parse_commandline(argv=ARGS;exc_handler=ArgParse.default_handler)
+    s = ArgParseSettings(;exc_handler)
     @add_arg_table! s begin
         "--max_opt_steps","-s"
             help = "Maximum number of optimization steps"
@@ -55,15 +57,26 @@ function parse_commandline(argv=ARGS)
             default = :tpfa
             range_tester = x -> x == :tpfa
         "--regularization"
-            help = "Density regularization: mean, local_max, local_lambda (explicit only), or helmholtz"
+            help = "Density regularization: gradient (gradient penalty) or helmholtz (filter)"
+            arg_type = Symbol
+            default = :gradient
+        "--scaling"
+            help = "Gradient-penalty boost: mean, local_max, or local_lambda (explicit only)"
             arg_type = Symbol
             default = :mean
-            range_tester = x -> x in (:mean, :local_max, :local_lambda, :helmholtz)
-        "--update_mode"
-            help = "Density update: explicit or implicit (implicit is available for mean and local_max only)"
+        "--integrator"
+            help = "Density update: explicit (automatic CFL substeps) or semi_implicit (gradient penalty only)"
             arg_type = Symbol
             default = :explicit
-            range_tester = x -> x in (:explicit, :implicit)
+        "--diag"
+            help = "Secant reaction damping of the gradient-penalty update"
+            arg_type = Bool
+            default = false
+        "--move_limit"
+            help = "Largest SIMP-scaled design change max|x^3 - x_old^3| per optimization step; Inf disables it"
+            arg_type = Float64
+            default = Inf
+            range_tester = x -> x > 0
         "--projection"
             help = "Enable volume-preserving smooth projection with automatic continuation"
             arg_type = Bool
@@ -112,10 +125,23 @@ function parse_commandline(argv=ARGS)
         throw(ArgumentError("error_estimator must be sdwr or pu_dwr"))
     isfinite(args["pu_marking_exponent"]) && args["pu_marking_exponent"] >= 0 ||
         throw(ArgumentError("pu_marking_exponent must be finite and nonnegative"))
-    args["regularization"] == :helmholtz && args["update_mode"] != :explicit &&
-        throw(ArgumentError("Helmholtz uses an explicit design update; choose --update_mode explicit"))
-    args["regularization"] == :local_lambda && args["update_mode"] != :explicit &&
-        throw(ArgumentError("local_lambda needs the current multiplier in the boost; choose --update_mode explicit"))
+    regularization,scaling,integrator = args["regularization"],args["scaling"],args["integrator"]
+    regularization in (:mean,:local_max,:local_lambda) && throw(ArgumentError(
+        "--regularization $regularization was removed; use --regularization gradient --scaling $regularization"))
+    regularization in (:gradient,:helmholtz) ||
+        throw(ArgumentError("regularization must be gradient or helmholtz"))
+    scaling in (:mean,:local_max,:local_lambda) ||
+        throw(ArgumentError("scaling must be mean, local_max, or local_lambda"))
+    integrator in (:explicit,:semi_implicit) ||
+        throw(ArgumentError("integrator must be explicit or semi_implicit"))
+    scaling == :local_lambda && integrator != :explicit &&
+        throw(ArgumentError("local_lambda needs the current multiplier in the boost; choose --integrator explicit"))
+    if regularization == :helmholtz
+        integrator == :explicit ||
+            throw(ArgumentError("Helmholtz uses an explicit design update; choose --integrator explicit"))
+        scaling == :mean || throw(ArgumentError("Helmholtz has no local boost; choose --scaling mean"))
+        args["diag"] && throw(ArgumentError("--diag applies to the gradient penalty only"))
+    end
     return args
 end
 

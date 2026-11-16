@@ -13,7 +13,7 @@ end
 function diagnostic_record!(work,cache,chi,p,scale,projection,options;
         eta0,rho,lower,substep,dt,elapsed,rate,system_updated,start_time,
         coefficient_seconds,system_seconds,solve_seconds,projection_seconds,
-        physical=chi,physical_driving=p,density_projection=nothing)
+        physical=chi,physical_driving=p,density_projection=nothing,eta_increases=0)
     area, old = cache.faces.area, cache.old
     a, s = dt/eta0, scale.value
     linear_residual = gradient_linear_residual!(work,cache,chi,a,options)
@@ -26,7 +26,9 @@ function diagnostic_record!(work,cache,chi,p,scale,projection,options;
     return (substep=substep,dt=dt,pseudo_time=elapsed+dt,density_projection_metadata(density_projection)...,
         p_avg=s,p_avg_raw=scale.raw,p_max=pmax,peak_to_mean=pmax/s,
         scale_fallback=scale.fallback,scale_floored=scale.floored,gray_weight=scale.gray_weight,
-        eta=eta0*s,beta_min=beta_min,beta_max=beta_max,
+        eta=eta0*s,eta_increases=eta_increases,
+        damping_max=cache.damping_active ? maximum(cache.damping) : 0.0,
+        beta_min=beta_min,beta_max=beta_max,
         beta_boost_max=maximum(cache.beta_relative),beta_boost_mean=boost_mean/total,
         boosted_area_fraction=boosted/total,normalized_drive_max=normalized_max,
         volume_error=dot(area,physical)/total-rho,design_volume_error=projection.error,
@@ -62,7 +64,7 @@ end
 function filter_record!(work,cache,design,chi,p,scale,projection,options;
         eta0,rho,lower,substep,dt,adjoint_iterations,forward_iterations,
         adjoint_seconds,forward_seconds,projection_seconds,start_time,
-        filtered=chi,filtered_driving=p,density_projection=nothing)
+        filtered=chi,filtered_driving=p,density_projection=nothing,eta_increases=0)
     area, old = cache.faces.area, cache.old
     adjoint_residual = filter_residual!(work.product,cache,cache.q,filtered_driving)
     forward_residual = filter_residual!(work.product,cache,filtered,design)
@@ -75,7 +77,7 @@ function filter_record!(work,cache,design,chi,p,scale,projection,options;
     return (substep=substep,dt=dt,pseudo_time=substep*dt,density_projection_metadata(density_projection)...,
         p_avg=scale.value,p_avg_raw=scale.raw,p_max=pmax,peak_to_mean=pmax/scale.value,
         scale_fallback=scale.fallback,scale_floored=scale.floored,gray_weight=scale.gray_weight,
-        eta=eta0*scale.value,radius_min=sqrt(minimum(cache.radius2)),radius_max=sqrt(maximum(cache.radius2)),
+        eta=eta0*scale.value,eta_increases=eta_increases,radius_min=sqrt(minimum(cache.radius2)),radius_max=sqrt(maximum(cache.radius2)),
         volume_error=dot(area,chi)/total-rho,design_volume_error=projection.error,
         filter_volume_defect=dot(area,filtered)/total-dot(area,design)/total,
         projection_volume_defect=dot(area,chi)/total-dot(area,filtered)/total,
@@ -101,7 +103,8 @@ function gradient_linear_residual!(work,cache,chi,a,options)
         mul!(work.trial,cache.stiffness,cache.trial)
         rhs_norm = 0.0
         for i in eachindex(chi)
-            linear_residual = max(linear_residual,abs(area[i]*cache.trial[i]+a*work.trial[i]-cache.rhs[i]))
+            mass = cache.damping_active ? area[i]*(1+cache.damping_ratio[i]) : area[i]
+            linear_residual = max(linear_residual,abs(mass*cache.trial[i]+a*work.trial[i]-cache.rhs[i]))
             rhs_norm = max(rhs_norm,abs(cache.rhs[i]))
         end
         linear_residual /= max(rhs_norm,eps(Float64))
@@ -120,9 +123,16 @@ function gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options)
     if options.integrator == :semi_implicit
         # Fully implicit constrained step; reg_after carries b, so dividing by b
         # leaves baseline diffusion and the boosted-down force and multiplier.
+        # Secant damping multiplies the viscosity of a cell by 1+r.
         boost = cache.beta_relative
-        @. work.trial = old+(a/boost)*(p/s+work.reg_after)
-        weights = all(isone,boost) ? nothing : (@. work.weights = 1/boost)
+        if cache.damping_active
+            r = cache.damping_ratio
+            @. work.trial = old+(a/(boost*(1+r)))*(p/s+work.reg_after)
+            weights = @. work.weights = 1/(boost*(1+r))
+        else
+            @. work.trial = old+(a/boost)*(p/s+work.reg_after)
+            weights = all(isone,boost) ? nothing : (@. work.weights = 1/boost)
+        end
         project_volume!(work.projected,work.trial,area,rho,lower;
             tolerance=options.volume_tolerance,weights)
         split_defect = maximum(i -> abs(work.projected[i]-chi[i]),eachindex(chi))

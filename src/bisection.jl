@@ -58,6 +58,7 @@ function compute_strain_energy(dh,eldata_col,u,states,sim_pars)
 end
 
 """Build on mesh changes only. Helmholtz retains its work arrays across remeshing.
+A new gradient cache starts without secant damping history.
 
 All regularizations share the per-cell coefficient 2*beta0*h_i^2: the gradient
 penalties use it as beta_i, Helmholtz as r²_i. A positive `radius` overrides
@@ -85,7 +86,11 @@ function map_design!(states,cache::HelmholtzCache,projection,options)
     return nothing
 end
 
-"""Advance design with reusable force/energy buffers and return physical activity."""
+"""Advance design with reusable force/energy buffers.
+
+Returns the update result: the physical activity mask `changed` and the
+move-limit counters `eta_increases` and `eta_factor` (largest eta/eta0).
+"""
 function state_update!(states::DesignVarInfo,cv::CellValues,pars::SimPars,
         cache,u,eldata_col;options=DensityOptions(),density_projection=nothing,
         workspace=DensityMechanicalWorkspace(length(states.χ_vec)))
@@ -101,13 +106,16 @@ function state_update!(states::DesignVarInfo,cv::CellValues,pars::SimPars,
             options,eta0=pars.η0,rho=pars.ρ_init,lower=pars.χmin,legacy_substeps,
             physical=states.χ_vec,density_projection)
     end
-    return result.changed
+    return result
 end
 
-"""Prepare the next projection strength, remap, and include continuation in activity."""
+"""Prepare the next projection strength, remap, and include continuation in activity.
+A beta step changes the design-to-force map, so the secant damping history is reset.
+"""
 function advance_projection!(states,cache,projection,options,objective;allow_advance=true)
     changed = projection_advance!(projection,objective;allow_advance)
     if changed
+        reset_secant!(cache)
         # Continuation changes only the scalar projection, not the filter input.
         input = cache isa HelmholtzCache ? cache.filtered : states.design_vec
         projection_apply!(states.χ_vec,projection,input)

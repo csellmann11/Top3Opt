@@ -26,8 +26,11 @@ end
     number_of_states ::Vector{Int} = Int[]
     number_of_dofs   ::Vector{Int} = Int[]
 
-    regularization   ::Symbol = :mean
-    update_mode      ::Symbol = :explicit
+    regularization   ::Symbol = :gradient
+    scaling          ::Symbol = :mean
+    integrator       ::Symbol = :explicit
+    diag             ::Bool = false
+    move_limit       ::Float64 = Inf
     filter_radius    ::Float64 = 0.0
     error_estimator  ::Symbol = :sdwr
     pu_marking_exponent::Float64 = 1.0

@@ -175,11 +175,11 @@ end
 end
 
 @testset "density projection — adaptive continuation" begin
-    function fresh()
+    function fresh(;advance_on_stall=true)
         # Fix the policy parameters for these analytic expectations. Production
         # defaults may be tuned without changing the continuation equation.
         options = DensityProjectionOptions(enabled=true,beta_initial=1.0,
-            growth_factor=5e-4,max_growth_rate=0.3)
+            growth_factor=5e-4,max_growth_rate=0.3,advance_on_stall=advance_on_stall)
         p = DensityProjection(options,ones(4))
         projection_apply!(zeros(4), p, [0.15, 0.35, 0.6, 0.9])
         @test p.grayness > 0.01
@@ -197,7 +197,17 @@ end
     @test projection_advance!(p, -101.0)
     @test p.beta ≈ 1.0 + 5e-4 * 100.5
 
+    # A worse objective of an unconverged projection is stalled progress: by default
+    # beta advances by the same rule with |improvement|; advance_on_stall=false holds it.
     p = fresh()
+    projection_advance!(p, 100.0)
+    @test projection_advance!(p, 101.0)
+    @test p.beta ≈ 1.0 + 5e-4 * 100.5
+    p = fresh()
+    projection_advance!(p, 100.0)
+    @test projection_advance!(p, 100.0 + 1e-8)
+    @test p.beta ≈ 1.3
+    p = fresh(advance_on_stall=false)
     projection_advance!(p, 100.0)
     @test !projection_advance!(p, 101.0)
     @test p.beta == 1.0
@@ -239,6 +249,9 @@ end
     projection_advance!(p, 1.0)
     projection_apply!(zeros(4), p, [0.0, 0.0, 1.0, 1.0])
     @test !projection_advance!(p, 0.99999)
+    @test p.beta == 1.0
+    # A converged projection holds beta also on a worse objective.
+    @test !projection_advance!(p, 1.5)
     @test p.beta == 1.0
 end
 

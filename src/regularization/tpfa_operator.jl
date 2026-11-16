@@ -18,7 +18,8 @@ function DensityCache(faces::TPFAFaces, beta0::Union{Real,AbstractVector})
     face_indices = [(stored_index(K,faces.left[f],faces.right[f]),
         stored_index(K,faces.right[f],faces.left[f])) for f in 1:nf]
     return DensityCache(faces,b,ones(n),K,diagonal_indices,face_indices,
-        nothing,Diagonal(Float64[]),nothing,true,NaN,NaN,
+        nothing,Diagonal(Float64[]),nothing,true,NaN,NaN,false,
+        Float64[],Float64[],Float64[],Float64[],false,false,
         zeros(n),zeros(n),zeros(n),zeros(n),Float64[],zeros(n),falses(n),nothing,(;))
 end
 
@@ -85,7 +86,7 @@ const LOCAL_MAX_BOOST_SCALE = 0.5
 """Normalized boost floor of `:local_lambda`; only guards a zero force against zero."""
 const LOCAL_LAMBDA_GUARD = 1e-12
 
-"""Freeze the local boost for one density substep.
+"""Freeze the local boost for one density substep (`options.scaling`).
 
 For `:local_max`, with the mean force `scale`,
 
@@ -125,8 +126,8 @@ The trial buffer is free until the subsequent density solve/projection.
 """
 function update_coefficients!(cache::DensityCache, p, scale, options)
     relative, candidate = cache.beta_relative, cache.trial
-    if options.regularization in (:local_max,:local_lambda)
-        floor = options.regularization == :local_max ? 1.0 : LOCAL_LAMBDA_GUARD
+    if options.scaling in (:local_max,:local_lambda)
+        floor = options.scaling == :local_max ? 1.0 : LOCAL_LAMBDA_GUARD
         for i in eachindex(p)
             candidate[i] = max(floor,abs(p[i])/scale)
         end
@@ -147,12 +148,82 @@ function update_coefficients!(cache::DensityCache, p, scale, options)
     return true
 end
 
+"""Smallest design change |x^k - x^(k-1)| that defines a secant curvature."""
+const SECANT_MIN_STEP = 1e-12
+
+"""Secant reaction damping (`diag`): update the measured curvature at an outer entry.
+
+With the design x and the design driving force p (positive = wants to grow,
+after the projection pullback) at the entries k-1 and k of two consecutive
+outer iterations,
+
+    D_new,i = max(-(p_i^k - p_i^(k-1))/(x_i^k - x_i^(k-1)), 0)   (0 if |dx_i| <= 1e-12),
+    D_i    <- D_new,i/2 + D_i/2                                  (all cells),
+
+with D = 0 without history. D_i >= 0 estimates how fast the force of cell i
+falls when it grows. It enters as an additional per-cell viscosity over the full
+outer step T = 1: the viscosity eta*b_i becomes eta*b_i + D_i/s (s the force
+scale, q = p/s), i.e. with r_i = D_i/(s*eta*b_i)
+
+    eta*b_i*(1 + r_i) * dx_i/dt = q_i - lambda - b_i*(K x)_i/area_i.
+
+T, not the substep length, multiplies D because the force is frozen over the
+sweep; the substep length would dilute the damping to D/n. A cell that would
+overshoot a quadratic force maximum (two-cycle for dt*k/eta > 2) is thereby
+moved by the secant (Newton) step at most. The right-hand side is unchanged, so
+stationary points depend neither on D nor on eta.
+"""
+function update_secant_damping!(cache::DensityCache,x,p)
+    n = length(x)
+    if length(cache.damping) != n
+        for v in (cache.damping,cache.damping_ratio,cache.secant_design,cache.secant_force)
+            resize!(v,n)
+        end
+        cache.secant_valid = false
+    end
+    active = false
+    if cache.secant_valid
+        D, x0, p0 = cache.damping, cache.secant_design, cache.secant_force
+        @inbounds for i in eachindex(x,p)
+            dx = x[i]-x0[i]
+            measured = abs(dx) > SECANT_MIN_STEP ? max(-(p[i]-p0[i])/dx,0.0) : 0.0
+            D[i] = 0.5measured+0.5D[i]
+            active |= D[i] > 0
+        end
+    else
+        fill!(cache.damping,0.0)
+    end
+    copyto!(cache.secant_design,x)
+    copyto!(cache.secant_force,p)
+    cache.secant_valid, cache.damping_active = true, active
+    return cache
+end
+
+"""Forget the secant history (projection beta step); D = 0 until two new entries."""
+function reset_secant!(cache::DensityCache)
+    fill!(cache.damping,0.0)
+    cache.secant_valid = cache.damping_active = false
+    return cache
+end
+reset_secant!(cache) = cache
+
+"""Per-cell damping ratio r_i = D_i/(s*eta*b_i) of the current substep."""
+damping_ratio!(cache::DensityCache,scale,eta) =
+    (@. cache.damping_ratio = cache.damping/(scale*eta*cache.beta_relative); cache.damping_ratio)
+
 """Refresh M+(dt/eta0)K and its Jacobi preconditioner only when needed.
 CG uses a reusable workspace, avoiding fill-in from a 3D sparse factorization.
 The extra matrix and solver vectors are created only for an implicit update.
+
+With active secant damping the mass term carries the per-cell viscosity,
+M*diag(1+r) + (dt/eta0)K with r = `cache.damping_ratio`; r depends on the
+substep's scale, boost and eta, so this system is rebuilt on every call, and
+once more on the first undamped call afterwards.
 """
 function prepare_density_system!(cache::DensityCache, dt, eta0)
-    if cache.system_dirty || cache.system_dt != dt || cache.system_eta0 != eta0
+    damped = cache.damping_active
+    if cache.system_dirty || cache.system_dt != dt || cache.system_eta0 != eta0 ||
+            damped || cache.system_damped
         if cache.system === nothing
             cache.system = copy(cache.stiffness)
             n = length(cache.faces.area)
@@ -167,11 +238,12 @@ function prepare_density_system!(cache::DensityCache, dt, eta0)
             values[k] = a*kvals[k]
         end
         for i in eachindex(cache.faces.area)
-            values[cache.diagonal_indices[i]] += cache.faces.area[i]
+            mass = damped ? cache.faces.area[i]*(1+cache.damping_ratio[i]) : cache.faces.area[i]
+            values[cache.diagonal_indices[i]] += mass
             cache.preconditioner.diag[i] = inv(values[cache.diagonal_indices[i]])
         end
         cache.system_dt, cache.system_eta0 = dt, eta0
-        cache.system_dirty = false
+        cache.system_dirty, cache.system_damped = false, damped
         return true
     end
     return false
@@ -193,11 +265,13 @@ A uniform multiplier lambda moves cell i by -lambda*w_i. Without a boost w = 1
 (`nothing`), the plain uniform shift. With the boost the explicit response is
 w_i = 1/b_i; the semi-implicit one is the diffusion solve of that load,
 (M + dt/eta0*K) w = M/b, so the multiplier stays uniform in the solved equation.
+With secant damping the viscosity eta0*b_i*(1+r_i) gives w_i = 1/(b_i*(1+r_i))
+explicitly and (M*diag(1+r) + dt/eta0*K) w = M/b semi-implicitly.
 The implicit system must already be prepared for the current substep.
 """
 function volume_response!(cache::DensityCache,options)
-    relative = cache.beta_relative
-    all(isone,relative) && return nothing
+    relative, damped = cache.beta_relative, cache.damping_active
+    !damped && all(isone,relative) && return nothing
     weights = cache.volume_weight
     if options.integrator == :semi_implicit
         @. weights = cache.faces.area/relative
@@ -206,6 +280,8 @@ function volume_response!(cache::DensityCache,options)
             rtol=options.implicit_tolerance,itmax=options.implicit_max_iterations,history=false)
         solver.stats.solved || error("Implicit volume-response solve failed: $(solver.stats.status)")
         copyto!(weights,solver.x)
+    elseif damped
+        @. weights = 1/(relative*(1+cache.damping_ratio))
     else
         @. weights = 1/relative
     end

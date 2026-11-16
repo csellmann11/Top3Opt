@@ -12,12 +12,14 @@ does not expect a `ToOpt3` package module.
 
 | Option | Meaning | Default |
 | --- | --- | --- |
-| `--regularization mean` | Gradient penalty with mean-force scaling | `mean` |
-| `--regularization local_max` | Gradient penalty with direct-neighbor sensitivity boost | |
-| `--regularization local_lambda` | `local_max` without the mean floor, current `abs(lambda)` in the boost (explicit only) | |
-| `--regularization helmholtz` | Forward/adjoint Helmholtz filter | |
+| `--regularization gradient` / `helmholtz` | Gradient penalty or forward/adjoint Helmholtz filter | `gradient` |
+| `--scaling mean` | Gradient penalty with mean-force scaling (boost `b_i = 1`) | `mean` |
+| `--scaling local_max` | Direct-neighbor sensitivity boost | |
+| `--scaling local_lambda` | `local_max` without the mean floor, current `abs(lambda)` in the boost (explicit only) | |
+| `--integrator explicit` / `semi_implicit` | Explicit (automatic CFL substeps) or semi-implicit gradient-penalty update | `explicit` |
+| `--diag true` | Secant reaction damping of the gradient penalty | `false` |
+| `--move_limit` | Largest `max|x³ - x_old³|` per optimization step, all updates | `Inf` |
 | `--projection true` | Smooth volume-preserving projection and automatic continuation | `false` |
-| `--update_mode explicit` / `implicit` | Explicit or semi-implicit gradient-penalty update | `explicit` |
 | `--beta0` | Regularization strength; per-cell coefficient `2*beta0*h_i²` with `h_i = cbrt(cell volume)` | `3.0` |
 | `--eta0` | Viscosity of the density update | `15.0` |
 | `--filter_radius` | Uniform Helmholtz radius override; zero uses r²_i = 2·β0·h_i², the same coefficient as the gradient penalties | `0.0` |
@@ -32,15 +34,21 @@ no-op so existing TPFA cluster scripts continue to work.
 Run from the repository root, for example:
 
 ```text
-julia --project=. src/main_optim_runs.jl --regularization mean --projection true
-julia --project=. src/main_optim_runs.jl --regularization local_max --update_mode implicit --projection true
-julia --project=. src/main_optim_runs.jl --regularization local_lambda --update_mode explicit --projection true
+julia --project=. src/main_optim_runs.jl --scaling mean --projection true
+julia --project=. src/main_optim_runs.jl --scaling local_max --integrator semi_implicit --diag true --projection true
+julia --project=. src/main_optim_runs.jl --scaling local_lambda --integrator explicit --move_limit 0.1 --projection true
 julia --project=. src/main_optim_runs.jl --regularization helmholtz --filter_radius 0.02 --projection true
 ```
 
-The same option names are keywords of `run_optimization`. Helmholtz uses an
-explicit design update with elliptic forward/adjoint solves; requesting its
-`implicit` update is an error, as for `local_lambda`. Zero substeps selects `max(1, 4*ceil(8*beta0/eta0))`
+The same option names are keywords of `run_optimization` and fields of
+`DensityOptions`. The three gradient-penalty settings are orthogonal: every
+scaling works with both integrators and with or without damping, except that
+`local_lambda` is explicit only. Helmholtz uses an explicit design update with
+elliptic forward/adjoint solves and has neither a boost nor damping; requesting
+`semi_implicit`, a scaling other than `mean`, or `--diag true` for it is an error.
+The former `--regularization mean|local_max|local_lambda` and `--update_mode`
+(`update_mode` keyword) were removed and are rejected; run fingerprints of runs without damping and
+move limit are unchanged. Zero substeps selects `max(1, 4*ceil(8*beta0/eta0))`
 explicit gradient substeps (eight at the defaults; one step for implicit) and one
 Helmholtz design step.
 Explicit gradient updates additionally satisfy the current TPFA diffusion CFL
@@ -48,6 +56,8 @@ bound, including the local sensitivity boost, up to at most 1000 substeps per
 optimization step (`DensityOptions.max_substeps`). Beyond that the step exceeds
 the bound and a `[density] explicit update capped` line is printed. The
 `local_max` boost does not enter this bound: it is the same as for `mean`.
+The semi-implicit integrator has no automatic substepping; its count is
+`--density_substeps` (one by default).
 
 ## Design and physical density
 
@@ -172,6 +182,48 @@ Implicit CG uses `DensityOptions.implicit_tolerance=1e-10` and
 `implicit_max_iterations=1000`. These kernel settings are independent of the
 Helmholtz tolerance and are not additional command-line options.
 
+### Secant reaction damping (`--diag`)
+
+A cell whose force falls steeply when it grows (a stiff, single-cell-dominated
+objective, force `-k (x - x*)`) overshoots its maximum when `dt*k/eta > 2` and
+two-cycles. The damping measures this curvature per cell from the entry states
+`k-1, k` of two consecutive optimization steps (design `x`, design force `p` after
+the projection pullback):
+
+```text
+D_new_i = max(-(p_i^k - p_i^(k-1)) / (x_i^k - x_i^(k-1)), 0)    (0 if |dx_i| <= 1e-12)
+D_i     = D_new_i/2 + D_i/2                                       (D = 0 without history)
+```
+
+and adds it to the viscosity over the full optimization step `T = 1` (not the
+substep length, which would dilute it to `D/n`): with `q = p/s`,
+
+```text
+(eta0*b_i + D_i/s) * dchi_i/dt = q_i - lambda - b_i * (K chi)_i / volume_i.
+```
+
+Explicitly this divides the step of cell `i` by `1 + r_i`, `r_i = D_i/(s*eta0*b_i)`,
+and the volume response becomes `w_i = 1/(b_i*(1+r_i))`; semi-implicitly the mass
+term is `M*diag(1+r)` in the system and in the volume-response solve (rebuilt each
+substep while damping is active). For `local_lambda` the denominator
+`b_i(l) + D_i/(s*eta0)` is evaluated inside the floored bisection. The right-hand
+side is unchanged, so stationary points depend neither on `D` nor on `eta0`;
+without history the update is bitwise the undamped one. The history is reset at
+the start of a run, on every remesh (new cache), and on every projection beta step.
+
+### Move limit (`--move_limit`)
+
+For every update (gradient penalty and Helmholtz) and each substep of length `dt`,
+`m = max_i |x_i^3 - x_old,i^3|` is measured on the design (exponent
+`DensityOptions.simp_exponent`, the SIMP exponent 3 of the mechanics). If
+`m > move_limit*dt`, the substep is repeated from the same state with
+`eta <- eta*1.01*m/(move_limit*dt)`; force, scale, diffusion operator, damping and
+boost stay fixed. eta restarts from `eta0` in every substep, at most 50 increases
+are tried (then an error), and the semi-implicit system is rebuilt per retry. The
+number of increases is printed per optimization step, stored in
+`density_history.eta_increases` and in the diagnostic records. `Inf` (default)
+is bitwise the unlimited update.
+
 ## Helmholtz filter
 
 The filter uses `B=M+K(r²)` with r²_i = 2·β0·h_i² by default or the uniform
@@ -200,8 +252,13 @@ Projection beta is separate from the gradient-penalty `beta0`. Defaults in
 `DensityProjectionOptions` set initial beta `1`, growth factor `1e-3`, relative
 growth cap `0.5`, and grayness target `0.01`. After a completed iteration, improving
 objectives increase beta according to objective progress, capped at the relative
-growth limit. A nonzero plateau uses the cap; worsening objectives and sufficiently
-low physical grayness hold beta. Beta is fixed during each mechanical solve and
+growth limit. A nonzero plateau uses the cap; sufficiently low physical grayness
+holds beta. A worsening objective with the grayness still above target is treated
+as stalled progress (`advance_on_stall=true`, default) and advances with the same
+rule, `min(growth_factor*scale/|improvement|, max_growth_rate*beta)`: once the
+oscillation is damped, the objective drifts slightly worse after a beta step while
+the grayness stays above target, and holding beta would never reach the gray target
+the stop test requires. `advance_on_stall=false` restores holding beta. Beta is fixed during each mechanical solve and
 its density substeps. A continuation change remaps physical density and contributes
 to adaptive activity before marking. Helmholtz reuses its stored filtered field
 for this remapping, so sharpening needs no additional filter solve. Continuation
@@ -232,8 +289,8 @@ Geometry includes every active leaf subface of coarse/fine interfaces once.
 Run the focused tests from the repository root:
 
 ```text
-julia --project=. --startup-file=no Tests/density_options.jl
-julia --project=. --startup-file=no Tests/regularization/runtests.jl
+julia +release --project=. --startup-file=no Tests/density_options.jl
+julia +release --project=. --startup-file=no Tests/regularization/runtests.jl
 julia --project=. --startup-file=no Tests/tpfa_geometry.jl
 julia --project=. --startup-file=no Tests/density_update_modes.jl
 ```

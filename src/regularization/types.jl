@@ -20,9 +20,26 @@ struct TPFAFaces
     distance_right::Vector{Float64}
 end
 
+"""Density update settings. Three orthogonal choices define a gradient-penalty update:
+
+- `scaling` the boost b_i: `:mean` (b = 1), `:local_max`, `:local_lambda` (explicit only),
+  see `update_coefficients!`;
+- `integrator` `:explicit` (automatic CFL substepping) or `:semi_implicit` (implicit
+  diffusion, user-chosen substeps only);
+- `diag` the secant reaction damping, see `update_secant_damping!`.
+
+`regularization=:helmholtz` selects the filter update instead; it has neither a
+boost nor damping. `move_limit` bounds max_i |x_i^p - x_old,i^p| per unit pseudo-time,
+p = `simp_exponent`, for every update (`Inf` disables it), see `move_limited_step!`.
+"""
 Base.@kwdef struct DensityOptions
+    regularization::Symbol = :gradient
+    scaling::Symbol = :mean
     integrator::Symbol = :explicit
-    regularization::Symbol = :mean
+    diag::Bool = false
+    move_limit::Float64 = Inf
+    # SIMP exponent of the move-limit measure; the mechanics uses chi^3.
+    simp_exponent::Float64 = 3.0
     # Zero retains the old subdivision of one optimization time unit.
     substeps::Int = 0
     diagnostics::Bool = false
@@ -71,6 +88,11 @@ both beta_i and the viscosity eta_i, so the update divides the driving force and
 the multipliers of a cell by b_i and never changes `stiffness` or the system.
 `volume_weight` is the response of the unconstrained update to a unit volume
 multiplier, used by `project_volume!`.
+
+The secant damping history (`damping` D_i, the previous entry state
+`secant_design`/`secant_force`) is empty until `diag` is used; `damping_ratio`
+r_i = D_i/(s*eta*b_i) belongs to the current substep. A new cache (run start,
+every remesh) has no history; `reset_secant!` clears it on a projection beta step.
 """
 mutable struct DensityCache
     faces::TPFAFaces
@@ -85,6 +107,13 @@ mutable struct DensityCache
     system_dirty::Bool
     system_dt::Float64
     system_eta0::Float64
+    system_damped::Bool
+    damping::Vector{Float64}
+    damping_ratio::Vector{Float64}
+    secant_design::Vector{Float64}
+    secant_force::Vector{Float64}
+    secant_valid::Bool
+    damping_active::Bool
     old::Vector{Float64}
     rhs::Vector{Float64}
     trial::Vector{Float64}

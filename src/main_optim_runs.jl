@@ -85,8 +85,11 @@ println("density_marking: $density_marking")
 println("error_estimator: ", args["error_estimator"])
 println("pu_marking_exponent: ", args["pu_marking_exponent"])
 println("flux_scheme: ", args["flux_scheme"])
-println("update_mode: ", args["update_mode"])
 println("regularization: ", args["regularization"])
+println("scaling: ", args["scaling"])
+println("integrator: ", args["integrator"])
+println("diag: ", args["diag"])
+println("move_limit: ", args["move_limit"])
 println("projection: ", args["projection"])
 println("filter_radius: ", args["filter_radius"])
 println("beta0: ", args["beta0"])
@@ -182,8 +185,11 @@ function main(
         error_estimator=args["error_estimator"],
         pu_marking_exponent=args["pu_marking_exponent"],
         flux_scheme=args["flux_scheme"],
-        update_mode=args["update_mode"],
         regularization=args["regularization"],
+        scaling=args["scaling"],
+        integrator=args["integrator"],
+        diag=args["diag"],
+        move_limit=args["move_limit"],
         projection=args["projection"],
         filter_radius=args["filter_radius"],
         density_substeps=args["density_substeps"],

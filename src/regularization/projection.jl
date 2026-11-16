@@ -21,6 +21,8 @@ Base.@kwdef struct DensityProjectionOptions
     gray_tolerance           ::Float64 = 0.01
     volume_tolerance         ::Float64 = 1e-12
     max_threshold_iterations ::Int     = 80
+    # Advance beta also when an unconverged projection worsens the objective.
+    advance_on_stall         ::Bool    = true
 end
 
 function validate_density_projection_options(o::DensityProjectionOptions)
@@ -270,6 +272,17 @@ Negative objectives still improve when they DECREASE. Equal nonzero values
 use the capped limit of the paper's rule; a zero scale or nonfinite value
 cannot supply a progress ratio. SIMP continuation clears the baseline so
 objectives from different penalization laws are not compared.
+
+With `advance_on_stall` (default) an unconverged projection (grayness above the
+target) whose objective got WORSE is treated as stalled progress and advances by
+
+    increment = min(growth_factor*scale/|improvement|, max_growth_rate*beta),
+
+the same rule as for a positive improvement. Once the oscillation is damped, J
+drifts slightly worse after a beta step while the grayness stays above target;
+the paper's rule would then never advance beta again, and the stop test, which
+needs the gray target, could not be met. `advance_on_stall=false` holds beta on
+a worse objective (the original rule).
 """
 function projection_advance!(p::DensityProjection, objective::Real; reset=false, allow_advance=true)
     push!(p.beta_history, p.beta)
@@ -280,9 +293,9 @@ function projection_advance!(p::DensityProjection, objective::Real; reset=false,
     (reset || !allow_advance || !isfinite(previous) || !isfinite(current) || projection_converged(p)) && return false
     improvement = previous - current
     scale = abs(previous) / 2 + abs(current) / 2
-    (improvement < 0 || scale == 0) && return false
+    (improvement < 0 && !p.options.advance_on_stall || scale == 0) && return false
     cap = p.options.max_growth_rate * p.beta
-    increment = improvement == 0 ? cap : min(p.options.growth_factor * (scale / improvement), cap)
+    increment = improvement == 0 ? cap : min(p.options.growth_factor * (scale / abs(improvement)), cap)
     next = p.beta + increment
     isfinite(next) || error("density projection beta overflow")
     next > p.beta || return false

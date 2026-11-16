@@ -24,9 +24,9 @@ end
 @testset "Conservative persistent design and remapping" begin
     unequal = DensityTransferWorkspace(Dict(11=>1,12=>2),[0.2,0.8],[1.0,3.0])
     @test transferred_design((id=10,parent_id=0,childs=[11,12]),unequal) ≈ 0.65
-    for regularization in (:mean,:local_max,:local_lambda,:helmholtz), projected in (false,true)
+    for label in (:mean,:local_max,:local_lambda,:helmholtz), projected in (false,true)
         cv,states,pars = density_fixture()
-        options = DensityOptions(regularization=regularization)
+        options = label == :helmholtz ? DensityOptions(regularization=:helmholtz) : DensityOptions(scaling=label)
         proj = DensityProjection(DensityProjectionOptions(enabled=projected),states.area_vec;rho_min=pars.χmin)
         cache = prepare_density_cache(nothing,cv,states,pars,options,0.15)
         map_design!(states,cache,proj,options)
@@ -67,19 +67,52 @@ end
     end
 end
 
+@testset "Projection beta step resets the secant damping" begin
+    cv,states,pars = density_fixture()
+    options = DensityOptions(diag=true,substeps=1)
+    proj = DensityProjection(DensityProjectionOptions(enabled=true),states.area_vec;rho_min=pars.χmin)
+    cache = prepare_density_cache(nothing,cv,states,pars,options,0.0)
+    @test !cache.secant_valid
+    map_design!(states,cache,proj,options)
+    # A physical force falling with density gives the design force a positive curvature.
+    force! = p -> (@. p = 2-3states.χ_vec)
+    outer!() = advance_density!(states.design_vec,zeros(length(states.design_vec)),force!,cache;
+        options,eta0=pars.η0,rho=pars.ρ_init,lower=pars.χmin,physical=states.χ_vec,density_projection=proj)
+    outer!(); outer!()
+    @test cache.secant_valid && cache.damping_active
+    # The first observation only stores the objective: beta and the history stay.
+    @test !advance_projection!(states,cache,proj,options,1.0)
+    @test cache.secant_valid && cache.damping_active
+    beta = proj.beta
+    @test advance_projection!(states,cache,proj,options,0.9)
+    @test proj.beta > beta
+    @test !cache.secant_valid && !cache.damping_active && all(iszero,cache.damping)
+    # The next outer call has no history again, hence no damping.
+    outer!()
+    @test cache.secant_valid && !cache.damping_active
+end
+
 @testset "All production 3D regularization combinations" begin
     output_root = mktempdir(;prefix="toopt3-regularization-",cleanup=false)
-    for regularization in (:mean,:local_max,:local_lambda,:helmholtz), projected in (false,true), adaptive in (false,true)
-        modes = regularization in (:helmholtz,:local_lambda) ? (:explicit,) : (:explicit,:implicit)
-        for mode in modes
-            @testset "$regularization projection=$projected adaptive=$adaptive mode=$mode" begin
+    # Labels are the former regularization names: a scaling of the gradient penalty, or helmholtz.
+    # Damping and the move limit run on the adaptive meshes (remesh resets the secant history).
+    for label in (:mean,:local_max,:local_lambda,:helmholtz), projected in (false,true), adaptive in (false,true)
+        integrators = label in (:helmholtz,:local_lambda) ? (:explicit,) : (:explicit,:semi_implicit)
+        extras = label == :helmholtz ? ((false,Inf),(false,0.05)) :
+            adaptive ? ((false,Inf),(true,Inf),(true,0.05)) : ((false,Inf),)
+        for integrator in integrators, (diag,move_limit) in extras
+            @testset "$label projection=$projected adaptive=$adaptive $integrator diag=$diag move_limit=$move_limit" begin
                 cv,states,pars = density_fixture()
-                destination = joinpath(output_root,"$(regularization)_$(projected)_$(adaptive)_$(mode)")
+                destination = joinpath(output_root,"$(label)_$(projected)_$(adaptive)_$(integrator)_$(diag)_$(move_limit)")
                 reset_timer!(to)
+                setting = label == :helmholtz ? (regularization=:helmholtz,) : (scaling=label,)
                 result = run_optimization(cv.mesh,x -> SA[0.,0.,0.],pars;
                     vtk_folder_name=destination,MAX_OPT_STEPS=3,MAX_REF_LEVEL=2,
-                    regularization=regularization,projection=projected,update_mode=mode,
+                    setting...,integrator,diag,move_limit,projection=projected,
                     do_adaptivity=adaptive,filter_radius=0.15,take_snapshots_at=[1])
+                @test result.scaling == (label == :helmholtz ? :mean : label)
+                @test result.integrator == integrator && result.diag == diag
+                @test isfinite(move_limit) || all(row -> row.eta_increases == 0,result.density_history)
                 @test length(result.strain_energy) == 3
                 @test all(x -> isfinite(x) && x>0,result.strain_energy)
                 @test length(result.projection_history) == 3

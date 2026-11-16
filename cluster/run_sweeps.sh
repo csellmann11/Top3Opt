@@ -11,8 +11,10 @@ for arg in "$@"; do
         -h|--help)
             echo "Usage: bash cluster/run_sweeps.sh [--dry-run] [--smoke]"
             echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
-            echo "UPDATE_MODE=explicit|implicit selects the density update (default: implicit)."
-            echo "REGULARIZATION=mean|local_max|local_lambda|helmholtz (default: mean); PROJECTION=true|false (default: false)."
+            echo "INTEGRATOR=explicit|semi_implicit selects the density update (default: semi_implicit)."
+            echo "REGULARIZATION=gradient|helmholtz (default: gradient); SCALING=mean|local_max|local_lambda (default: mean)."
+            echo "DIAG=true|false secant damping (default: false); MOVE_LIMIT=<number > 0>|Inf (default: Inf)."
+            echo "PROJECTION=true|false (default: false)."
             echo "BETA0=<number >= 0> (default: 3.0); ETA0=<number > 0> (default: 15.0)."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
@@ -41,25 +43,35 @@ DENSITY_MARKING_OPTIONS=(true)
 #   MESH_TYPES       Hexahedra | Voronoi
 #   ADAPTIVITY_OPTIONS, DENSITY_MARKING_OPTIONS, ADAPTIVITY_AT_START   true | false
 #   FLUX_SCHEME      tpfa (only option)
-#   UPDATE_MODE      explicit | implicit           (implicit only for mean/local_max)
-#   REGULARIZATION   mean      gradient penalty, beta_i = 2*beta0*h_i^2, h_i = cbrt(cell volume)
-#                    local_max gradient penalty, beta_i and eta_i boosted by the neighbor max |p|
+#   INTEGRATOR       explicit | semi_implicit      (semi_implicit only for scaling mean/local_max)
+#   REGULARIZATION   gradient  gradient penalty, beta_i = 2*beta0*h_i^2, h_i = cbrt(cell volume)
+#                    helmholtz PDE filter, r²_i = 2*beta0*h_i^2 (forces INTEGRATOR=explicit,
+#                              requires SCALING=mean and DIAG=false)
+#   SCALING          mean      uniform boost b_i = 1
+#                    local_max beta_i and eta_i boosted by the neighbor max |p|
 #                    local_lambda  local_max without the mean floor: boost max(neighbor max |p|, |lambda|)/2
-#                              (forces UPDATE_MODE=explicit)
-#                    helmholtz PDE filter, r²_i = 2*beta0*h_i^2 (forces UPDATE_MODE=explicit)
+#                              (forces INTEGRATOR=explicit)
+#   DIAG             true | false                  secant reaction damping (gradient penalty only)
+#   MOVE_LIMIT       number > 0 | Inf              largest max|x^3 - x_old^3| per optimization step
 #   PROJECTION       true | false                  smooth volume-preserving projection
 #   BETA0            number >= 0                   regularization strength; coefficient 2*beta0*h_i^2.
 #                                                  Above beta0 = 1 a one-cell 0->1 interface cannot
-#                                                  be stationary under local_max
-#   ETA0             number > 0                    viscosity; larger = smaller density steps.
+#                                                  be stationary under SCALING=local_max
+#   ETA0            number > 0                    viscosity; larger = smaller density steps.
 #                                                  Explicit stability on cubes: eta0 >= 12*beta0/substeps
 #                                                  (14*beta0/substeps at a 2:1 interface)
 #   PETSC_GAMG_SQUARE_GRAPH  1 | 0                 PETSc only: squared graph | MIS-2
 MAX_OPT_STEPS=200
 ADAPTIVITY_AT_START=true
 FLUX_SCHEME=tpfa              # TPFA is the only supported gradient approximation.
-UPDATE_MODE=${UPDATE_MODE:-implicit} # Options: explicit | implicit
-REGULARIZATION=${REGULARIZATION:-mean} # Options: mean | local_max | local_lambda | helmholtz
+if [[ -n "${UPDATE_MODE:-}" ]]; then
+    echo "UPDATE_MODE was removed; use INTEGRATOR=explicit|semi_implicit." >&2; exit 2
+fi
+INTEGRATOR=${INTEGRATOR:-semi_implicit} # Options: explicit | semi_implicit
+REGULARIZATION=${REGULARIZATION:-gradient} # Options: gradient | helmholtz
+SCALING=${SCALING:-mean}               # Options: mean | local_max | local_lambda
+DIAG=${DIAG:-false}                    # Options: true | false
+MOVE_LIMIT=${MOVE_LIMIT:-Inf}          # Positive number or Inf
 PROJECTION=${PROJECTION:-false}        # Options: true | false
 BETA0=${BETA0:-3.0}                    # Regularization strength beta0 (>= 0)
 ETA0=${ETA0:-15.0}                     # Viscosity eta0 (> 0)
@@ -70,15 +82,31 @@ case "$FLUX_SCHEME" in
     *) echo "Unknown FLUX_SCHEME: $FLUX_SCHEME (only tpfa is supported)." >&2; exit 2 ;;
 esac
 
-case "$UPDATE_MODE" in
-    explicit|implicit) ;;
-    *) echo "Unknown UPDATE_MODE: $UPDATE_MODE (choose explicit or implicit)." >&2; exit 2 ;;
+case "$INTEGRATOR" in
+    explicit|semi_implicit) ;;
+    *) echo "Unknown INTEGRATOR: $INTEGRATOR (choose explicit or semi_implicit)." >&2; exit 2 ;;
 esac
 
 case "$REGULARIZATION" in
-    mean|local_max|local_lambda|helmholtz) ;;
-    *) echo "Unknown REGULARIZATION: $REGULARIZATION (choose mean, local_max, local_lambda or helmholtz)." >&2; exit 2 ;;
+    gradient|helmholtz) ;;
+    mean|local_max|local_lambda)
+        echo "REGULARIZATION=$REGULARIZATION was removed; use REGULARIZATION=gradient SCALING=$REGULARIZATION." >&2; exit 2 ;;
+    *) echo "Unknown REGULARIZATION: $REGULARIZATION (choose gradient or helmholtz)." >&2; exit 2 ;;
 esac
+
+case "$SCALING" in
+    mean|local_max|local_lambda) ;;
+    *) echo "Unknown SCALING: $SCALING (choose mean, local_max or local_lambda)." >&2; exit 2 ;;
+esac
+
+case "$DIAG" in
+    true|false) ;;
+    *) echo "Invalid DIAG: $DIAG (choose true or false)." >&2; exit 2 ;;
+esac
+
+if [[ "$REGULARIZATION" == helmholtz && ( "$SCALING" != mean || "$DIAG" != false ) ]]; then
+    echo "Helmholtz has no boost or damping; use SCALING=mean DIAG=false." >&2; exit 2
+fi
 
 case "$PROJECTION" in
     true|false) ;;
@@ -92,11 +120,16 @@ fi
 if [[ ! "$ETA0" =~ $number_pattern || "$ETA0" =~ ^0*([.]0*)?([eE].*)?$ ]]; then
     echo "Invalid ETA0: $ETA0 (use a positive number such as 15.0)." >&2; exit 2
 fi
-
-if [[ "$REGULARIZATION" =~ ^(helmholtz|local_lambda)$ && "$UPDATE_MODE" == implicit ]]; then
-    echo "Warning: $REGULARIZATION has no implicit update; switched UPDATE_MODE to explicit." >&2
-    UPDATE_MODE=explicit
+if [[ "$MOVE_LIMIT" != Inf && ( ! "$MOVE_LIMIT" =~ $number_pattern || "$MOVE_LIMIT" =~ ^0*([.]0*)?([eE].*)?$ ) ]]; then
+    echo "Invalid MOVE_LIMIT: $MOVE_LIMIT (use a positive number such as 0.1, or Inf)." >&2; exit 2
 fi
+
+if [[ ( "$REGULARIZATION" == helmholtz || "$SCALING" == local_lambda ) && "$INTEGRATOR" == semi_implicit ]]; then
+    echo "Warning: $REGULARIZATION/$SCALING has no semi-implicit update; switched INTEGRATOR to explicit." >&2
+    INTEGRATOR=explicit
+fi
+# Former names in the job label: the scaling of a gradient penalty, or helmholtz.
+if [[ "$REGULARIZATION" == helmholtz ]]; then LABEL=helmholtz; else LABEL=$SCALING; fi
 
 case "$PETSC_GAMG_SQUARE_GRAPH" in
     0|1) ;;
@@ -189,7 +222,7 @@ for solver in "${SOLVERS[@]}"; do
 for mesh in "${MESH_TYPES[@]}"; do
 for adapt in "${ADAPTIVITY_OPTIONS[@]}"; do
 for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
-    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_u${UPDATE_MODE}_g${REGULARIZATION}_p${PROJECTION}_B${BETA0}_E${ETA0}_lfalse_d${density}_s${MAX_OPT_STEPS}"
+    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_u${INTEGRATOR}_g${LABEL}_D${DIAG}_M${MOVE_LIMIT}_p${PROJECTION}_B${BETA0}_E${ETA0}_lfalse_d${density}_s${MAX_OPT_STEPS}"
     JOB_SCRIPT="$JOB_DIR/$NAME.sh"
     if [[ -n "$MEM_PER_CPU" ]]; then
         MEMORY_OPTION=--mem-per-cpu
@@ -201,7 +234,8 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
     JOB_TIME_LIMIT=${TIME_LIMIT:-$(suggested_resource "$mesh" "$ref" time)}
     ARGS=(-c "$benchmark" --solver "$solver" -r "$ref" -m "$mesh"
         -a "$adapt" -b "$ADAPTIVITY_AT_START" --flux_scheme "$FLUX_SCHEME" --laplace_rescale false
-        --update_mode "$UPDATE_MODE" --regularization "$REGULARIZATION" --projection "$PROJECTION"
+        --integrator "$INTEGRATOR" --regularization "$REGULARIZATION" --scaling "$SCALING"
+        --diag "$DIAG" --move_limit "$MOVE_LIMIT" --projection "$PROJECTION"
         --beta0 "$BETA0" --eta0 "$ETA0"
         -d "$density" -s "$MAX_OPT_STEPS")
     {
@@ -232,7 +266,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
         SUBMISSION=$(sbatch --parsable "$JOB_SCRIPT")
     fi
     printf '%s\t%s\t%s\n' "$NAME" "$JOB_SCRIPT" "$SUBMISSION" >> "$JOB_DIR/submissions.tsv"
-    echo "$SUBMISSION: $NAME (update_mode=$UPDATE_MODE, regularization=$REGULARIZATION, projection=$PROJECTION, beta0=$BETA0, eta0=$ETA0, $MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
+    echo "$SUBMISSION: $NAME (integrator=$INTEGRATOR, regularization=$REGULARIZATION, scaling=$SCALING, diag=$DIAG, move_limit=$MOVE_LIMIT, projection=$PROJECTION, beta0=$BETA0, eta0=$ETA0, $MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
     COUNT=$((COUNT + 1))
 done; done; done; done; done; done
 

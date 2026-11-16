@@ -20,14 +20,17 @@ function run_optimization(
     error_estimator::Symbol = :sdwr,
     pu_marking_exponent::Float64 = 1.0,
     flux_scheme::Symbol = :tpfa,
-    regularization::Symbol = :mean,
+    regularization::Symbol = :gradient,
+    scaling::Symbol = :mean,
+    integrator::Symbol = :explicit,
+    diag::Bool = false,
+    move_limit::Float64 = Inf,
     projection::Bool = false,
     projection_options::DensityProjectionOptions = DensityProjectionOptions(enabled=projection),
     filter_radius::Float64 = 0.0,
     density_substeps::Int = 0,
     filter_tolerance::Float64 = 1e-12,
     density_activity_tolerance::Float64 = 1e-3,
-    update_mode::Symbol = :explicit,
     tolerance::Float64 = 1e-5,
     n_conv_until_stop::Int = 2,
     take_snapshots_at::AbstractVector{Int} = 1:30:MAX_OPT_STEPS,
@@ -39,10 +42,7 @@ function run_optimization(
     isfinite(pu_marking_exponent) && pu_marking_exponent >= 0 ||
         throw(ArgumentError("pu_marking_exponent must be finite and nonnegative"))
     flux_scheme == :tpfa || throw(ArgumentError("Only flux_scheme=:tpfa is supported"))
-    update_mode in (:explicit, :implicit) ||
-        throw(ArgumentError("update_mode must be :explicit or :implicit"))
-    options = DensityOptions(regularization=regularization,
-        integrator=update_mode == :implicit ? :semi_implicit : :explicit,
+    options = DensityOptions(;regularization,scaling,integrator,diag,move_limit,
         substeps=density_substeps,filter_tolerance=filter_tolerance,
         activity_tolerance=density_activity_tolerance)
     validate_density_options(options,sim_pars.η0,1)
@@ -99,7 +99,10 @@ function run_optimization(
     sim_results.error_estimator = error_estimator
     sim_results.pu_marking_exponent = pu_marking_exponent
     sim_results.regularization = regularization
-    sim_results.update_mode = update_mode
+    sim_results.scaling = scaling
+    sim_results.integrator = integrator
+    sim_results.diag = diag
+    sim_results.move_limit = move_limit
     sim_results.filter_radius = regularization == :helmholtz ? radius : 0.0
     for optimization_step in 1:MAX_OPT_STEPS
         flush(stdout)
@@ -135,8 +138,9 @@ function run_optimization(
                 end
             end
         end
-        @timeit to "state_update" state_changed = state_update!(
+        @timeit to "state_update" update = state_update!(
             states,cv,sim_pars,density_cache,u,eldata_col;options,density_projection,workspace)
+        state_changed = update.changed
 
         Psi = 1/2 * u' * k_global * u
         if optimization_step == 1
@@ -154,7 +158,8 @@ function run_optimization(
         push!(sim_results.density_history,(
             design_volume=dot(states.area_vec,states.design_vec)/sum(states.area_vec),
             physical_volume=dot(states.area_vec,states.χ_vec)/sum(states.area_vec),
-            minimum_density=minimum(states.χ_vec),maximum_density=maximum(states.χ_vec)))
+            minimum_density=minimum(states.χ_vec),maximum_density=maximum(states.χ_vec),
+            eta_increases=update.eta_increases,eta_factor=update.eta_factor))
         ΔPsi_rel = (Psi - Psi0) / max(abs(Psi0),eps(Float64))
         mod      = measure_of_nondiscreteness(states,sim_pars)
         n_states = length(states.χ_vec) 
@@ -169,6 +174,8 @@ function run_optimization(
         println("number of states: $n_states, number of dofs: $n_dofs")
         println("Run time: $run_time minutes")
         println("Measure of nondiscreteness: $mod")
+        isfinite(move_limit) && println("Move-limit eta increases: $(update.eta_increases)",
+            " (max eta/eta0 = $(round(update.eta_factor,sigdigits=3)))")
         println("Peak RSS: $(round(Sys.maxrss() / 2^20, digits = 1)) MiB")
     
 

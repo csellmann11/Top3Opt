@@ -1,3 +1,7 @@
+# Gradient methods are scalings of regularization=:gradient; :helmholtz is the filter.
+method_options(method;kw...) = method == :helmholtz ?
+    DensityOptions(;regularization=:helmholtz,kw...) : DensityOptions(;scaling=method,kw...)
+
 # Unequal cell volumes, a split face and an isolated cell exercise the actual
 # finite-volume algebra without coupling these unit tests to a mesh generator.
 function kernel_faces()
@@ -13,7 +17,7 @@ end
     reference = similar(initial)
     scale = driving_scale(initial,force,faces.area,0.001).value
     for integrator in (:explicit,:semi_implicit), method in (:mean,:local_max)
-        options = DensityOptions(;integrator,regularization=method)
+        options = method_options(method;integrator)
         # local_max divides each cell's force and volume multiplier by its boost,
         # also without diffusion; mean has a unit boost.
         boost = DensityCache(faces,0.0)
@@ -54,7 +58,7 @@ end
     baseline = [0.01,0.02,0.005,0.03,0.04]
     cache = DensityCache(faces,baseline)
     force = [1.0,20.0,3.0,2.0,1.0]
-    opts = DensityOptions(regularization=:local_max)
+    opts = DensityOptions(scaling=:local_max)
     @test update_coefficients!(cache,force,2.0,opts)
     @test cache.base_beta == baseline
     @test cache.beta_relative == LOCAL_MAX_BOOST_SCALE.*[10.0,10.0,10.0,1.5,1.0]
@@ -94,7 +98,7 @@ end
         pulled = copy(force)
         projection_pullback!(pulled,projection)
         scale = driving_scale(initial,pulled,faces.area,lower).value
-        opts = DensityOptions(;integrator,regularization=method,substeps=1,
+        opts = method_options(method;integrator,substeps=1,
             implicit_tolerance=1e-13,diagnostics=true)
         update_coefficients!(cache,pulled,scale,opts)
         K,boost = copy(cache.stiffness),copy(cache.beta_relative)
@@ -183,7 +187,7 @@ end
         method in (:helmholtz,:local_lambda) && integrator == :semi_implicit && continue
         cache = method == :helmholtz ? HelmholtzCache(faces,ones(5),0.2) : DensityCache(faces,0.02)
         design,physical = copy(initial),copy(initial)
-        opts = DensityOptions(;integrator,regularization=method)
+        opts = method_options(method;integrator)
         if method == :helmholtz
             map_filtered_design!(physical,design,cache)
             oldphysical = copy(physical)
@@ -199,7 +203,7 @@ end
     cache = DensityCache(faces,5.0)
     design = copy(initial)
     result = advance_density!(design,[1.,20.,3.,2.,1.],identity,cache;
-        options=DensityOptions(regularization=:local_max,diagnostics=true,max_substeps=10000),
+        options=DensityOptions(scaling=:local_max,diagnostics=true,max_substeps=10000),
         eta0=1.0,rho,lower=0.001)
     @test length(result.records) > 10
     @test all(row.diffusion_cfl <= 0.95+1e-12 for row in result.records)
@@ -209,13 +213,13 @@ end
     cache = DensityCache(faces,5.0)
     design = copy(initial)
     result = advance_density!(design,[1.,20.,3.,2.,1.],identity,cache;
-        options=DensityOptions(regularization=:local_max,diagnostics=true,max_substeps=10),eta0=1.0,rho,lower=0.001)
+        options=DensityOptions(scaling=:local_max,diagnostics=true,max_substeps=10),eta0=1.0,rho,lower=0.001)
     @test length(result.records) == 10
     @test last(result.records).pseudo_time ≈ 1.0
     @test dot(faces.area,design)/sum(faces.area) ≈ rho atol=2e-10
     # The local boost is uncapped; it does not enter the operator or the stability limit.
     cache = DensityCache(faces,0.02)
-    opts = DensityOptions(regularization=:local_max)
+    opts = DensityOptions(scaling=:local_max)
     rate = diffusion_rate(cache,15.0)
     update_coefficients!(cache,[1.,500.,3.,2.,1.],1.0,opts)
     @test maximum(cache.beta_relative) == LOCAL_MAX_BOOST_SCALE*500.0
@@ -241,13 +245,13 @@ end
     faces = TPFAFaces(ones(n),collect(1:n-1),collect(2:n),ones(n-1),fill(0.5,n-1),fill(0.5,n-1))
     initial = [0.3+0.1sin(i) for i in 1:n]
     rho = dot(faces.area,initial)/n
-    runs = map((:mean,:local_max)) do regularization
+    runs = map((:mean,:local_max)) do scaling
         cache = DensityCache(faces,0.5)
         chi = copy(initial)
         force = ones(n)
         force[7] = 1e6
         result = advance_density!(chi,force,identity,cache;
-            options=DensityOptions(;integrator=:explicit,regularization,diagnostics=true),
+            options=DensityOptions(;integrator=:explicit,scaling,diagnostics=true),
             eta0=1.0,rho,lower=0.001)
         (;chi,cache,result)
     end
@@ -268,7 +272,7 @@ end
     profile = [1+4exp(-((i-10)/3)^2) for i in 1:n]
     refresh! = p -> (@. p = profile)
     cache = DensityCache(faces,2.0)
-    options = DensityOptions(integrator=:explicit,regularization=:local_max)
+    options = DensityOptions(integrator=:explicit,scaling=:local_max)
     for _ in 1:1500
         advance_density!(chi,zeros(n),refresh!,cache;options,eta0=2.0,rho=0.4,lower=0.001)
     end
@@ -291,7 +295,7 @@ end
             cache = method == :helmholtz ? HelmholtzCache(faces,ones(5),0.2) : DensityCache(faces,0.02)
             design,physical = copy(initial),copy(initial)
             projection = DensityProjection(DensityProjectionOptions(enabled=enabled),faces.area;rho_min=0.001)
-            opts = DensityOptions(;integrator,regularization=method,substeps=3,diagnostics=mode==2)
+            opts = method_options(method;integrator,substeps=3,diagnostics=mode==2)
             force = zeros(5)
             refresh! = p -> (@. p = 1+weights*physical^2)
             if method == :helmholtz
@@ -324,7 +328,7 @@ function kernel_allocations(n,method,integrator,enabled)
     design,physical = fill(0.3,n),fill(0.3,n)
     force = [1+0.5sin(i) for i in 1:n]
     projection = DensityProjection(DensityProjectionOptions(enabled=enabled),faces.area;rho_min=0.001)
-    opts = DensityOptions(;integrator,regularization=method,substeps=1)
+    opts = method_options(method;integrator,substeps=1)
     if method == :helmholtz
         map_filtered_design!(physical,design,cache,projection)
         step! = () -> advance_filtered_design!(design,physical,force,identity,cache;options=opts,
@@ -355,7 +359,7 @@ end
     force = [i <= 10 ? 0.0 : 1.0+4exp(-((i-20)/3)^2) for i in 1:n]
     refresh! = p -> copyto!(p,force)
     cache = DensityCache(faces,0.5)
-    options = DensityOptions(integrator=:explicit,regularization=:local_lambda,substeps=1,diagnostics=true)
+    options = DensityOptions(integrator=:explicit,scaling=:local_lambda,substeps=1,diagnostics=true)
     result = advance_density!(chi,zeros(n),refresh!,cache;options,eta0=15.0,rho=0.4,lower=0.001)
     @test length(result.records) == 1
     record = only(result.records)
@@ -383,7 +387,7 @@ end
     # local_max is unchanged: its mean floor keeps zero-force cells at 1/2.
     floored = DensityCache(faces,0.5)
     advance_density!(fill(0.4,n),zeros(n),refresh!,floored;
-        options=DensityOptions(integrator=:explicit,regularization=:local_max,substeps=1),
+        options=DensityOptions(integrator=:explicit,scaling=:local_max,substeps=1),
         eta0=15.0,rho=0.4,lower=0.001)
     @test floored.beta_relative ≈ 0.5 .* max.(1.0,m)
     # Signed forces: the bracket still needs a sign change; a target out of reach is an error.
@@ -396,7 +400,7 @@ end
     @test_throws ErrorException advance_density!(fill(0.4,n),zeros(n),refresh!,DensityCache(faces,0.5);
         options,eta0=100.0,rho=0.9,lower=0.001)
     @test_throws ArgumentError advance_density!(fill(0.4,n),zeros(n),refresh!,DensityCache(faces,0.5);
-        options=DensityOptions(integrator=:semi_implicit,regularization=:local_lambda),
+        options=DensityOptions(integrator=:semi_implicit,scaling=:local_lambda),
         eta0=15.0,rho=0.4,lower=0.001)
     # Box ends fix the design as in the plain projection; an invalid target is an argument error.
     for target in (0.001,1.0)

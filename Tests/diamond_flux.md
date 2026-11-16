@@ -9,16 +9,17 @@ entry point accepts the corresponding symbols, for example
 the legacy `strong` scheme. Output directory identifiers include the flux scheme
 and density update mode.
 
-Density updates default to `--update_mode explicit`. Select
-`--update_mode implicit` for implicit regularization, or use
-`run_optimization(...; update_mode=:implicit)` in Julia. For cluster sweeps:
+Density updates default to `--integrator explicit` (formerly `--update_mode`,
+which has been removed). Select `--integrator semi_implicit` for implicit
+regularization, or use `run_optimization(...; integrator=:semi_implicit)` in
+Julia. For cluster sweeps:
 
 ```bash
-UPDATE_MODE=implicit bash cluster/run_sweeps.sh
+INTEGRATOR=semi_implicit bash cluster/run_sweeps.sh
 ```
 
-The `UPDATE_MODE` setting in `cluster/run_sweeps.sh` accepts either `explicit`
-or `implicit`; job names and logs record the chosen mode.
+The `INTEGRATOR` setting in `cluster/run_sweeps.sh` accepts either `explicit`
+or `semi_implicit`; job names and logs record the chosen integrator.
 
 The `taylor` scheme in `src/taylor_operator.jl` computes the variable-beta product
 rule `beta_hat * laplacian(chi) + grad(beta_hat) ⋅ grad(chi)` with nine Taylor

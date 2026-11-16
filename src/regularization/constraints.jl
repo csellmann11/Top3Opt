@@ -70,7 +70,7 @@ function projected_mass!(chi,y,area,shift,lower,weights=nothing)
     return mass,free_volume
 end
 
-"""Explicit `:local_lambda` projection with the current |lambda| in the boost.
+"""Explicit `scaling=:local_lambda` projection with the current |lambda| in the boost.
 
 With the normalized multiplier l, q = p/scale, a = dt/eta0 and r the frozen peak
 boost (`cache.beta_relative`, see `update_coefficients!`), the boost is
@@ -88,8 +88,15 @@ monotonicity is not guaranteed; bisection keeps a sign change and an
 unreachable target is an error. The final boost
 max(r_i, |l|/2) is written back to `cache.beta_relative`. The returned shift a*l
 matches the standard projection, so diagnostics read the same lambda.
+
+With secant damping, `damping = 1/(scale*eta)` > 0, the viscosity eta*b_i(l) + D_i/scale
+replaces eta*b_i(l) and the diffusion no longer cancels from the boost:
+
+    chi_i(l) = clamp(old_i + a*(q_i - l - b_i(l)*(K old)_i/area_i)/(b_i(l) + D_i*damping), lower, 1),
+
+with K*old taken from `cache.rhs` (explicit trial). `damping = 0` is the undamped form above.
 """
-function project_volume_floored!(chi,cache,driving,scale,a,rho,lower;tolerance=1e-10)
+function project_volume_floored!(chi,cache,driving,scale,a,rho,lower;tolerance=1e-10,damping=0.0)
     0 <= lower < 1 && lower <= rho <= 1 || throw(ArgumentError("Require 0 <= lower < 1 and lower <= rho <= 1"))
     tolerance > 0 || throw(ArgumentError("Projection tolerance must be positive"))
     trial, relative, area = cache.trial, cache.beta_relative, cache.faces.area
@@ -102,7 +109,9 @@ function project_volume_floored!(chi,cache,driving,scale,a,rho,lower;tolerance=1
     end
     total = sum(area)
     # Captures only variables that are never reassigned here, so nothing is boxed.
-    volume_at!(l) = floored_volume!(chi,trial,relative,driving,area,scale,a,lower,l)/total
+    volume_at!(l) = (damping > 0 ?
+        damped_floored_volume!(chi,cache,driving,scale,a,lower,l,damping) :
+        floored_volume!(chi,trial,relative,driving,area,scale,a,lower,l))/total
     volume = volume_at!(0.0)
     abs(volume-rho) <= tolerance && return (shift=0.0,iterations=0,error=volume-rho)
     # Grow the bracket away from l = 0 until the volume crosses rho.
@@ -146,6 +155,19 @@ function floored_volume!(chi,trial,relative,driving,area,scale,a,lower,l)
     return mass
 end
 
+"""Mass of the damped floored update (see `project_volume_floored!`), written into chi."""
+function damped_floored_volume!(chi,cache,driving,scale,a,lower,l,damping)
+    boost_floor = LOCAL_MAX_BOOST_SCALE*abs(l)
+    old, Kold, relative, D, area = cache.old, cache.rhs, cache.beta_relative, cache.damping, cache.faces.area
+    mass = 0.0
+    @inbounds for i in eachindex(chi,old,Kold,relative,D,driving,area)
+        b = max(relative[i],boost_floor)
+        chi[i] = clamp(old[i]+a*(driving[i]/scale-l-b*(Kold[i]/area[i]))/(b+D[i]*damping),lower,1.0)
+        mass += area[i]*chi[i]
+    end
+    return mass
+end
+
 """Grayness index and actual area fractions, with theta=(chi-lower)/(1-lower)."""
 function grayness_metrics(chi,area,lower)
     total = sum(area)
@@ -167,13 +189,26 @@ function grayness_metrics(chi,area,lower)
 end
 
 function validate_density_options(options::DensityOptions, eta0, legacy_substeps)
-    options.integrator in (:explicit,:semi_implicit) || throw(ArgumentError("Unknown density integrator"))
-    options.regularization in (:mean,:local_max,:local_lambda,:helmholtz) || throw(ArgumentError(
-        "Use regularization=:mean, :local_max, :local_lambda, or :helmholtz"))
-    options.regularization == :local_lambda && options.integrator != :explicit &&
+    (;regularization,scaling,integrator) = options
+    regularization in (:mean,:local_max,:local_lambda) && throw(ArgumentError(
+        "regularization=:$regularization was removed; use regularization=:gradient, scaling=:$regularization"))
+    regularization in (:gradient,:helmholtz) || throw(ArgumentError(
+        "Use regularization=:gradient or :helmholtz"))
+    scaling in (:mean,:local_max,:local_lambda) || throw(ArgumentError(
+        "Use scaling=:mean, :local_max, or :local_lambda"))
+    integrator in (:explicit,:semi_implicit) || throw(ArgumentError(
+        "Unknown density integrator $integrator; use :explicit or :semi_implicit"))
+    scaling == :local_lambda && integrator != :explicit &&
         throw(ArgumentError("local_lambda needs the current multiplier in the boost; select integrator=:explicit"))
-    options.regularization == :helmholtz && options.integrator != :explicit &&
-        throw(ArgumentError("Helmholtz uses an explicit design step and elliptic filter solves; select integrator=:explicit"))
+    if regularization == :helmholtz
+        integrator == :explicit || throw(ArgumentError(
+            "Helmholtz uses an explicit design step and elliptic filter solves; select integrator=:explicit"))
+        scaling == :mean || throw(ArgumentError("Helmholtz has no local boost; select scaling=:mean"))
+        options.diag && throw(ArgumentError("Secant damping (diag) is implemented for the gradient penalty only"))
+    end
+    options.move_limit > 0 || throw(ArgumentError("move_limit must be positive (Inf disables it)"))
+    isfinite(options.simp_exponent) && options.simp_exponent > 0 ||
+        throw(ArgumentError("simp_exponent must be finite and positive"))
     isfinite(eta0) && eta0 > 0 || throw(ArgumentError("eta0 must be finite and positive"))
     options.substeps >= 0 && legacy_substeps > 0 || throw(ArgumentError("Invalid density substeps"))
     options.max_substeps > 0 || throw(ArgumentError("Invalid maximum substeps"))

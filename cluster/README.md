@@ -13,22 +13,28 @@ The selected scheme appears in each job's arguments and name; it is not a sweep
 axis. Older generated jobs may pass `--laplace_rescale false`; this deprecated
 option remains accepted as a no-op. Regenerate jobs that request removed schemes.
 
-The Julia driver accepts `--regularization mean`, `local_max`, `local_lambda`, or `helmholtz`,
-and `--projection true` enables volume-preserving projection and continuation
-for any of them. `mean` and `local_max` also accept `--update_mode implicit`.
-Helmholtz and `local_lambda` require `--update_mode explicit`. All four use the per-cell coefficient
+The Julia driver accepts `--regularization gradient` (gradient penalty) or `helmholtz`.
+The gradient penalty is set by three independent options: `--scaling mean`, `local_max`
+or `local_lambda` (the boost), `--integrator explicit` or `semi_implicit`, and
+`--diag true|false` (secant reaction damping). `local_lambda` is explicit only;
+Helmholtz is explicit and takes neither a scaling nor `--diag`. `--move_limit <x>`
+bounds max|x³ − x_old³| per optimization step for every update (default `Inf`, off), and
+`--projection true` enables volume-preserving projection and continuation
+for any of them. The former `--regularization mean|local_max|local_lambda` and
+`--update_mode` were removed. All updates use the per-cell coefficient
 2·β0·h_i² with h_i = cbrt(cell volume) (Helmholtz as r²_i); `--filter_radius` overrides
 Helmholtz with a uniform radius. Above β0 = 1 a one-cell 0→1 interface cannot be
 stationary under `local_max`. `local_lambda` drops the `local_max` mean floor and puts the
 current volume multiplier into the boost, `b_i = max(m_i, |lambda|/s)/2`.
 See [regularization options](../docs/regularization.md) for complete examples.
-The generator defaults to `REGULARIZATION=mean`, `PROJECTION=false`,
-`UPDATE_MODE=implicit`, `BETA0=3.0` and `ETA0=15.0`; override them in the
-environment, e.g.
-`REGULARIZATION=helmholtz PROJECTION=true BETA0=0.5 bash cluster/run_sweeps.sh`.
+The generator defaults to `REGULARIZATION=gradient`, `SCALING=mean`,
+`INTEGRATOR=semi_implicit`, `DIAG=false`, `MOVE_LIMIT=Inf`, `PROJECTION=false`,
+`BETA0=3.0` and `ETA0=15.0`; override them in the environment, e.g.
+`SCALING=local_max DIAG=true PROJECTION=true BETA0=0.5 bash cluster/run_sweeps.sh`.
 `BETA0` and `ETA0` are passed to the driver as `--beta0` and `--eta0`. Helmholtz and
-`local_lambda` with the implicit update print a warning and switch to explicit. The available values
-are listed as comments at the top of `run_sweeps.sh`.
+`local_lambda` with the semi-implicit integrator print a warning and switch to explicit;
+the removed `UPDATE_MODE` and `REGULARIZATION=mean|local_max|local_lambda` are errors.
+The available values are listed as comments at the top of `run_sweeps.sh`.
 
 ## Run on the cluster
 
@@ -93,14 +99,18 @@ cluster/
 ```
 
 Example job name:
-`toopt_MBB_sym_hypre_Hexahedra_r3_atrue_btrue_ftpfa_uimplicit_lfalse_dtrue_s200`.
+`toopt_MBB_sym_hypre_Hexahedra_r3_atrue_btrue_ftpfa_usemi_implicit_gmean_Dfalse_MInf_pfalse_B3.0_E15.0_lfalse_dtrue_s200`.
 Here `r` is refinement level, `a` adaptivity, `b` initial refinement, `f` flux
-scheme, `u` density update mode, `l` the deprecated compatibility switch,
+scheme, `u` integrator, `g` the scaling (or `helmholtz`), `D` damping, `M` move limit,
+`p` projection, `B`/`E` beta0/eta0, `l` the deprecated compatibility switch,
 `d` density marking, and `s` maximum
 optimization steps.
 Result-directory identities include a deterministic fingerprint of all exposed
-density controls, so differing regularization, projection, radius, substeps, or
-tolerances do not reuse the same result directory.
+density controls, so differing regularization, scaling, integrator, damping, move limit,
+projection, radius, substeps, or tolerances do not reuse the same result directory.
+Runs without damping, move limit and projection keep the fingerprint of the former
+option names. Projected runs got a new fingerprint with the stalled-progress beta
+continuation (`advance_on_stall`), so they never reuse a directory of the old rule.
 For `L_cantilever`, `Voronoi` creates an L-shaped polygon mesh in the x–y plane
 and extrudes it through the thickness. `Hexahedra` and `Lquad_mesh` both select
 the structured L mesh; choose only one of those two to avoid duplicate runs.

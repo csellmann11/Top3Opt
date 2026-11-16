@@ -20,13 +20,16 @@ include("../src/optim_run.jl")
 # Isolate density behavior from cluster solver availability.
 solve_lse(K, f, cv, ch) = cholesky(Symmetric(K)) \ f
 
-function benchmark_regularization(regularization=:mean;steps=10,level=2,projection=false,update_mode=:explicit)
+"""`label` is a gradient-penalty scaling (mean, local_max, local_lambda) or helmholtz."""
+function benchmark_regularization(label=:mean;steps=10,level=2,projection=false,integrator=:explicit,
+        diag=false,move_limit=Inf)
     mesh = create_rectangular_mesh(12,2,4,3.,0.5,1.,StandardEl{1})
     lam,mu = E_ν_to_lame(210.e3,0.33)
     pars = SimPars(Helmholtz{3,3}(Ψlin_totopt,(lam,mu,1.)),lam,mu,1e-3,15.,1.,0.3)
     destination = joinpath(mktempdir(;cleanup=false),"density_benchmark")
+    setting = label == :helmholtz ? (regularization=:helmholtz,) : (scaling=label,)
     result = run_optimization(mesh,x -> SA[0.,0.,0.],pars;vtk_folder_name=destination,
-        MAX_OPT_STEPS=steps,MAX_REF_LEVEL=level,regularization,projection,update_mode,
+        MAX_OPT_STEPS=steps,MAX_REF_LEVEL=level,setting...,projection,integrator,diag,move_limit,
         filter_radius=0.1,take_snapshots_at=Int[])
     show(to)
     return result
