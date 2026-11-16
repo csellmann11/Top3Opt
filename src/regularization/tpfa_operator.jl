@@ -148,19 +148,23 @@ function update_coefficients!(cache::DensityCache, p, scale, options)
     return true
 end
 
-"""Smallest rms design change |x^k - x^(k-1)| of a neighborhood that defines a secant curvature."""
-const SECANT_MIN_STEP = 1e-12
-
 """Secant reaction damping (`diag`): update the measured curvature at an outer entry.
 
 With the design x and the design driving force p (positive = wants to grow,
 after the projection pullback) at the entries k-1 and k of two consecutive
-outer iterations, dx = x^k - x^(k-1), dp = p^k - p^(k-1), and N_i the cell i
-and its face neighbors,
+outer iterations, dx = x^k - x^(k-1), dp = p^k - p^(k-1), N_i the cell i
+and its face neighbors and m = <dx^2> the volume-weighted mean square step over
+the whole domain,
 
-    D_new,i = sum_{j in N_i} A_j*max(-dp_j*dx_j, 0) / sum_{j in N_i} A_j*dx_j^2
-              (0 if sum_{j in N_i} A_j*dx_j^2 <= A_i*1e-24),
+    D_new,i = sum_{j in N_i} A_j*max(-dp_j*dx_j, 0) / sum_{j in N_i} A_j*(dx_j^2 + m)
+              (0 if the denominator is zero, i.e. nothing moved),
     D_i    <- D_new,i/2 + D_i/2                                  (all cells),
+
+The global term m keeps the fit of a neighborhood that barely moved from
+blowing up: its force change then stems mostly from the rest of the design, and
+the plain ratio froze gray regions and made the design mesh dependent. A
+neighborhood of rms step theta*sqrt(m) keeps the fraction theta^2/(theta^2 + 1)
+of its fit, half at the mean step.
 
 with D = 0 without history. Without the inner clamp D_new is the least-squares
 solution of the secant equation D*dx_j = -dp_j over N_i, the curvature along the
@@ -199,14 +203,21 @@ function update_secant_damping!(cache::DensityCache,x,p)
     if cache.secant_valid
         D, x0, p0 = cache.damping, cache.secant_design, cache.secant_force
         # Secant over the cell and its face neighbors: numerator
-        # sum A_j*max(-dp_j*dx_j,0), denominator sum A_j*dx_j^2. Both buffers are
-        # free until the trial of this substep.
+        # sum A_j*max(-dp_j*dx_j,0), denominator sum A_j*(dx_j^2 + m). Both buffers
+        # are free until the trial of this substep.
         faces, numerator, denominator = cache.faces, cache.trial, cache.rhs
         area = faces.area
+        step2 = total = 0.0
+        @inbounds for i in eachindex(x,x0,area)
+            dx = x[i]-x0[i]
+            step2 += area[i]*dx*dx
+            total += area[i]
+        end
+        m = step2/total
         @inbounds for i in eachindex(x,p,x0,p0,numerator,denominator)
             dx = x[i]-x0[i]
             numerator[i] = area[i]*max(-(p[i]-p0[i])*dx,0.0)
-            denominator[i] = area[i]*dx*dx
+            denominator[i] = area[i]*(dx*dx+m)
         end
         # Each face once, both directions; x0/p0 still hold the previous entry.
         @inbounds for f in eachindex(faces.left)
@@ -214,12 +225,11 @@ function update_secant_damping!(cache::DensityCache,x,p)
             dxi, dxj = x[i]-x0[i], x[j]-x0[j]
             ni = area[i]*max(-(p[i]-p0[i])*dxi,0.0)
             nj = area[j]*max(-(p[j]-p0[j])*dxj,0.0)
-            numerator[i] += nj; denominator[i] += area[j]*dxj*dxj
-            numerator[j] += ni; denominator[j] += area[i]*dxi*dxi
+            numerator[i] += nj; denominator[i] += area[j]*(dxj*dxj+m)
+            numerator[j] += ni; denominator[j] += area[i]*(dxi*dxi+m)
         end
         @inbounds for i in eachindex(D,numerator,denominator)
-            moved = denominator[i] > area[i]*SECANT_MIN_STEP^2
-            measured = moved ? numerator[i]/denominator[i] : 0.0
+            measured = denominator[i] > 0 ? numerator[i]/denominator[i] : 0.0
             D[i] = 0.5measured+0.5D[i]
             active |= D[i] > 0
         end

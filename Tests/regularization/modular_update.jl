@@ -7,18 +7,20 @@ allowed_update(scaling,integrator) = !(scaling == :local_lambda && integrator ==
 quadratic_force(f0,k,xstar) = (p,x) -> (@. p = f0-k*(x-xstar))
 
 """Reference of the neighborhood secant for a step dx and a force change dp: the
-clamped fit over the cell and its face neighbors (once per shared face)."""
+clamped fit over the cell and its face neighbors (once per shared face), with the
+global mean square step m added to every squared step of the denominator."""
 function neighborhood_secant(faces,dx,dp)
     A = faces.area
+    m = sum(A.*dx.^2)/sum(A)
     num = A .* max.(.-dp.*dx,0.0)
-    den = A .* dx.^2
+    den = A .* (dx.^2 .+ m)
     N, M = copy(num), copy(den)
     for f in eachindex(faces.left)
         i,j = faces.left[f],faces.right[f]
         N[i] += num[j]; M[i] += den[j]
         N[j] += num[i]; M[j] += den[i]
     end
-    return [M[i] > A[i]*1e-24 ? N[i]/M[i] : 0.0 for i in eachindex(dx)]
+    return [M[i] > 0 ? N[i]/M[i] : 0.0 for i in eachindex(dx)]
 end
 
 """Move-limit box of the specification, built independently of `move_box!`."""
@@ -185,12 +187,13 @@ end
     update_secant_damping!(cache,x,.-k.*dx)
     measured = 2 .* cache.damping
     @test measured ≈ neighborhood_secant(faces,dx,.-k.*dx)
-    @test measured[5] ≈ k[5]                 # no neighbor: its own secant
-    @test measured[3] ≈ (A[2]*k[2]*dx[2]^2+A[4]*k[4]*dx[4]^2)/(A[2]*dx[2]^2+A[4]*dx[4]^2)
-    @test measured[1] ≈ (A[1]*k[1]*dx[1]^2+2A[2]*k[2]*dx[2]^2)/(A[1]*dx[1]^2+2A[2]*dx[2]^2)
-    for i in 1:5                             # a weighted mean of the stencil's curvatures
+    m = sum(A.*dx.^2)/sum(A)                 # global mean square step
+    @test measured[5] ≈ k[5]*dx[5]^2/(dx[5]^2+m) # no neighbor: its own secant
+    @test measured[3] ≈ (A[2]*k[2]*dx[2]^2+A[4]*k[4]*dx[4]^2)/(A[2]*(dx[2]^2+m)+A[3]*m+A[4]*(dx[4]^2+m))
+    @test measured[1] ≈ (A[1]*k[1]*dx[1]^2+2A[2]*k[2]*dx[2]^2)/(A[1]*(dx[1]^2+m)+2A[2]*(dx[2]^2+m))
+    for i in 1:5                             # the global term only lowers the fit
         N = i == 5 ? [5] : i == 1 ? [1,2] : i == 4 ? [3,4] : [i-1,i,i+1]
-        @test minimum(k[N]) - 1e-12 <= measured[i] <= maximum(k[N]) + 1e-12
+        @test 0 < measured[i] <= maximum(k[N]) + 1e-12
     end
     # Each term is clamped before the sum: cell 2's force rises with its step and
     # does not cancel the damping of cells 1 and 3.
@@ -198,13 +201,17 @@ end
     dp = .-k.*dx; dp[2] = 50.0*dx[2]
     update_secant_damping!(cache,previous,zeros(5)); update_secant_damping!(cache,x,dp)
     measured = 2 .* cache.damping
-    @test measured[1] ≈ A[1]*k[1]*dx[1]^2/(A[1]*dx[1]^2+2A[2]*dx[2]^2)
-    @test measured[2] > 0 && measured[3] ≈ A[4]*k[4]*dx[4]^2/(A[2]*dx[2]^2+A[4]*dx[4]^2)
+    @test measured[1] ≈ A[1]*k[1]*dx[1]^2/(A[1]*(dx[1]^2+m)+2A[2]*(dx[2]^2+m))
+    @test measured[2] > 0 && measured[3] ≈ A[4]*k[4]*dx[4]^2/(A[2]*(dx[2]^2+m)+A[3]*m+A[4]*(dx[4]^2+m))
     @test -(A[1]*dp[1]*dx[1]+2A[2]*dp[2]*dx[2])/(A[1]*dx[1]^2+2A[2]*dx[2]^2) < 0  # plain fit: clipped
     # A force that grows with the step everywhere measures nothing.
     reset_secant!(cache)
     update_secant_damping!(cache,previous,zeros(5)); update_secant_damping!(cache,x,dx)
     @test all(iszero,cache.damping) && !cache.damping_active
+    # Uniform motion: every neighborhood moves the mean step and keeps half its fit.
+    reset_secant!(cache)
+    update_secant_damping!(cache,fill(0.4,5),zeros(5)); update_secant_damping!(cache,fill(0.45,5),fill(-0.05*3.0,5))
+    @test 2 .* cache.damping ≈ fill(1.5,5)
 end
 
 @testset "Damping uses the full outer step, not the substep length" begin
