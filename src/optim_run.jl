@@ -45,7 +45,7 @@ function run_optimization(
     options = DensityOptions(;regularization,scaling,integrator,diag,move_limit,
         substeps=density_substeps,filter_tolerance=filter_tolerance,
         activity_tolerance=density_activity_tolerance)
-    validate_density_options(options,sim_pars.η0,1)
+    validate_density_options(options,sim_pars.η0)
     validate_density_projection_options(projection_options)
     projection == projection_options.enabled || throw(ArgumentError(
         "projection and projection_options.enabled must agree"))
@@ -159,7 +159,7 @@ function run_optimization(
             design_volume=dot(states.area_vec,states.design_vec)/sum(states.area_vec),
             physical_volume=dot(states.area_vec,states.χ_vec)/sum(states.area_vec),
             minimum_density=minimum(states.χ_vec),maximum_density=maximum(states.χ_vec),
-            eta_increases=update.eta_increases,eta_factor=update.eta_factor))
+            move_limited=update.move_limited))
         ΔPsi_rel = (Psi - Psi0) / max(abs(Psi0),eps(Float64))
         mod      = measure_of_nondiscreteness(states,sim_pars)
         n_states = length(states.χ_vec) 
@@ -174,8 +174,7 @@ function run_optimization(
         println("number of states: $n_states, number of dofs: $n_dofs")
         println("Run time: $run_time minutes")
         println("Measure of nondiscreteness: $mod")
-        isfinite(move_limit) && println("Move-limit eta increases: $(update.eta_increases)",
-            " (max eta/eta0 = $(round(update.eta_factor,sigdigits=3)))")
+        isfinite(move_limit) && println("Move-limited cells (summed over substeps): $(update.move_limited)")
         println("Peak RSS: $(round(Sys.maxrss() / 2^20, digits = 1)) MiB")
     
 

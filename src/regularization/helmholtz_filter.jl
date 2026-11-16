@@ -3,7 +3,7 @@ function HelmholtzCache(faces::TPFAFaces, radius2::AbstractVector)
     n = length(faces.area)
     cache = HelmholtzCache(faces,zeros(n),TPFAAssemblyWorkspace(),spzeros(n,n),Diagonal(zeros(n)),
         CgWorkspace(n,n,Vector{Float64}),zeros(n),zeros(n),zeros(n),zeros(n),zeros(n),
-        Float64[],Float64[],zeros(n),falses(n),nothing,(;))
+        Float64[],Float64[],Float64[],Float64[],zeros(n),falses(n),nothing,(;))
     return rebuild_filter!(cache,faces,radius2)
 end
 
@@ -63,8 +63,9 @@ function resize_filter_workspace!(cache,n)
     for v in (cache.rhs,cache.q,cache.old,cache.design_before,cache.trial,cache.activity_reference,cache.changed)
         resize!(v,n)
     end
-    for v in (cache.filtered,cache.filtered_driving)
-        isempty(v) || resize!(v,n) # Only active projection needs these fields.
+    # Only active projection needs the filtered fields, only a move limit the box.
+    for v in (cache.filtered,cache.filtered_driving,cache.move_lower,cache.move_upper)
+        isempty(v) || resize!(v,n)
     end
     fill!(cache.q,0.0)
     cache.fields = (;)
@@ -130,19 +131,17 @@ function advance_filtered_design!(design,chi,p,refresh_driving!::F,cache::Helmho
 end
 
 function evolve_filtered_design!(design,chi,p,refresh!::F,cache,work::W,settings::S,steps) where {F,W,S}
-    eta_increases = 0
-    eta_factor = 1.0
+    move_limited = 0 # cells clipped by the move-limit box, summed over the substeps
     for substep in 1:steps
         step = filtered_design_substep!(design,chi,p,refresh!,cache,work,settings,substep,steps)
         observe_filter_step!(cache,design,chi,p,work,settings,step,substep,steps)
-        eta_increases += step.accepted.eta_increases
-        eta_factor = max(eta_factor,step.accepted.eta/settings.eta0)
+        move_limited += step.accepted.move_limited
     end
-    return (changed=cache.changed,records=work.records,eta_increases,eta_factor)
+    return (changed=cache.changed,records=work.records,move_limited)
 end
 
 function validate_filter_update(design,chi,p,cache,options,eta0,lower)
-    validate_density_options(options,eta0,1)
+    validate_density_options(options,eta0)
     options.regularization == :helmholtz || throw(ArgumentError("HelmholtzCache requires regularization=:helmholtz"))
     length(design) == length(chi) == length(p) == length(cache.rhs) || throw(DimensionMismatch("Design vectors"))
     design === chi && throw(ArgumentError("Helmholtz requires separate persistent design and physical vectors"))
@@ -187,33 +186,22 @@ end
 
 """Enforce design constraints and map the accepted design to physical density.
 
-The move limit acts on the design as for the gradient penalty (`move_limited_step!`):
-while max_i |a_i^p - a_old,i^p| > move_limit*dt the trial is rebuilt from the same
-design and adjoint force with eta <- eta*1.01*m/(move_limit*dt).
+The move limit acts on the latent design as for the gradient penalty: the
+per-cell box around `cache.design_before` (see `move_box!`) replaces [lower, 1]
+in the volume projection of the design step; eta is not changed.
 """
-function project_filtered_trial!(cache,design,chi,settings,scale)
-    (;options,eta0,rho,lower,dt,density_projection) = settings
-    limit = options.move_limit*dt
-    eta = tried = eta0
+function project_filtered_trial!(cache,design,chi,settings)
+    (;options,rho,lower,dt,density_projection) = settings
+    box = move_box!(cache,cache.design_before,lower,options,dt)
     timer = diagnostic_timer(options)
-    for attempt in 1:MOVE_LIMIT_ATTEMPTS
-        tried = eta
-        projection =project_volume!(design,cache.trial,cache.faces.area,rho,lower;tolerance=options.volume_tolerance)
-        move = isfinite(limit) ? simp_move(design,cache.design_before,options.simp_exponent) : 0.0
-        if move <= limit
-            projection_seconds = diagnostic_seconds(options,timer)
-            timer = diagnostic_timer(options)
-            forward_iterations = map_filtered_design!(chi,design,cache,density_projection;tolerance=options.filter_tolerance)
-            forward_seconds = diagnostic_seconds(options,timer)
-            mark_physical_activity!(cache.changed,chi,cache.activity_reference,options)
-            return (;projection,projection_seconds,forward_iterations,forward_seconds,eta,eta_increases=attempt-1)
-        end
-        eta *= 1.01*move/limit
-        step = dt/(eta*scale)
-        @. cache.trial = cache.design_before+step*cache.q
-    end
-    error("Move limit $(options.move_limit) not reached after $MOVE_LIMIT_ATTEMPTS attempts ",
-        "(last tried eta/eta0 = $(tried/eta0))")
+    projection = project_volume!(design,cache.trial,cache.faces.area,rho,lower;tolerance=options.volume_tolerance,box)
+    projection_seconds = diagnostic_seconds(options,timer)
+    move_limited = count_move_limited(design,box,lower)
+    timer = diagnostic_timer(options)
+    forward_iterations = map_filtered_design!(chi,design,cache,density_projection;tolerance=options.filter_tolerance)
+    forward_seconds = diagnostic_seconds(options,timer)
+    mark_physical_activity!(cache.changed,chi,cache.activity_reference,options)
+    return (;projection,projection_seconds,forward_iterations,forward_seconds,move_limited)
 end
 
 function filtered_design_substep!(design,chi,p,refresh!::F,cache,work,settings,substep,steps) where F
@@ -227,7 +215,7 @@ function filtered_design_substep!(design,chi,p,refresh!::F,cache,work,settings,s
     refresh!(p)
     work.outer !== nothing && substep == 1 && copyto!(work.outer.driving,p)
     trial = filtered_design_trial!(cache,design,p,work,settings)
-    accepted = project_filtered_trial!(cache,design,chi,settings,trial.scale.value)
+    accepted = project_filtered_trial!(cache,design,chi,settings)
     return (;start_time,threshold,filtered_before,trial,accepted)
 end
 
@@ -236,8 +224,8 @@ function observe_filter_step!(cache,design,chi,p,work,settings,step,substep,step
     trial,accepted = step.trial,step.accepted
     if options.diagnostics
         push!(work.records,filter_record!(cache.diagnostic_work,cache,design,chi,p,
-            trial.scale,accepted.projection,options;eta0=accepted.eta,rho,lower,substep,dt,
-            eta_increases=accepted.eta_increases,
+            trial.scale,accepted.projection,options;eta0=settings.eta0,rho,lower,substep,dt,
+            move_limited=accepted.move_limited,
             adjoint_iterations=trial.adjoint_iterations,adjoint_seconds=trial.adjoint_seconds,
             forward_iterations=accepted.forward_iterations,forward_seconds=accepted.forward_seconds,
             projection_seconds=accepted.projection_seconds,start_time=step.start_time,

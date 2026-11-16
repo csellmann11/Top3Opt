@@ -73,7 +73,7 @@ function parse_commandline(argv=ARGS;exc_handler=ArgParse.default_handler)
             arg_type = Bool
             default = false
         "--move_limit"
-            help = "Largest SIMP-scaled design change max|x^3 - x_old^3| per optimization step; Inf disables it"
+            help = "Per-cell move limit: |x^3 - x_old^3| <= move_limit*dt in every substep, a box in the volume projection; Inf disables it"
             arg_type = Float64
             default = Inf
             range_tester = x -> x > 0
@@ -97,7 +97,7 @@ function parse_commandline(argv=ARGS;exc_handler=ArgParse.default_handler)
             default = 0.0
             range_tester = x -> isfinite(x) && x >= 0
         "--density_substeps"
-            help = "Requested density substeps; zero uses the legacy gradient count or one Helmholtz design step"
+            help = "Density substeps: zero (default) takes the explicit gradient substeps from the measured CFL limit (one semi-implicit step) and one Helmholtz design step; n > 0 caps the substep length at 1/n"
             arg_type = Int
             default = 0
             range_tester = x -> x >= 0

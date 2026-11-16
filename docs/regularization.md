@@ -18,7 +18,7 @@ does not expect a `ToOpt3` package module.
 | `--scaling local_lambda` | `local_max` without the mean floor, current `abs(lambda)` in the boost (explicit only) | |
 | `--integrator explicit` / `semi_implicit` | Explicit (automatic CFL substeps) or semi-implicit gradient-penalty update | `explicit` |
 | `--diag true` | Secant reaction damping of the gradient penalty | `false` |
-| `--move_limit` | Largest `max|x³ - x_old³|` per optimization step, all updates | `Inf` |
+| `--move_limit` | Per-cell box `|x³ - x_old³| <= move_limit*dt` per substep, all updates | `Inf` |
 | `--projection true` | Smooth volume-preserving projection and automatic continuation | `false` |
 | `--beta0` | Regularization strength; per-cell coefficient `2*beta0*h_i²` with `h_i = cbrt(cell volume)` | `3.0` |
 | `--eta0` | Viscosity of the density update | `15.0` |
@@ -48,16 +48,17 @@ elliptic forward/adjoint solves and has neither a boost nor damping; requesting
 `semi_implicit`, a scaling other than `mean`, or `--diag true` for it is an error.
 The former `--regularization mean|local_max|local_lambda` and `--update_mode`
 (`update_mode` keyword) were removed and are rejected; run fingerprints of runs without damping and
-move limit are unchanged. Zero substeps selects `max(1, 4*ceil(8*beta0/eta0))`
-explicit gradient substeps (eight at the defaults; one step for implicit) and one
-Helmholtz design step.
-Explicit gradient updates additionally satisfy the current TPFA diffusion CFL
-bound, including the local sensitivity boost, up to at most 1000 substeps per
-optimization step (`DensityOptions.max_substeps`). Beyond that the step exceeds
-the bound and a `[density] explicit update capped` line is printed. The
-`local_max` boost does not enter this bound: it is the same as for `mean`.
-The semi-implicit integrator has no automatic substepping; its count is
-`--density_substeps` (one by default).
+move limit are unchanged. A finite move limit appends `;M=<value>box` to the fingerprint,
+so these runs do not reuse directories of the former eta-increase rule. With zero
+substeps (the default) an explicit gradient update takes the fewest equal substeps
+of the remaining time inside the measured TPFA diffusion CFL bound
+dt*max_i(K_ii/area_i)/eta0 <= 0.95, recomputed every substep; there is no fixed
+count any more, and such runs append `;N=cfl` to the fingerprint. The
+`local_max` boost does not enter this bound: it is the same as for `mean`. At
+most 1000 substeps are taken per optimization step (`DensityOptions.max_substeps`);
+beyond that the step exceeds the bound and a `[density] explicit update capped`
+line is printed. The semi-implicit integrator takes one step, and Helmholtz one
+design step. `--density_substeps n > 0` caps the substep length at 1/n.
 
 ## Design and physical density
 
@@ -214,15 +215,25 @@ the start of a run, on every remesh (new cache), and on every projection beta st
 ### Move limit (`--move_limit`)
 
 For every update (gradient penalty and Helmholtz) and each substep of length `dt`,
-`m = max_i |x_i^3 - x_old,i^3|` is measured on the design (exponent
-`DensityOptions.simp_exponent`, the SIMP exponent 3 of the mechanics). If
-`m > move_limit*dt`, the substep is repeated from the same state with
-`eta <- eta*1.01*m/(move_limit*dt)`; force, scale, diffusion operator, damping and
-boost stay fixed. eta restarts from `eta0` in every substep, at most 50 increases
-are tried (then an error), and the semi-implicit system is rebuilt per retry. The
-number of increases is printed per optimization step, stored in
-`density_history.eta_increases` and in the diagnostic records. `Inf` (default)
-is bitwise the unlimited update.
+the design may move only inside a per-cell box around the substep's start state
+`x_old` (exponent `p = DensityOptions.simp_exponent`, the SIMP exponent 3 of the
+mechanics, and `m = move_limit*dt`):
+
+```text
+lo_i = max(lower, max(x_old,i^p - m, 0)^(1/p)),   hi_i = min(1, (x_old,i^p + m)^(1/p)),
+```
+
+with `lo_i <= x_old,i <= hi_i` guarded against rounding, so `|x_i^p - x_old,i^p| <= m`
+in every cell. The box replaces the density bounds `[lower, 1]` in the volume
+bisection, like MMA move limits: after the semi-implicit solve, inside the
+floored `local_lambda` bisection, and in the projection of the latent Helmholtz
+design step. eta, force, scale, boost and damping are those of the unlimited
+update, and each substep is taken once. If the box makes the volume target
+unreachable, the projection stops with an error that names the move limit.
+The number of cells that end a substep on a box bound tighter than `[lower, 1]`,
+summed over the substeps, is printed per optimization step and stored in
+`density_history.move_limited` and (per substep) in the diagnostic records.
+`Inf` (default) is bitwise the unlimited update.
 
 ## Helmholtz filter
 

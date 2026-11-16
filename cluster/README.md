@@ -18,7 +18,8 @@ The gradient penalty is set by three independent options: `--scaling mean`, `loc
 or `local_lambda` (the boost), `--integrator explicit` or `semi_implicit`, and
 `--diag true|false` (secant reaction damping). `local_lambda` is explicit only;
 Helmholtz is explicit and takes neither a scaling nor `--diag`. `--move_limit <x>`
-bounds max|x³ − x_old³| per optimization step for every update (default `Inf`, off), and
+bounds |x³ − x_old³| per cell and optimization step for every update by a box in
+the volume projection (default `Inf`, off), and
 `--projection true` enables volume-preserving projection and continuation
 for any of them. The former `--regularization mean|local_max|local_lambda` and
 `--update_mode` were removed. All updates use the per-cell coefficient
@@ -111,6 +112,8 @@ projection, radius, substeps, or tolerances do not reuse the same result directo
 Runs without damping, move limit and projection keep the fingerprint of the former
 option names. Projected runs got a new fingerprint with the stalled-progress beta
 continuation (`advance_on_stall`), so they never reuse a directory of the old rule.
+Runs with a finite move limit likewise got a new fingerprint (`;M=<value>box`) when the
+per-cell box replaced the eta-increase retry.
 For `L_cantilever`, `Voronoi` creates an L-shaped polygon mesh in the x–y plane
 and extrudes it through the thickness. `Hexahedra` and `Lquad_mesh` both select
 the structured L mesh; choose only one of those two to avoid duplicate runs.

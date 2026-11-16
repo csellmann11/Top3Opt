@@ -52,7 +52,7 @@ DENSITY_MARKING_OPTIONS=(true)
 #                    local_lambda  local_max without the mean floor: boost max(neighbor max |p|, |lambda|)/2
 #                              (forces INTEGRATOR=explicit)
 #   DIAG             true | false                  secant reaction damping (gradient penalty only)
-#   MOVE_LIMIT       number > 0 | Inf              largest max|x^3 - x_old^3| per optimization step
+#   MOVE_LIMIT       number > 0 | Inf              largest |x^p - x_old^p| per cell and unit time (per-cell box)
 #   PROJECTION       true | false                  smooth volume-preserving projection
 #   BETA0            number >= 0                   regularization strength; coefficient 2*beta0*h_i^2.
 #                                                  Above beta0 = 1 a one-cell 0->1 interface cannot

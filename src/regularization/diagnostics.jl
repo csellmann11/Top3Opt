@@ -13,11 +13,11 @@ end
 function diagnostic_record!(work,cache,chi,p,scale,projection,options;
         eta0,rho,lower,substep,dt,elapsed,rate,system_updated,start_time,
         coefficient_seconds,system_seconds,solve_seconds,projection_seconds,
-        physical=chi,physical_driving=p,density_projection=nothing,eta_increases=0)
+        physical=chi,physical_driving=p,density_projection=nothing,move_limited=0,box=nothing)
     area, old = cache.faces.area, cache.old
     a, s = dt/eta0, scale.value
     linear_residual = gradient_linear_residual!(work,cache,chi,a,options)
-    stationarity,split_defect = gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options)
+    stationarity,split_defect = gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options,box)
     lambda = projection.shift*s/a
     (;total,work_J,physical_work,R_before,R_after,move2,move_max,design_move,reg2,net2,
       boosted,boost_mean,normalized_max,bound_area,beta_min,beta_max) =
@@ -26,7 +26,7 @@ function diagnostic_record!(work,cache,chi,p,scale,projection,options;
     return (substep=substep,dt=dt,pseudo_time=elapsed+dt,density_projection_metadata(density_projection)...,
         p_avg=s,p_avg_raw=scale.raw,p_max=pmax,peak_to_mean=pmax/s,
         scale_fallback=scale.fallback,scale_floored=scale.floored,gray_weight=scale.gray_weight,
-        eta=eta0*s,eta_increases=eta_increases,
+        eta=eta0*s,move_limited=move_limited,
         damping_max=cache.damping_active ? maximum(cache.damping) : 0.0,
         beta_min=beta_min,beta_max=beta_max,
         beta_boost_max=maximum(cache.beta_relative),beta_boost_mean=boost_mean/total,
@@ -64,7 +64,7 @@ end
 function filter_record!(work,cache,design,chi,p,scale,projection,options;
         eta0,rho,lower,substep,dt,adjoint_iterations,forward_iterations,
         adjoint_seconds,forward_seconds,projection_seconds,start_time,
-        filtered=chi,filtered_driving=p,density_projection=nothing,eta_increases=0)
+        filtered=chi,filtered_driving=p,density_projection=nothing,move_limited=0)
     area, old = cache.faces.area, cache.old
     adjoint_residual = filter_residual!(work.product,cache,cache.q,filtered_driving)
     forward_residual = filter_residual!(work.product,cache,filtered,design)
@@ -77,7 +77,7 @@ function filter_record!(work,cache,design,chi,p,scale,projection,options;
     return (substep=substep,dt=dt,pseudo_time=substep*dt,density_projection_metadata(density_projection)...,
         p_avg=scale.value,p_avg_raw=scale.raw,p_max=pmax,peak_to_mean=pmax/scale.value,
         scale_fallback=scale.fallback,scale_floored=scale.floored,gray_weight=scale.gray_weight,
-        eta=eta0*scale.value,eta_increases=eta_increases,radius_min=sqrt(minimum(cache.radius2)),radius_max=sqrt(maximum(cache.radius2)),
+        eta=eta0*scale.value,move_limited=move_limited,radius_min=sqrt(minimum(cache.radius2)),radius_max=sqrt(maximum(cache.radius2)),
         volume_error=dot(area,chi)/total-rho,design_volume_error=projection.error,
         filter_volume_defect=dot(area,filtered)/total-dot(area,design)/total,
         projection_volume_defect=dot(area,chi)/total-dot(area,filtered)/total,
@@ -112,8 +112,9 @@ function gradient_linear_residual!(work,cache,chi,a,options)
     return linear_residual
 end
 
-"""Check projected stationarity and the semi-implicit split equation independently."""
-function gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options)
+"""Check projected stationarity and the semi-implicit split equation independently.
+The split comparison uses the substep's move-limit `box`, like the update itself."""
+function gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options,box=nothing)
     area,old = cache.faces.area,cache.old
     # These extra projections are diagnostics, not part of the actual update.
     @. work.trial = old+p/s+work.reg_before
@@ -134,7 +135,7 @@ function gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options)
             weights = all(isone,boost) ? nothing : (@. work.weights = 1/boost)
         end
         project_volume!(work.projected,work.trial,area,rho,lower;
-            tolerance=options.volume_tolerance,weights)
+            tolerance=options.volume_tolerance,weights,box)
         split_defect = maximum(i -> abs(work.projected[i]-chi[i]),eachindex(chi))
     end
     return stationarity,split_defect

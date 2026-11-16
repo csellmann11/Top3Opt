@@ -24,13 +24,14 @@ end
 
 - `scaling` the boost b_i: `:mean` (b = 1), `:local_max`, `:local_lambda` (explicit only),
   see `update_coefficients!`;
-- `integrator` `:explicit` (automatic CFL substepping) or `:semi_implicit` (implicit
-  diffusion, user-chosen substeps only);
+- `integrator` `:explicit` (the fewest equal substeps inside the measured CFL limit)
+  or `:semi_implicit` (implicit diffusion, one step);
 - `diag` the secant reaction damping, see `update_secant_damping!`.
 
 `regularization=:helmholtz` selects the filter update instead; it has neither a
-boost nor damping. `move_limit` bounds max_i |x_i^p - x_old,i^p| per unit pseudo-time,
-p = `simp_exponent`, for every update (`Inf` disables it), see `move_limited_step!`.
+boost nor damping. `move_limit` bounds |x_i^p - x_old,i^p| per unit pseudo-time in
+every cell, p = `simp_exponent`, for every update (`Inf` disables it): a per-cell
+box in the volume projection, see `move_box!`.
 """
 Base.@kwdef struct DensityOptions
     regularization::Symbol = :gradient
@@ -40,7 +41,8 @@ Base.@kwdef struct DensityOptions
     move_limit::Float64 = Inf
     # SIMP exponent of the move-limit measure; the mechanics uses chi^3.
     simp_exponent::Float64 = 3.0
-    # Zero retains the old subdivision of one optimization time unit.
+    # Zero (default): substeps only from the measured CFL limit (one semi-implicit
+    # step). n > 0 additionally caps the substep length at 1/n.
     substeps::Int = 0
     diagnostics::Bool = false
     volume_tolerance::Float64 = 1e-10
@@ -93,6 +95,8 @@ The secant damping history (`damping` D_i, the previous entry state
 `secant_design`/`secant_force`) is empty until `diag` is used; `damping_ratio`
 r_i = D_i/(s*eta*b_i) belongs to the current substep. A new cache (run start,
 every remesh) has no history; `reset_secant!` clears it on a projection beta step.
+`move_lower`/`move_upper` hold the move-limit box of the current substep; they
+stay empty without a move limit.
 """
 mutable struct DensityCache
     faces::TPFAFaces
@@ -119,6 +123,8 @@ mutable struct DensityCache
     trial::Vector{Float64}
     volume_weight::Vector{Float64}
     design_driving::Vector{Float64}
+    move_lower::Vector{Float64}
+    move_upper::Vector{Float64}
     activity_reference::Vector{Float64}
     changed::BitVector
     diagnostic_work::Union{Nothing,DiagnosticWorkspace}
@@ -172,6 +178,8 @@ mutable struct HelmholtzCache
     trial::Vector{Float64}
     filtered::Vector{Float64}
     filtered_driving::Vector{Float64}
+    move_lower::Vector{Float64}
+    move_upper::Vector{Float64}
     activity_reference::Vector{Float64}
     changed::BitVector
     diagnostic_work::Union{Nothing,FilterDiagnostics}

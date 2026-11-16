@@ -45,6 +45,19 @@ include("../src/hash_output.jl")
     @test generate_setting_hash(delete!(copy(defaults),"beta0")) == original
     # Damping off and an infinite move limit keep the identity of the former runs.
     @test generate_setting_hash(delete!(delete!(copy(defaults),"diag"),"move_limit")) == original
+    # The default (explicit, zero substeps) now takes its substeps from the measured
+    # CFL limit only: it must not reuse the directory of the former fixed count.
+    @test original != "s300r3mHa0gmeanp0_0b9d1f554bbc69f0"
+    # Semi-implicit runs and requested substep counts keep their former identity.
+    semi = generate_setting_hash(merge(copy(defaults),Dict("integrator"=>:semi_implicit)))
+    requested = generate_setting_hash(merge(copy(defaults),Dict("density_substeps"=>2)))
+    @test semi != original && requested != original && semi != requested
+    # A finite move limit is the per-cell box now; it must not reuse the
+    # directory of the former eta-increase rule (identity of ";M=0.1").
+    limited = generate_setting_hash(merge(copy(defaults),Dict("move_limit"=>0.1)))
+    @test limited != "s300r3mHa0gmeanp0_fa0d45a8dafcfeb9"
+    @test limited != original
+    @test generate_setting_hash(merge(copy(defaults),Dict("move_limit"=>0.2))) ∉ (limited,original)
     for (key,value) in ("regularization"=>:helmholtz,"scaling"=>:local_max,"integrator"=>:semi_implicit,
             "diag"=>true,"move_limit"=>0.1,
             "projection"=>true,"filter_radius"=>0.02,"density_substeps"=>2,

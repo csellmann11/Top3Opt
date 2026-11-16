@@ -10,8 +10,12 @@ regularization_label(args) = get(args,"regularization",:gradient) == :helmholtz 
 The deprecated Laplace-rescaling switch has no effect and is deliberately omitted.
 Scaling and integrator are encoded with the former `regularization`/`update_mode`
 values; damping and a finite move limit are appended only when used, so the
-identities of runs without them are unchanged. Projected runs carry the
+identities of runs without them are unchanged. A finite move limit is encoded as
+`;M=<value>box`: the per-cell box replaced the former eta-increase retry, so these
+runs do not reuse directories of the old rule. Projected runs carry the
 continuation rule (`;C=stall`), since `advance_on_stall` changed their beta schedule.
+Explicit gradient runs with zero requested substeps carry `;N=cfl`: their count now
+comes from the measured CFL limit alone instead of the former fixed formula.
 """
 function generate_setting_hash(args=parse_commandline())
     integrator = get(args,"integrator",:explicit) == :semi_implicit ? :implicit : :explicit
@@ -33,10 +37,13 @@ function generate_setting_hash(args=parse_commandline())
     eta0 == 15.0 || (encoded *= string(";E=",eta0))
     get(args,"diag",false) && (encoded *= ";D=1")
     move_limit = get(args,"move_limit",Inf)
-    isfinite(move_limit) && (encoded *= string(";M=",move_limit))
+    isfinite(move_limit) && (encoded *= string(";M=",move_limit,"box"))
     # Projected runs continue beta on stalled progress (advance_on_stall); they
     # differ from earlier projected runs and must not share their directory.
     get(args,"projection",false) && (encoded *= ";C=stall")
+    # Explicit gradient substeps from the measured CFL limit only (former fixed count removed).
+    get(args,"regularization",:gradient) != :helmholtz && integrator == :explicit &&
+        get(args,"density_substeps",0) == 0 && (encoded *= ";N=cfl")
     fingerprint = bytes2hex(sha256(encoded))[1:16]
     return string("s",args["max_opt_steps"],"r",args["max_ref_level"],
         "m",first(string(args["mesh_type"])),"a",Int(args["do_adaptivity"]),

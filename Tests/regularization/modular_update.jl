@@ -6,6 +6,17 @@ allowed_update(scaling,integrator) = !(scaling == :local_lambda && integrator ==
 """Force of a quadratic objective per cell, p = f0 - k*(x - xstar) (positive = grow)."""
 quadratic_force(f0,k,xstar) = (p,x) -> (@. p = f0-k*(x-xstar))
 
+"""Move-limit box of the specification, built independently of `move_box!`."""
+function reference_box(old,lower,limit,p)
+    lo = [min(max(lower,max(x^p-limit,0.0)^(1/p)),x) for x in old]
+    hi = [max(min(1.0,(x^p+limit)^(1/p)),x) for x in old]
+    return (lower=lo,upper=hi)
+end
+
+"""Cells on a box bound strictly tighter than [lower, 1]."""
+recount_move_limited(x,box,lower) = count(i -> (box.lower[i] > lower && x[i] == box.lower[i]) ||
+    (box.upper[i] < 1 && x[i] == box.upper[i]),eachindex(x))
+
 @testset "Removed names and forbidden combinations are rejected" begin
     faces = kernel_faces()
     x = [0.2,0.4,0.6,0.3,0.5]
@@ -14,7 +25,7 @@ quadratic_force(f0,k,xstar) = (p,x) -> (@. p = f0-k*(x-xstar))
         options,eta0=15.0,rho,lower=0.001)
     for old in (:mean,:local_max,:local_lambda)
         @test_throws ArgumentError run(DensityOptions(regularization=old))
-        @test_throws ArgumentError validate_density_options(DensityOptions(regularization=old),15.0,1)
+        @test_throws ArgumentError validate_density_options(DensityOptions(regularization=old),15.0)
     end
     for options in (DensityOptions(integrator=:implicit),DensityOptions(scaling=:helmholtz),
             DensityOptions(scaling=:local_lambda,integrator=:semi_implicit),
@@ -24,7 +35,7 @@ quadratic_force(f0,k,xstar) = (p,x) -> (@. p = f0-k*(x-xstar))
             DensityOptions(regularization=:helmholtz,integrator=:semi_implicit),
             DensityOptions(move_limit=0.0),DensityOptions(move_limit=-1.0),
             DensityOptions(move_limit=NaN),DensityOptions(simp_exponent=0.0))
-        @test_throws ArgumentError validate_density_options(options,15.0,1)
+        @test_throws ArgumentError validate_density_options(options,15.0)
     end
     @test_throws ArgumentError run(DensityOptions(scaling=:local_lambda,integrator=:semi_implicit))
     @test_throws ArgumentError run(DensityOptions(regularization=:helmholtz))
@@ -155,8 +166,9 @@ end
     rho = dot(faces.area,x0)/sum(faces.area)
     k = [3.0,40.0,8.0,0.0,6.0]
     force! = quadratic_force([0.5,2.0,1.0,0.3,0.8],k,[0.45,0.5,0.55,0.5,0.5])
-    for integrator in (:explicit,:semi_implicit)
-        options = DensityOptions(;integrator,diag=true,substeps=n,implicit_tolerance=1e-14)
+    # With a move limit each replayed substep is clamped to its per-cell box.
+    for integrator in (:explicit,:semi_implicit), limit in (Inf,0.01)
+        options = DensityOptions(;integrator,diag=true,substeps=n,implicit_tolerance=1e-14,move_limit=limit)
         cache = DensityCache(faces,0.0)
         x,entry = copy(x0),zeros(5)
         frozen! = p -> copyto!(p,entry)
@@ -164,24 +176,28 @@ end
         advance_density!(x,zeros(5),frozen!,cache;options,eta0,rho,lower)
         x1 = copy(x)
         force!(entry,x1)
-        advance_density!(x,zeros(5),frozen!,cache;options,eta0,rho,lower)
+        result = advance_density!(x,zeros(5),frozen!,cache;options,eta0,rho,lower)
         D = cache.damping
         @test cache.damping_active
         @test D ≈ k/2 rtol=1e-12
         function replay(T)
             y,trial = copy(x1),similar(x1)
+            clipped = 0
             for _ in 1:n
                 s = driving_scale(y,entry,faces.area,lower).value
                 viscosity = eta0 .+ D.*T./s
                 @. trial = y+(entry/s)/(n*viscosity)
-                project_volume!(y,trial,faces.area,rho,lower;weights=1 ./viscosity,tolerance=1e-13)
+                box = isfinite(limit) ? reference_box(y,lower,limit/n,3.0) : nothing
+                project_volume!(y,trial,faces.area,rho,lower;weights=1 ./viscosity,tolerance=1e-13,box)
+                box === nothing || (clipped += recount_move_limited(y,box,lower))
             end
-            return y
+            return y,clipped
         end
-        full,diluted = replay(1.0),replay(1/n)
+        (full,clipped),(diluted,_) = replay(1.0),replay(1/n)
         @test all(lower .< x .< 1)
         @test x ≈ full atol=1e-9
-        @test maximum(abs,full-diluted) > 1e-3
+        isfinite(limit) ? (@test clipped > 0 && result.move_limited == clipped) :
+            (@test maximum(abs,full-diluted) > 1e-3)
         @test dot(faces.area,x)/sum(faces.area) ≈ rho atol=2e-10
     end
 end
@@ -221,65 +237,123 @@ end
     end
 end
 
-@testset "Move limit: SIMP-scaled measure per substep and eta rescaling" begin
+"""Every allowed update as (regularization, scaling, integrator, diag)."""
+const MOVE_LIMIT_UPDATES = [[(:gradient,scaling,integrator,diag) for scaling in GRADIENT_SCALINGS
+    for integrator in (:explicit,:semi_implicit) for diag in (false,true) if allowed_update(scaling,integrator)];
+    [(:helmholtz,:mean,:explicit,false)]]
+
+"""Outer iterations of one update with the substep start states (the final design appended)."""
+function move_limit_run(update,limit,enabled;outer=3,substeps=3,simp_exponent=3.0,diagnostics=true)
+    regularization,scaling,integrator,diag = update
     faces = kernel_faces()
     initial = [0.2,0.4,0.6,0.3,0.5]
     lower = 0.001
     rho = dot(faces.area,initial)/sum(faces.area)
     weights = [1.0,20.0,3.0,2.0,1.0]
-    for scaling in GRADIENT_SCALINGS, integrator in (:explicit,:semi_implicit), diag in (false,true)
-        allowed_update(scaling,integrator) || continue
-        limit = 0.02
+    design,physical = copy(initial),copy(initial)
+    projection = DensityProjection(DensityProjectionOptions(enabled=enabled),faces.area;rho_min=lower)
+    options = DensityOptions(;regularization,scaling,integrator,diag,substeps,move_limit=limit,
+        diagnostics,simp_exponent)
+    entries = Vector{Float64}[]
+    refresh! = p -> (push!(entries,copy(design)); @. p = 1+weights*physical^2)
+    if regularization == :helmholtz
+        eta0 = 1.0
+        cache = HelmholtzCache(faces,ones(5),0.2)
+        map_filtered_design!(physical,design,cache,projection)
+        step! = () -> advance_filtered_design!(design,physical,zeros(5),refresh!,cache;
+            options,eta0,rho,lower,density_projection=projection)
+    else
+        eta0 = 2.0
         cache = DensityCache(faces,0.02)
-        design = copy(initial)
-        entries = Vector{Float64}[]
-        refresh! = p -> (push!(entries,copy(design)); @. p = 1+weights*design^2)
-        options = DensityOptions(;scaling,integrator,diag,substeps=3,move_limit=limit,diagnostics=true)
-        increases = 0
-        for _ in 1:3
-            empty!(entries)
-            result = advance_density!(design,zeros(5),refresh!,cache;options,eta0=2.0,rho,lower)
-            increases += result.eta_increases
-            push!(entries,copy(design))
-            @test result.eta_increases == sum(row.eta_increases for row in result.records)
+        projection_apply!(physical,projection,design)
+        step! = () -> advance_density!(design,zeros(5),refresh!,cache;
+            options,eta0,rho,lower,physical,density_projection=projection)
+    end
+    outers = map(1:outer) do _
+        empty!(entries)
+        result = step!()
+        (entries=[copy(entries);[copy(design)]],physical=copy(physical),result)
+    end
+    return (;outers,design,physical,faces,rho,lower,eta0)
+end
+
+@testset "Move limit: per-cell SIMP-scaled box in every update" begin
+    for update in MOVE_LIMIT_UPDATES, enabled in (false,true)
+        limit = first(update) == :helmholtz ? 0.005 : 0.02
+        run = move_limit_run(update,limit,enabled)
+        (;faces,rho,lower,eta0) = run
+        clipped = 0
+        for (;entries,physical,result) in run.outers
+            @test length(entries) == length(result.records)+1
             for (i,row) in enumerate(result.records)
-                @test maximum(abs.(entries[i+1].^3 .- entries[i].^3)) <= limit*row.dt*(1+1e-12)
+                old,x = entries[i],entries[i+1]
+                @test maximum(abs.(x.^3 .- old.^3)) <= limit*row.dt*(1+1e-12)
+                box = reference_box(old,lower,limit*row.dt,3.0)
+                @test row.move_limited == recount_move_limited(x,box,lower)
+                @test row.eta == eta0*row.p_avg # eta is never raised by the move limit
             end
-            @test dot(faces.area,design)/sum(faces.area) ≈ rho atol=2e-10
+            @test result.move_limited == sum(row.move_limited for row in result.records)
+            @test dot(faces.area,entries[end])/sum(faces.area) ≈ rho atol=2e-10
+            @test dot(faces.area,physical)/sum(faces.area) ≈ rho atol=2e-10
+            @test all(lower .<= entries[end] .<= 1)
+            clipped += result.move_limited
         end
-        @test increases > 0
+        @test clipped > 0
     end
-    # The accepted step is the unlimited step with the reported eta (dt = 1, no CFL cut).
-    for scaling in GRADIENT_SCALINGS, integrator in (:explicit,:semi_implicit)
-        allowed_update(scaling,integrator) || continue
-        force = [1.0,20.0,3.0,2.0,1.0]
-        limited = copy(initial)
-        options = DensityOptions(;scaling,integrator,substeps=1,move_limit=0.01,diagnostics=true)
-        result = advance_density!(limited,force,identity,DensityCache(faces,1e-4);options,eta0=15.0,rho,lower)
-        row = only(result.records)
-        @test row.dt == 1 && row.eta_increases > 0 && result.eta_factor > 1
-        eta = row.eta/row.p_avg
-        @test eta ≈ 15.0*result.eta_factor
-        @test maximum(abs.(limited.^3 .- initial.^3)) <= 0.01
-        @test maximum(abs.(limited.^3 .- initial.^3)) > 0.005 # eta is not grossly overestimated
-        free = copy(initial)
-        unlimited = advance_density!(free,force,identity,DensityCache(faces,1e-4);
-            options=DensityOptions(;scaling,integrator,substeps=1,diagnostics=true),eta0=eta,rho,lower)
-        @test free ≈ limited atol=1e-13
-        # The reported CFL number belongs to the accepted eta, not to eta0.
-        @test row.diffusion_cfl ≈ only(unlimited.records).diffusion_cfl rtol=1e-12
-        @test row.diffusion_cfl > 0
-        # Inf, or a limit that is never reached, is the unlimited update.
-        a,b = copy(initial),copy(initial)
-        advance_density!(a,force,identity,DensityCache(faces,1e-4);
-            options=DensityOptions(;scaling,integrator,substeps=1),eta0=15.0,rho,lower)
-        advance_density!(b,force,identity,DensityCache(faces,1e-4);
-            options=DensityOptions(;scaling,integrator,substeps=1,move_limit=1e300),eta0=15.0,rho,lower)
-        @test a == b
+    # The measure follows simp_exponent.
+    run = move_limit_run(first(MOVE_LIMIT_UPDATES),0.01,false;simp_exponent=1.0)
+    for (;entries,result) in run.outers, (i,row) in enumerate(result.records)
+        @test maximum(abs.(entries[i+1] .- entries[i])) <= 0.01*row.dt*(1+1e-12)
     end
-    # A limit that cannot be met (the volume correction alone exceeds it) is an error.
-    @test_throws ErrorException advance_density!(copy(initial),[1.0,20.0,3.0,2.0,1.0],identity,
-        DensityCache(faces,0.02);options=DensityOptions(move_limit=1e-3,substeps=1),eta0=15.0,rho=rho+0.05,lower)
+    @test sum(outer.result.move_limited for outer in run.outers) > 0
+end
+
+@testset "Move limit Inf and 1e300 are bitwise the unlimited update" begin
+    for update in MOVE_LIMIT_UPDATES, enabled in (false,true), diagnostics in (false,true)
+        unlimited,huge = (move_limit_run(update,limit,enabled;diagnostics) for limit in (Inf,1e300))
+        @test unlimited.design == huge.design && unlimited.physical == huge.physical
+        @test all(a.entries == b.entries && a.physical == b.physical for (a,b) in zip(unlimited.outers,huge.outers))
+        @test all(outer.result.move_limited == 0 for outer in (unlimited.outers...,huge.outers...))
+    end
+end
+
+@testset "Move limit clamps the unlimited trial to the box in the volume bisection" begin
+    faces = kernel_faces()
+    x0 = [0.2,0.4,0.6,0.3,0.5]
+    lower,eta0,limit = 0.001,2.0,0.02
+    rho = dot(faces.area,x0)/sum(faces.area)
+    force = [1.0,20.0,3.0,2.0,1.0]
+    K = diffusion_matrix(faces,fill(0.02,5))
+    s = driving_scale(x0,force,faces.area,lower).value
+    box = reference_box(x0,lower,limit,3.0)
+    for integrator in (:explicit,:semi_implicit)
+        x = copy(x0)
+        options = DensityOptions(;integrator,substeps=1,move_limit=limit,implicit_tolerance=1e-14,diagnostics=true)
+        result = advance_density!(x,force,identity,DensityCache(faces,0.02);options,eta0,rho,lower)
+        @test only(result.records).dt == 1
+        # The box acts after the (semi-implicit) solve, where [lower, 1] acts without it.
+        y = integrator == :explicit ? x0 .+ (force./s .- K*x0./faces.area)./eta0 :
+            (Diagonal(faces.area)+K/eta0)\(faces.area.*(x0 .+ force./(s*eta0)))
+        expected = similar(x0)
+        project_volume!(expected,y,faces.area,rho,lower;box,tolerance=1e-13)
+        @test x ≈ expected atol=1e-9
+        @test result.move_limited == recount_move_limited(x,box,lower) > 0
+        free = copy(x0)
+        advance_density!(free,force,identity,DensityCache(faces,0.02);
+            options=DensityOptions(;integrator,substeps=1,implicit_tolerance=1e-14),eta0,rho,lower)
+        @test maximum(abs.(free.^3 .- x0.^3)) > limit
+    end
+    # A box that cannot reach the volume target in one step is an error naming the move limit.
+    for scaling in (:mean,:local_lambda)
+        failure = try
+            advance_density!(copy(x0),force,identity,DensityCache(faces,0.02);
+                options=DensityOptions(;scaling,move_limit=1e-3,substeps=1),eta0=15.0,rho=rho+0.05,lower)
+            nothing
+        catch err
+            err
+        end
+        @test failure isa ErrorException && occursin("move limit",failure.msg)
+    end
 end
 
 @testset "Helmholtz move limit" begin
@@ -299,8 +373,11 @@ end
             result = advance_filtered_design!(design,physical,zeros(5),refresh!,cache;options,eta0=1.0,rho,lower,
                 density_projection=projection)
             push!(entries,copy(design))
-            isfinite(limit) && @test result.eta_increases > 0
+            @test isfinite(limit) ? result.move_limited > 0 : result.move_limited == 0
             isfinite(limit) && @test all(maximum(abs.(entries[i+1].^3 .- entries[i].^3)) <= limit*0.5*(1+1e-12) for i in 1:2)
+            # The box is rebuilt from the latent design at each substep start.
+            isfinite(limit) && @test result.move_limited == sum(recount_move_limited(entries[i+1],
+                reference_box(entries[i],lower,limit*0.5,3.0),lower) for i in 1:2)
             @test dot(faces.area,design)/sum(faces.area) ≈ rho atol=2e-10
             design
         end

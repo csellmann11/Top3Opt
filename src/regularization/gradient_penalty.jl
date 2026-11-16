@@ -8,7 +8,10 @@ function gradient_step_size(cache,options,eta0,nominal_dt,elapsed,substep)
     rate = options.integrator == :explicit || options.diagnostics ? diffusion_rate(cache,eta0) : 0.0
     remaining = 1.0-elapsed
     dt = min(nominal_dt,remaining)
-    options.integrator == :explicit && rate > 0 && (dt=min(dt,0.95/rate))
+    # Explicit: the fewest equal substeps of the remaining time inside the measured
+    # limit dt*rate <= 0.95. Semi-implicit: the remaining time in one step.
+    options.integrator == :explicit && rate > 0 &&
+        (dt=min(dt,remaining/max(1,ceil(Int,remaining*rate/0.95))))
     dt = max(dt,remaining/(options.max_substeps-substep+1))
     return dt,rate
 end
@@ -78,12 +81,12 @@ It records physical-density excursions from the outer iteration's initial field,
 using the configured activity tolerance with a numerical-error floor.
 """
 function advance_density!(chi,p,refresh_driving!::F,cache::DensityCache;
-        options=DensityOptions(),eta0,rho,lower,legacy_substeps=1,
+        options=DensityOptions(),eta0,rho,lower,
         collect_fields::Bool=false,physical=chi,density_projection=nothing) where F
-    validate_gradient_update(chi,physical,p,cache,options,eta0,lower,legacy_substeps,density_projection)
+    validate_gradient_update(chi,physical,p,cache,options,eta0,lower,density_projection)
     settings = (;options,eta0,rho,lower,density_projection)
     work = prepare_gradient_update!(cache,chi,physical,p,settings,collect_fields)
-    nominal_dt = 1.0/(options.substeps == 0 ? legacy_substeps : options.substeps)
+    nominal_dt = options.substeps == 0 ? 1.0 : 1.0/options.substeps
     return evolve_gradient_design!(chi,physical,p,refresh_driving!,cache,work,settings,nominal_dt)
 end
 
@@ -93,16 +96,14 @@ function evolve_gradient_design!(chi,physical,p,refresh!::F,cache,work::W,settin
     options = settings.options
     elapsed = 0.0
     cfl_excess = 0.0
-    eta_increases = 0
-    eta_factor = 1.0 # largest eta/eta0 of the move limit in this outer iteration
+    move_limited = 0 # cells clipped by the move-limit box, summed over the substeps
     for substep in 1:options.max_substeps
         step = gradient_substep!(chi,physical,p,refresh!,cache,work,settings,
             substep,nominal_dt,elapsed)
         last_substep = elapsed+step.dt >= 1-8eps(Float64)
         observe_gradient_step!(cache,chi,physical,p,work,settings,step,substep,elapsed,last_substep)
         elapsed += step.dt
-        eta_increases += step.eta_increases
-        eta_factor = max(eta_factor,step.eta/settings.eta0)
+        move_limited += step.move_limited
         options.integrator == :explicit && (cfl_excess=max(cfl_excess,step.dt*step.rate/0.95))
         if last_substep
             cfl_excess > 1+1e-12 && println("[density] explicit update capped at ",
@@ -110,14 +111,14 @@ function evolve_gradient_design!(chi,physical,p,refresh!::F,cache,work::W,settin
                 "x the stability limit (",options.scaling == :local_lambda ?
                 "raise max_substeps or eta0; local_lambda is explicit only" :
                 "use integrator=semi_implicit to avoid this",")")
-            return (changed=cache.changed,records=work.records,eta_increases,eta_factor)
+            return (changed=cache.changed,records=work.records,move_limited)
         end
     end
     error("Density update exceeded $(options.max_substeps) substeps at time $elapsed")
 end
 
-function validate_gradient_update(chi,physical,p,cache,options,eta0,lower,legacy_substeps,projection)
-    validate_density_options(options,eta0,legacy_substeps)
+function validate_gradient_update(chi,physical,p,cache,options,eta0,lower,projection)
+    validate_density_options(options,eta0)
     options.regularization == :gradient ||
         throw(ArgumentError("Helmholtz requires a persistent design and HelmholtzCache"))
     length(chi) == length(physical) == length(p) == length(cache.faces.area) ||
@@ -165,74 +166,48 @@ function gradient_substep!(chi,physical,p,refresh!::F,cache,work,settings,subste
         # Both force-dependent beta and eta vanish. Retain the 3D stationary
         # convention instead of manufacturing diffusion through a scale floor.
         dt,rate = min(nominal_dt,1.0-elapsed),0.0
+        box = move_box!(cache,cache.old,lower,options,dt)
         copyto!(cache.trial,cache.old)
         trial = (system_updated=false,system_seconds=0.0,solve_seconds=0.0)
         timer = diagnostic_timer(options)
         projection = project_volume!(chi,cache.trial,cache.faces.area,rho,lower;
-            tolerance=options.volume_tolerance)
+            tolerance=options.volume_tolerance,box)
         projection_seconds = diagnostic_seconds(options,timer)
-        eta,eta_increases = eta0,0
     else
         dt,rate = gradient_step_size(cache,options,eta0,nominal_dt,elapsed,substep)
-        (;trial,projection,eta,eta_increases,projection_seconds) =
-            move_limited_step!(chi,cache,work,scale.value,dt,settings)
+        box = move_box!(cache,cache.old,lower,options,dt)
+        (;trial,projection,projection_seconds) = gradient_projection!(chi,cache,work,scale.value,dt,settings,box)
     end
+    move_limited = count_move_limited(chi,box,lower)
     timer = diagnostic_timer(options)
     projection_apply!(physical,density_projection,chi)
     projection_seconds += diagnostic_seconds(options,timer)
     mark_physical_activity!(cache.changed,physical,cache.activity_reference,options)
     return (;dt,rate,scale,projection,threshold,start_time,coefficient_seconds,projection_seconds,
-        trial,eta,eta_increases)
+        trial,box,move_limited)
 end
 
-"""Most retries of one substep under the move limit before giving up."""
-const MOVE_LIMIT_ATTEMPTS = 50
+"""Trial and volume projection (bisection) of one substep inside the move-limit box.
 
-"""SIMP-scaled design change max_i |chi_i^p - old_i^p| of a substep."""
-function simp_move(chi,old,exponent)
-    move = 0.0
-    @inbounds for i in eachindex(chi,old)
-        move = max(move,abs(chi[i]^exponent-old[i]^exponent))
-    end
-    return move
-end
-
-"""Trial and volume projection (bisection) of one substep, with the move limit.
-
-With the SIMP exponent p (`options.simp_exponent`) and m = max_i |chi_i^p - old_i^p|,
-a substep of length dt with m > move_limit*dt is repeated from the same `old`
-with eta <- eta*1.01*m/(move_limit*dt). The change is close to linear in dt/eta,
-so one or two repetitions usually suffice. eta restarts from eta0 in every
-substep, and eta is the only quantity that changes: driving force, scale,
-diffusion operator, damping D and boost stay fixed (the floored projection of
-`:local_lambda` raised the boost with the rejected multiplier, so it is reset).
-Each repetition rebuilds M + dt/eta*K for the semi-implicit integrator. The
-substep length dt is not changed. `move_limit = Inf` is the unlimited update.
+The move limit is the per-cell `box` around the substep's start state `cache.old`
+(see `move_box!`, `nothing` for `move_limit = Inf`): it replaces the density
+bounds [lower, 1] in the volume bisection, after the semi-implicit solve. eta,
+driving force, scale, boost and damping are those of the unlimited update.
 """
-function move_limited_step!(chi,cache,work,scale,dt,settings)
+function gradient_projection!(chi,cache,work,scale,dt,settings,box)
     (;options,eta0,rho,lower) = settings
-    limit = options.move_limit*dt
-    eta = tried = eta0
-    for attempt in 1:MOVE_LIMIT_ATTEMPTS
-        tried = eta
-        trial = gradient_trial!(cache,work.driving,scale,dt,eta,options)
-        # `:local_lambda` (explicit only) puts the current |lambda| into the boost.
-        floored = options.scaling == :local_lambda
-        weights = floored ? nothing : volume_response!(cache,options)
-        timer = diagnostic_timer(options)
-        projection = floored ?
-            project_volume_floored!(chi,cache,work.driving,scale,dt/eta,rho,lower;
-                tolerance=options.volume_tolerance,damping=cache.damping_active ? 1/(scale*eta) : 0.0) :
-            project_volume!(chi,cache.trial,cache.faces.area,rho,lower;
-                tolerance=options.volume_tolerance,weights)
-        projection_seconds = diagnostic_seconds(options,timer)
-        move = isfinite(limit) ? simp_move(chi,cache.old,options.simp_exponent) : 0.0
-        move <= limit && return (;trial,projection,eta,eta_increases=attempt-1,projection_seconds)
-        eta *= 1.01*move/limit
-        floored && update_coefficients!(cache,work.driving,scale,options)
-    end
-    error("Move limit $(options.move_limit) not reached after $MOVE_LIMIT_ATTEMPTS attempts ",
-        "(last tried eta/eta0 = $(tried/eta0))")
+    trial = gradient_trial!(cache,work.driving,scale,dt,eta0,options)
+    # `:local_lambda` (explicit only) puts the current |lambda| into the boost.
+    floored = options.scaling == :local_lambda
+    weights = floored ? nothing : volume_response!(cache,options)
+    timer = diagnostic_timer(options)
+    projection = floored ?
+        project_volume_floored!(chi,cache,work.driving,scale,dt/eta0,rho,lower;
+            tolerance=options.volume_tolerance,damping=cache.damping_active ? 1/(scale*eta0) : 0.0,box) :
+        project_volume!(chi,cache.trial,cache.faces.area,rho,lower;
+            tolerance=options.volume_tolerance,weights,box)
+    projection_seconds = diagnostic_seconds(options,timer)
+    return (;trial,projection,projection_seconds)
 end
 
 function observe_gradient_step!(cache,chi,physical,p,work,settings,step,substep,elapsed,last_substep)
@@ -242,12 +217,11 @@ function observe_gradient_step!(cache,chi,physical,p,work,settings,step,substep,
     diagnostic = cache.diagnostic_work::DiagnosticWorkspace
     regularization_forces!(diagnostic,cache,chi)
     if options.diagnostics
-        # diffusion_cfl at the accepted eta (rate ~ 1/eta); damping, which lowers
-        # the effective rate further by 1/(1+r_i), is not included (upper bound).
-        rate = step.eta == settings.eta0 ? step.rate : step.rate*(settings.eta0/step.eta)
+        # diffusion_cfl excludes damping, which lowers the effective rate
+        # further by 1/(1+r_i) (upper bound).
         push!(work.records,diagnostic_record!(diagnostic,cache,chi,work.driving,step.scale,step.projection,options;
-            eta0=step.eta,eta_increases=step.eta_increases,rho,lower,substep,elapsed,dt=step.dt,
-            rate,start_time=step.start_time,
+            eta0=settings.eta0,move_limited=step.move_limited,box=step.box,rho,lower,substep,elapsed,dt=step.dt,
+            rate=step.rate,start_time=step.start_time,
             coefficient_seconds=step.coefficient_seconds,projection_seconds=step.projection_seconds,
             step.trial...,physical,physical_driving=p,density_projection))
     end

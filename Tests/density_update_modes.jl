@@ -112,7 +112,8 @@ end
                     do_adaptivity=adaptive,filter_radius=0.15,take_snapshots_at=[1])
                 @test result.scaling == (label == :helmholtz ? :mean : label)
                 @test result.integrator == integrator && result.diag == diag
-                @test isfinite(move_limit) || all(row -> row.eta_increases == 0,result.density_history)
+                @test all(row -> row.move_limited >= 0,result.density_history)
+                @test isfinite(move_limit) || all(row -> row.move_limited == 0,result.density_history)
                 @test length(result.strain_energy) == 3
                 @test all(x -> isfinite(x) && x>0,result.strain_energy)
                 @test length(result.projection_history) == 3

@@ -20,7 +20,7 @@ function DensityCache(faces::TPFAFaces, beta0::Union{Real,AbstractVector})
     return DensityCache(faces,b,ones(n),K,diagonal_indices,face_indices,
         nothing,Diagonal(Float64[]),nothing,true,NaN,NaN,false,
         Float64[],Float64[],Float64[],Float64[],false,false,
-        zeros(n),zeros(n),zeros(n),zeros(n),Float64[],zeros(n),falses(n),nothing,(;))
+        zeros(n),zeros(n),zeros(n),zeros(n),Float64[],Float64[],Float64[],zeros(n),falses(n),nothing,(;))
 end
 
 """Harmonic face coefficient, including an insulating zero-coefficient cell."""
