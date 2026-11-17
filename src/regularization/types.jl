@@ -53,6 +53,9 @@ Base.@kwdef struct DensityOptions
     implicit_max_iterations::Int = 1000
     # Absolute physical-density change used by adaptive mesh marking.
     activity_tolerance::Float64 = 1e-3
+    # Measure the imbalance of every substep into `cache.balance` (`measure_balance!`,
+    # `measure_filter_balance!`). The sharpening continuation of the driver needs it.
+    measure_balance::Bool = false
 end
 
 density_activity_tolerance(options::DensityOptions) =
@@ -77,10 +80,13 @@ struct DiagnosticWorkspace
     reg_after::Vector{Float64}
     trial::Vector{Float64}
     projected::Vector{Float64}
-    physical_before::Vector{Float64}
     weights::Vector{Float64}
 end
-DiagnosticWorkspace(n::Int) = DiagnosticWorkspace(ntuple(_ -> zeros(n),6)...)
+DiagnosticWorkspace(n::Int) = DiagnosticWorkspace(ntuple(_ -> zeros(n),5)...)
+
+"""Imbalance of a density substep: net over gross force on the free cells (see
+`measure_balance!` and `measure_filter_balance!`); NaN before the first measurement."""
+const NO_BALANCE = (imbalance=NaN,force=0.0,diffusion=0.0,obstacle_unit=0.0,free_fraction=0.0)
 
 """
 `stiffness` is always the baseline TPFA operator K(base_beta). `beta_relative`
@@ -94,9 +100,15 @@ multiplier, used by `project_volume!`.
 The secant damping history (`damping` D_i, the previous entry state
 `secant_design`/`secant_force`) is empty until `diag` is used; `damping_ratio`
 r_i = D_i/(s*eta*b_i) belongs to the current substep. A new cache (run start,
-every remesh) has no history; `reset_secant!` clears it on a projection beta step.
+every remesh) has no history; `reset_secant!` clears it.
 `move_lower`/`move_upper` hold the move-limit box of the current substep; they
 stay empty without a move limit.
+
+`obstacle` is the current weight g of the double-obstacle term (see `add_obstacle!`);
+zero leaves the update unchanged. The driver owns its continuation
+(`ObstacleContinuation`) and writes it before every density update. `balance`
+holds the imbalance of the last substep (`measure_balance!`), computed only with
+`options.measure_balance`.
 """
 mutable struct DensityCache
     faces::TPFAFaces
@@ -122,13 +134,14 @@ mutable struct DensityCache
     rhs::Vector{Float64}
     trial::Vector{Float64}
     volume_weight::Vector{Float64}
-    design_driving::Vector{Float64}
     move_lower::Vector{Float64}
     move_upper::Vector{Float64}
     activity_reference::Vector{Float64}
     changed::BitVector
     diagnostic_work::Union{Nothing,DiagnosticWorkspace}
     fields::NamedTuple
+    obstacle::Float64
+    balance::typeof(NO_BALANCE)
 end
 
 """Reusable coordinate/CSR storage for rebuilding a changing TPFA graph.
@@ -184,4 +197,5 @@ mutable struct HelmholtzCache
     changed::BitVector
     diagnostic_work::Union{Nothing,FilterDiagnostics}
     fields::NamedTuple
+    balance::typeof(NO_BALANCE) # imbalance of the last design step (`measure_filter_balance!`)
 end

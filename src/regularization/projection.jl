@@ -4,33 +4,39 @@
 # gradients (force per unit area), rather than integrated cell derivatives.
 
 """
-Settings for the optional smooth density projection. Only `enabled` is exposed
-by the runners; edit these defaults to change the continuation policy.
+Settings of the smooth density projection of the Helmholtz design (the gradient
+penalty sharpens with the double-obstacle term instead, see obstacle.jl). The
+driver sets `enabled`, `beta_initial`, `max_growth_rate`, `gray_tolerance` and
+`imbalance_tolerance` from its keywords; the other values are fixed defaults.
 
-The beta update follows Dunning & Wein (2025), Eqs. (6)–(7),
-https://doi.org/10.1007/s00158-025-03968-2. Absolute objective magnitude makes
-the progress ratio valid for either sign (our minimized strain energy is positive).
+Continuation (`projection_advance!`) as in NewtonKrylovPlasticity: with the
+imbalance e of the last design substep (net over gross force, 1 = nothing
+balanced, 0 = equilibrium),
+
+    ln beta <- ln beta + max_growth_rate * max(0, 1 - e/imbalance_tolerance),
+
+until the grayness is at most `gray_tolerance`. The objective is not used.
 The threshold is solved for volume preservation instead of fixing eta=0.5:
 the existing design box/volume correction therefore also enforces physical volume.
 """
 Base.@kwdef struct DensityProjectionOptions
     enabled                  ::Bool    = false
     beta_initial             ::Float64 = 1.0
-    growth_factor            ::Float64 = 1e-3
-    max_growth_rate          ::Float64 = 0.5
+    max_growth_rate          ::Float64 = 0.3
     gray_tolerance           ::Float64 = 0.01
+    imbalance_tolerance      ::Float64 = 0.1
     volume_tolerance         ::Float64 = 1e-12
     max_threshold_iterations ::Int     = 80
-    # Advance beta also when an unconverged projection worsens the objective.
-    advance_on_stall         ::Bool    = true
 end
 
 function validate_density_projection_options(o::DensityProjectionOptions)
-    for v in (o.beta_initial, o.growth_factor, o.max_growth_rate)
+    for v in (o.beta_initial, o.max_growth_rate)
         isfinite(v) && v > 0 || throw(ArgumentError("projection growth settings must be finite and positive"))
     end
     isfinite(o.gray_tolerance) && 0 < o.gray_tolerance < 1 ||
         throw(ArgumentError("projection gray_tolerance must lie in (0, 1)"))
+    0 < o.imbalance_tolerance < 1 ||
+        throw(ArgumentError("projection imbalance_tolerance must lie in (0, 1)"))
     isfinite(o.volume_tolerance) && 0 < o.volume_tolerance < 1 ||
         throw(ArgumentError("projection volume_tolerance must lie in (0, 1)"))
     o.max_threshold_iterations > 0 ||
@@ -54,7 +60,6 @@ mutable struct DensityProjection
     derivative           ::Vector{Float64}  # partial P / partial t
     threshold_derivative ::Vector{Float64}  # partial P / partial eta, common scale removed
     grayness             ::Float64
-    previous_objective   ::Float64
     beta_history         ::Vector{Float64}  # beta used for each completed iteration
     gray_history         ::Vector{Float64}  # final candidate, before beta advances
 end
@@ -67,13 +72,13 @@ function DensityProjection(o::DensityProjectionOptions, V::Vector{Float64}; rho_
     !isempty(V) && all(v -> isfinite(v) && v > 0, V) && isfinite(sum(V)) ||
         throw(ArgumentError("projection needs finite positive cell volumes"))
     return DensityProjection(o, V ./ sum(V), rho_min, o.beta_initial, 0.5,
-                             ones(length(V)), zeros(length(V)), NaN, NaN,
+                             ones(length(V)), zeros(length(V)), NaN,
                              Float64[], Float64[])
 end
 
 """Update cell weights and reuse derivative buffers after an adaptive mesh change.
 
-The continuation state (beta, previous objective and scalar histories) is retained.
+The continuation state (beta and the scalar histories) is retained.
 Call projection_apply! with the transferred field before using its pullback again.
 """
 projection_rebuild!(::Nothing, area) = nothing
@@ -121,7 +126,7 @@ end
 
 projection_apply!(out, ::Nothing, input) = (out === input || copyto!(out, input); out)
 projection_pullback!(gradient, ::Nothing) = gradient
-projection_advance!(::Nothing, objective; reset=false, allow_advance=true) = false
+projection_advance!(::Nothing, imbalance; allow_advance=true) = false
 projection_converged(::Nothing) = true
 projection_converged(p::DensityProjection) = p.grayness <= p.options.gray_tolerance
 
@@ -268,37 +273,23 @@ end
 
 """Observe one completed outer iteration and prepare beta for the next one.
 
-Negative objectives still improve when they DECREASE. Equal nonzero values
-use the capped limit of the paper's rule; a zero scale or nonfinite value
-cannot supply a progress ratio. SIMP continuation clears the baseline so
-objectives from different penalization laws are not compared.
+`imbalance` is the imbalance e of the last design substep (`measure_filter_balance!`).
 
-With `advance_on_stall` (default) an unconverged projection (grayness above the
-target) whose objective got WORSE is treated as stalled progress and advances by
+    ln beta <- ln beta + max_growth_rate * max(0, 1 - e/imbalance_tolerance):
 
-    increment = min(growth_factor*scale/|improvement|, max_growth_rate*beta),
-
-the same rule as for a positive improvement. Once the oscillation is damped, J
-drifts slightly worse after a beta step while the grayness stays above target;
-the paper's rule would then never advance beta again, and the stop test, which
-needs the gray target, could not be met. `advance_on_stall=false` holds beta on
-a worse objective (the original rule).
+full rate at equilibrium, no growth while the design still moves (e at or above
+the tolerance), in particular while it reacts to the last increase. No growth
+once the grayness meets its tolerance, and none for a nonfinite imbalance (no
+free design cells: nothing measures the balance).
 """
-function projection_advance!(p::DensityProjection, objective::Real; reset=false, allow_advance=true)
+function projection_advance!(p::DensityProjection, imbalance::Real; allow_advance=true)
     push!(p.beta_history, p.beta)
     push!(p.gray_history, p.grayness)
-    previous = p.previous_objective
-    current = Float64(objective)
-    p.previous_objective = reset || !isfinite(current) ? NaN : current
-    (reset || !allow_advance || !isfinite(previous) || !isfinite(current) || projection_converged(p)) && return false
-    improvement = previous - current
-    scale = abs(previous) / 2 + abs(current) / 2
-    (improvement < 0 && !p.options.advance_on_stall || scale == 0) && return false
-    cap = p.options.max_growth_rate * p.beta
-    increment = improvement == 0 ? cap : min(p.options.growth_factor * (scale / abs(improvement)), cap)
-    next = p.beta + increment
+    (!allow_advance || projection_converged(p) || !isfinite(imbalance)) && return false
+    speed = max(0.0, 1 - imbalance/p.options.imbalance_tolerance)
+    speed > 0 || return false
+    next = p.beta*exp(p.options.max_growth_rate*speed)
     isfinite(next) || error("density projection beta overflow")
-    next > p.beta || return false
     p.beta = next
     return true
 end

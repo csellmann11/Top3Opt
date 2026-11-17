@@ -20,7 +20,8 @@ function DensityCache(faces::TPFAFaces, beta0::Union{Real,AbstractVector})
     return DensityCache(faces,b,ones(n),K,diagonal_indices,face_indices,
         nothing,Diagonal(Float64[]),nothing,true,NaN,NaN,false,
         Float64[],Float64[],Float64[],Float64[],false,false,
-        zeros(n),zeros(n),zeros(n),zeros(n),Float64[],Float64[],Float64[],zeros(n),falses(n),nothing,(;))
+        zeros(n),zeros(n),zeros(n),zeros(n),Float64[],Float64[],zeros(n),falses(n),nothing,(;),
+        0.0,NO_BALANCE)
 end
 
 """Harmonic face coefficient, including an insulating zero-coefficient cell."""
@@ -150,9 +151,9 @@ end
 
 """Secant reaction damping (`diag`): update the measured curvature at an outer entry.
 
-With the design x and the design driving force p (positive = wants to grow,
-after the projection pullback) at the entries k-1 and k of two consecutive
-outer iterations, dx = x^k - x^(k-1), dp = p^k - p^(k-1), N_i the cell i
+With the density x and its driving force p (positive = wants to grow) at the
+entries k-1 and k of two consecutive outer iterations, dx = x^k - x^(k-1),
+dp = p^k - p^(k-1), N_i the cell i
 and its face neighbors and m = <dx^2> the volume-weighted mean square step over
 the whole domain,
 
@@ -242,13 +243,13 @@ function update_secant_damping!(cache::DensityCache,x,p)
     return cache
 end
 
-"""Forget the secant history (projection beta step); D = 0 until two new entries."""
+"""Forget the secant history; D = 0 until two new entries. An obstacle-weight step
+keeps it: g does not enter the driving force whose secant D measures."""
 function reset_secant!(cache::DensityCache)
     fill!(cache.damping,0.0)
     cache.secant_valid = cache.damping_active = false
     return cache
 end
-reset_secant!(cache) = cache
 
 """Per-cell damping ratio r_i = D_i/(s*eta*b_i) of the current substep."""
 damping_ratio!(cache::DensityCache,scale,eta) =

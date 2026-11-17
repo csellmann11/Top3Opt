@@ -129,7 +129,7 @@ the bisection, so the accepted state is the fixed point of boost and multiplier.
 For q >= 0 the volume is continuous and decreasing in l >= 0, and the pull
 toward void saturates at 2a: the bracket is therefore grown from l = 0 by
 doubling in the direction of the volume excess instead of being taken from the
-all-at-bound shifts. With signed q (e.g. the projection pullback) or l < 0
+all-at-bound shifts. With signed q or l < 0
 monotonicity is not guaranteed; bisection keeps a sign change and an
 unreachable target is an error. The final boost
 max(r_i, |l|/2) is written back to `cache.beta_relative`. The returned shift a*l
@@ -140,7 +140,8 @@ replaces eta*b_i(l) and the diffusion no longer cancels from the boost:
 
     chi_i(l) = clamp(old_i + a*(q_i - l - b_i(l)*(K old)_i/area_i)/(b_i(l) + D_i*damping), lower, 1),
 
-with K*old taken from `cache.rhs` (explicit trial). `damping = 0` is the undamped form above.
+with K*old taken from `cache.rhs` (explicit trial; K*old - G with the obstacle term,
+see `add_obstacle!`). `damping = 0` is the undamped form above.
 A move-limit `box` (see `move_box!`) replaces [lower, 1] in every clamp; the
 bracket search is unchanged.
 """

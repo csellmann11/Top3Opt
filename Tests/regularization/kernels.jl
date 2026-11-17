@@ -81,22 +81,19 @@ end
     @test cache.solver === nothing # Explicit updates need no implicit workspace.
 end
 
-@testset "Gradient variants satisfy the frozen equation, with optional projection" begin
+@testset "Gradient variants satisfy the frozen equation" begin
     faces = kernel_faces()
     initial = [0.2,0.4,0.6,0.3,0.5]
     baseline = [0.01,0.02,0.005,0.03,0.04]
     force = [1.0,20.0,3.0,2.0,1.0]
     lower,eta0 = 0.001,15.0
     rho = dot(faces.area,initial)/sum(faces.area)
-    for method in (:mean,:local_max,:local_lambda), integrator in (:explicit,:semi_implicit), enabled in (false,true)
+    for method in (:mean,:local_max,:local_lambda), integrator in (:explicit,:semi_implicit), g in (0.0,0.6)
         method == :local_lambda && integrator == :semi_implicit && continue
         cache = DensityCache(faces,baseline)
-        design,physical = copy(initial),copy(initial)
-        projection = DensityProjection(DensityProjectionOptions(enabled=enabled,beta_initial=4.0),
-            faces.area;rho_min=lower)
-        projection_apply!(physical,projection,design)
-        pulled = copy(force)
-        projection_pullback!(pulled,projection)
+        cache.obstacle = g
+        design = copy(initial)
+        pulled = force
         scale = driving_scale(initial,pulled,faces.area,lower).value
         opts = method_options(method;integrator,substeps=1,
             implicit_tolerance=1e-13,diagnostics=true)
@@ -105,27 +102,29 @@ end
         @test K ≈ diffusion_matrix(faces,baseline)
         @test (maximum(boost) > 1) == (method != :mean)
         # eta_i = eta0*b_i: the boost divides the cell's force and volume multiplier.
+        # The explicit obstacle force g*kappa*(x - c) enters like the diffusion.
+        obstacle = g.*baseline./cbrt.(faces.area).^2 .*(initial.-(1+lower)/2)
         system = Diagonal(faces.area)+K/eta0
-        trial = integrator == :explicit ? initial+(pulled./(scale.*boost)-K*initial./faces.area)/eta0 :
-            system\(faces.area.*(initial+pulled./(eta0*scale.*boost)))
+        trial = integrator == :explicit ? initial+(pulled./(scale.*boost)-K*initial./faces.area+obstacle)/eta0 :
+            system\(faces.area.*(initial+(pulled./(scale.*boost)+obstacle)/eta0))
         weights = method == :mean ? nothing :
             integrator == :explicit ? 1 ./boost : system\(faces.area./boost)
         expected = similar(initial)
         project_volume!(expected,trial,faces.area,rho,lower;weights)
-        result = advance_density!(design,copy(force),identity,cache;options=opts,
-            eta0,rho,lower,physical,density_projection=projection)
+        result = advance_density!(design,copy(force),identity,cache;options=opts,eta0,rho,lower)
         if method == :local_lambda
             # Fixed point: the explicit step with the final boost max(r,|l|/2), diffusion included.
             l = only(result.records).lambda/scale
             final = max.(boost,abs(l)/2)
             @test cache.beta_relative ≈ final
             @test norm(K*initial./faces.area)/eta0 > 1e-6 # diffusion is far above atol
-            expected = clamp.(initial .+ ((pulled./scale .- l)./final .- K*initial./faces.area)./eta0,lower,1.0)
+            expected = clamp.(initial .+ ((pulled./scale .- l)./final .- K*initial./faces.area .+ obstacle)./eta0,lower,1.0)
         end
         @test design ≈ expected atol=2e-12
-        @test dot(faces.area,physical)/sum(faces.area) ≈ rho atol=2e-10
-        @test all(lower .<= physical .<= 1)
+        @test dot(faces.area,design)/sum(faces.area) ≈ rho atol=2e-10
+        @test all(lower .<= design .<= 1)
         @test length(result.records) == 1
+        @test only(result.records).obstacle_weight == g
         if integrator == :semi_implicit
             @test norm(cache.system*cache.trial-cache.rhs)/norm(cache.rhs) < 1e-12
             system,solver = cache.system,cache.solver
@@ -195,8 +194,9 @@ end
                 options=opts,eta0=15.0,rho,lower=0.001)
             @test physical ≈ oldphysical atol=2e-12
         else
-            advance_density!(design,zeros(5),identity,cache;options=opts,
-                eta0=15.0,rho,lower=0.001,physical)
+            # The obstacle weight is tied to beta, which vanishes with the force.
+            cache.obstacle = 3.0
+            advance_density!(design,zeros(5),identity,cache;options=opts,eta0=15.0,rho,lower=0.001)
         end
         @test design == initial
     end
@@ -289,25 +289,28 @@ end
     initial = [0.2,0.4,0.6,0.3,0.5]
     rho = dot(faces.area,initial)/sum(faces.area)
     weights = [1.0,20.0,3.0,2.0,1.0]
-    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit), enabled in (false,true)
+    # Sharpening: the projection of the Helmholtz design, the obstacle term of the gradient penalty.
+    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit), sharpen in (false,true)
         method in (:helmholtz,:local_lambda) && integrator == :semi_implicit && continue
         results = map(1:3) do mode
             cache = method == :helmholtz ? HelmholtzCache(faces,ones(5),0.2) : DensityCache(faces,0.02)
-            design,physical = copy(initial),copy(initial)
-            projection = DensityProjection(DensityProjectionOptions(enabled=enabled),faces.area;rho_min=0.001)
-            opts = method_options(method;integrator,substeps=3,diagnostics=mode==2)
+            design = copy(initial)
+            opts = method_options(method;integrator,substeps=3,diagnostics=mode==2,measure_balance=sharpen)
             force = zeros(5)
-            refresh! = p -> (@. p = 1+weights*physical^2)
             if method == :helmholtz
+                physical = copy(initial)
+                projection = DensityProjection(DensityProjectionOptions(enabled=sharpen),faces.area;rho_min=0.001)
                 map_filtered_design!(physical,design,cache,projection)
+                refresh! = p -> (@. p = 1+weights*physical^2)
                 result = advance_filtered_design!(design,physical,force,refresh!,cache;
                     options=opts,eta0=15.0,rho,lower=0.001,collect_fields=mode==3,
                     density_projection=projection)
             else
-                projection_apply!(physical,projection,design)
+                physical = design
+                cache.obstacle = sharpen ? 1.2 : 0.0
+                refresh! = p -> (@. p = 1+weights*design^2)
                 result = advance_density!(design,force,refresh!,cache;
-                    options=opts,eta0=15.0,rho,lower=0.001,physical,collect_fields=mode==3,
-                    density_projection=projection)
+                    options=opts,eta0=15.0,rho,lower=0.001,collect_fields=mode==3)
             end
             (;cache,design,physical,result)
         end
@@ -318,35 +321,40 @@ end
         @test isempty(results[1].result.records) && isempty(results[1].cache.fields)
         @test length(results[2].result.records) == 3
         @test !isempty(results[3].cache.fields)
-        @test results[3].cache.fields.design_after == results[3].design
+        @test sharpen == isfinite(results[1].cache.balance.imbalance)
+        @test results[1].cache.balance === results[2].cache.balance
+        fields = results[3].cache.fields
+        @test (method == :helmholtz ? fields.design_after : fields.chi_after) == results[3].design
     end
 end
 
-function kernel_allocations(n,method,integrator,enabled)
+"""Steady-state allocation of one update; `sharpen` adds the projection (Helmholtz) or
+the obstacle term (gradient penalty), with the balance measurement."""
+function kernel_allocations(n,method,integrator,sharpen)
     faces = TPFAFaces(ones(n),collect(1:n-1),collect(2:n),ones(n-1),fill(0.5,n-1),fill(0.5,n-1))
     cache = method == :helmholtz ? HelmholtzCache(faces,ones(n),0.1) : DensityCache(faces,0.01)
     design,physical = fill(0.3,n),fill(0.3,n)
     force = [1+0.5sin(i) for i in 1:n]
-    projection = DensityProjection(DensityProjectionOptions(enabled=enabled),faces.area;rho_min=0.001)
-    opts = method_options(method;integrator,substeps=1)
+    opts = method_options(method;integrator,substeps=1,measure_balance=sharpen)
     if method == :helmholtz
+        projection = DensityProjection(DensityProjectionOptions(enabled=sharpen),faces.area;rho_min=0.001)
         map_filtered_design!(physical,design,cache,projection)
         step! = () -> advance_filtered_design!(design,physical,force,identity,cache;options=opts,
             eta0=15.0,rho=0.3,lower=0.001,density_projection=projection)
     else
-        projection_apply!(physical,projection,design)
+        cache.obstacle = sharpen ? 1.0 : 0.0
         step! = () -> advance_density!(design,force,identity,cache;options=opts,
-            eta0=15.0,rho=0.3,lower=0.001,physical,density_projection=projection)
+            eta0=15.0,rho=0.3,lower=0.001)
     end
     step!(); step!()
     return @allocated step!()
 end
 
 @testset "Steady mesh updates reuse mesh-sized storage" begin
-    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit), enabled in (false,true)
+    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit), sharpen in (false,true)
         method in (:helmholtz,:local_lambda) && integrator == :semi_implicit && continue
-        small = kernel_allocations(20,method,integrator,enabled)
-        large = kernel_allocations(2000,method,integrator,enabled)
+        small = kernel_allocations(20,method,integrator,sharpen)
+        large = kernel_allocations(2000,method,integrator,sharpen)
         @test large <= small+1024
         @test large < 8192
     end

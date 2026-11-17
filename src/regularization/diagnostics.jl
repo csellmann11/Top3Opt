@@ -12,36 +12,29 @@ end
 
 function diagnostic_record!(work,cache,chi,p,scale,projection,options;
         eta0,rho,lower,substep,dt,elapsed,rate,system_updated,start_time,
-        coefficient_seconds,system_seconds,solve_seconds,projection_seconds,
-        physical=chi,physical_driving=p,density_projection=nothing,move_limited=0,box=nothing)
+        coefficient_seconds,system_seconds,solve_seconds,projection_seconds,move_limited=0,box=nothing)
     area, old = cache.faces.area, cache.old
     a, s = dt/eta0, scale.value
     linear_residual = gradient_linear_residual!(work,cache,chi,a,options)
     stationarity,split_defect = gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options,box)
     lambda = projection.shift*s/a
-    (;total,work_J,physical_work,R_before,R_after,move2,move_max,design_move,reg2,net2,
+    (;total,work_J,R_before,R_after,move2,move_max,reg2,net2,
       boosted,boost_mean,normalized_max,bound_area,beta_min,beta_max) =
-        gradient_balance_metrics(work,cache,chi,p,s,lambda,physical,physical_driving,lower)
+        gradient_balance_metrics(work,cache,chi,p,s,lambda,lower)
     pmax = maximum(abs,p)
-    return (substep=substep,dt=dt,pseudo_time=elapsed+dt,density_projection_metadata(density_projection)...,
-        p_avg=s,p_avg_raw=scale.raw,p_max=pmax,peak_to_mean=pmax/s,
+    return (substep=substep,dt=dt,pseudo_time=elapsed+dt,obstacle_weight=cache.obstacle,
+        imbalance=cache.balance.imbalance,p_avg=s,p_avg_raw=scale.raw,p_max=pmax,peak_to_mean=pmax/s,
         scale_fallback=scale.fallback,scale_floored=scale.floored,gray_weight=scale.gray_weight,
         eta=eta0*s,move_limited=move_limited,
         damping_max=cache.damping_active ? maximum(cache.damping) : 0.0,
         beta_min=beta_min,beta_max=beta_max,
         beta_boost_max=maximum(cache.beta_relative),beta_boost_mean=boost_mean/total,
         boosted_area_fraction=boosted/total,normalized_drive_max=normalized_max,
-        volume_error=dot(area,physical)/total-rho,design_volume_error=projection.error,
-        chi_min=minimum(physical),chi_max=maximum(physical),
-        design_min=minimum(chi),design_max=maximum(chi),
-        move_linf=move_max,move_rms=sqrt(move2/total),design_move_linf=design_move,
-        grayness_metrics(physical,area,lower)...,design_grayness=grayness_metrics(chi,area,lower).grayness,
+        volume_error=dot(area,chi)/total-rho,chi_min=minimum(chi),chi_max=maximum(chi),
+        move_linf=move_max,move_rms=sqrt(move2/total),grayness_metrics(chi,area,lower)...,
         bound_area_fraction=bound_area/total,lambda=lambda,projection_iterations=projection.iterations,
         regularization_before=R_before,regularization_after=R_after,
-        regularization_field=density_projection === nothing ? "physical" : "design",
-        linearized_design_objective_change=work_J,linearized_objective_change=physical_work,
-        projection_linearization_defect=abs(physical_work-work_J),
-        linearized_merit_change=work_J+R_after-R_before,
+        linearized_objective_change=work_J,linearized_merit_change=work_J+R_after-R_before,
         reg_force_rms=s*sqrt(reg2/total),net_drive_rms=sqrt(net2/total),
         frozen_stationarity_linf=stationarity,split_equation_defect_linf=split_defect,
         linear_residual=linear_residual,diffusion_cfl=dt*rate,
@@ -75,7 +68,7 @@ function filter_record!(work,cache,design,chi,p,scale,projection,options;
         filter_balance_metrics(work,cache,design,chi,p,filtered,filtered_driving,lower)
     pmax = maximum(abs,p)
     return (substep=substep,dt=dt,pseudo_time=substep*dt,density_projection_metadata(density_projection)...,
-        p_avg=scale.value,p_avg_raw=scale.raw,p_max=pmax,peak_to_mean=pmax/scale.value,
+        imbalance=cache.balance.imbalance,p_avg=scale.value,p_avg_raw=scale.raw,p_max=pmax,peak_to_mean=pmax/scale.value,
         scale_fallback=scale.fallback,scale_floored=scale.floored,gray_weight=scale.gray_weight,
         eta=eta0*scale.value,move_limited=move_limited,radius_min=sqrt(minimum(cache.radius2)),radius_max=sqrt(maximum(cache.radius2)),
         volume_error=dot(area,chi)/total-rho,design_volume_error=projection.error,
@@ -113,11 +106,17 @@ function gradient_linear_residual!(work,cache,chi,a,options)
 end
 
 """Check projected stationarity and the semi-implicit split equation independently.
-The split comparison uses the substep's move-limit `box`, like the update itself."""
+The split comparison uses the substep's move-limit `box`, like the update itself.
+Both include the explicit obstacle force of `old`, boosted like the diffusion."""
 function gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options,box=nothing)
-    area,old = cache.faces.area,cache.old
+    area,old,boost = cache.faces.area,cache.old,cache.beta_relative
     # These extra projections are diagnostics, not part of the actual update.
     @. work.trial = old+p/s+work.reg_before
+    if cache.obstacle != 0
+        for i in eachindex(old)
+            work.trial[i] += boost[i]*obstacle_force(cache,old,lower,i)
+        end
+    end
     project_volume!(work.projected,work.trial,area,rho,lower;tolerance=options.volume_tolerance)
     stationarity = maximum(i -> abs(work.projected[i]-old[i]),eachindex(chi))
     split_defect = 0.0
@@ -125,7 +124,6 @@ function gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options,box=nothi
         # Fully implicit constrained step; reg_after carries b, so dividing by b
         # leaves baseline diffusion and the boosted-down force and multiplier.
         # Secant damping multiplies the viscosity of a cell by 1+r.
-        boost = cache.beta_relative
         if cache.damping_active
             r = cache.damping_ratio
             @. work.trial = old+(a/(boost*(1+r)))*(p/s+work.reg_after)
@@ -133,6 +131,12 @@ function gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options,box=nothi
         else
             @. work.trial = old+(a/boost)*(p/s+work.reg_after)
             weights = all(isone,boost) ? nothing : (@. work.weights = 1/boost)
+        end
+        if cache.obstacle != 0
+            for i in eachindex(old)
+                r = cache.damping_active ? cache.damping_ratio[i] : 0.0
+                work.trial[i] += a/(1+r)*obstacle_force(cache,old,lower,i)
+            end
         end
         project_volume!(work.projected,work.trial,area,rho,lower;
             tolerance=options.volume_tolerance,weights,box)
@@ -142,22 +146,19 @@ function gradient_stationarity!(work,cache,chi,p,s,a,rho,lower,options,box=nothi
 end
 
 """Accumulate energy, work, movement and coefficient diagnostics in one cell pass."""
-function gradient_balance_metrics(work,cache,chi,p,s,lambda,physical,physical_driving,lower)
+function gradient_balance_metrics(work,cache,chi,p,s,lambda,lower)
     area,old = cache.faces.area,cache.old
     total = sum(area)
-    work_J = physical_work = R_before = R_after = move2 = move_max = design_move = reg2 = net2 = 0.0
+    work_J = R_before = R_after = move2 = move_max = reg2 = net2 = 0.0
     boosted = boost_mean = normalized_max = bound_area = 0.0
     beta_min, beta_max = Inf, 0.0
     for i in eachindex(chi)
         delta = chi[i]-old[i]
-        physical_delta = physical[i]-work.physical_before[i]
         work_J -= area[i]*p[i]*delta
-        physical_work -= area[i]*physical_driving[i]*physical_delta
         R_before -= area[i]*old[i]*work.reg_before[i]*s/2
         R_after -= area[i]*chi[i]*work.reg_after[i]*s/2
-        move2 += area[i]*physical_delta^2
-        move_max = max(move_max,abs(physical_delta))
-        design_move = max(design_move,abs(delta))
+        move2 += area[i]*delta^2
+        move_max = max(move_max,abs(delta))
         reg2 += area[i]*work.reg_before[i]^2
         net2 += area[i]*(p[i]-lambda)^2
         boost = cache.beta_relative[i]
@@ -168,7 +169,7 @@ function gradient_balance_metrics(work,cache,chi,p,s,lambda,physical,physical_dr
         beta_min = min(beta_min,beta); beta_max = max(beta_max,beta)
         (chi[i]<=lower+1e-12 || chi[i]>=1-1e-12) && (bound_area += area[i])
     end
-    return (;total,work_J,physical_work,R_before,R_after,move2,move_max,design_move,reg2,net2,boosted,boost_mean,normalized_max,bound_area,beta_min,beta_max)
+    return (;total,work_J,R_before,R_after,move2,move_max,reg2,net2,boosted,boost_mean,normalized_max,bound_area,beta_min,beta_max)
 end
 
 """Compare physical, filtered and design work in the same area metric."""

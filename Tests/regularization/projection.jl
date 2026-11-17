@@ -159,9 +159,12 @@ end
 @testset "density projection — settings validation" begin
     @test DensityProjection(DensityProjectionOptions(), [1.0]) === nothing
     for options in (DensityProjectionOptions(beta_initial=0.0),
-                    DensityProjectionOptions(growth_factor=NaN),
+                    DensityProjectionOptions(max_growth_rate=NaN),
                     DensityProjectionOptions(max_growth_rate=-1.0),
                     DensityProjectionOptions(gray_tolerance=0.0),
+                    DensityProjectionOptions(imbalance_tolerance=0.0),
+                    DensityProjectionOptions(imbalance_tolerance=1.0),
+                    DensityProjectionOptions(imbalance_tolerance=NaN),
                     DensityProjectionOptions(volume_tolerance=Inf),
                     DensityProjectionOptions(max_threshold_iterations=0))
         @test_throws ArgumentError validate_density_projection_options(options)
@@ -174,84 +177,46 @@ end
     @test_throws ArgumentError projection_apply!(zeros(2), p, [0.2, 1.1])
 end
 
-@testset "density projection — adaptive continuation" begin
-    function fresh(;advance_on_stall=true)
+@testset "density projection — imbalance continuation" begin
+    function fresh()
         # Fix the policy parameters for these analytic expectations. Production
         # defaults may be tuned without changing the continuation equation.
         options = DensityProjectionOptions(enabled=true,beta_initial=1.0,
-            growth_factor=5e-4,max_growth_rate=0.3,advance_on_stall=advance_on_stall)
+            max_growth_rate=0.3,imbalance_tolerance=0.1)
         p = DensityProjection(options,ones(4))
         projection_apply!(zeros(4), p, [0.15, 0.35, 0.6, 0.9])
         @test p.grayness > 0.01
         return p
     end
+    defaults = DensityProjectionOptions()
+    @test (defaults.beta_initial,defaults.max_growth_rate,defaults.gray_tolerance,
+        defaults.imbalance_tolerance) == (1.0,0.3,0.01,0.1)
 
+    # ln beta grows by max_growth_rate*max(0, 1 - e/imbalance_tolerance).
     p = fresh()
-    @test !projection_advance!(p, 100.0)
-    @test p.beta == 1.0
-    @test projection_advance!(p, 99.0)
-    @test p.beta ≈ 1.0 + 5e-4 * 99.5
-
-    p = fresh()
-    @test !projection_advance!(p, -100.0)
-    @test projection_advance!(p, -101.0)
-    @test p.beta ≈ 1.0 + 5e-4 * 100.5
-
-    # A worse objective of an unconverged projection is stalled progress: by default
-    # beta advances by the same rule with |improvement|; advance_on_stall=false holds it.
-    p = fresh()
-    projection_advance!(p, 100.0)
-    @test projection_advance!(p, 101.0)
-    @test p.beta ≈ 1.0 + 5e-4 * 100.5
-    p = fresh()
-    projection_advance!(p, 100.0)
-    @test projection_advance!(p, 100.0 + 1e-8)
-    @test p.beta ≈ 1.3
-    p = fresh(advance_on_stall=false)
-    projection_advance!(p, 100.0)
-    @test !projection_advance!(p, 101.0)
-    @test p.beta == 1.0
-    @test !projection_advance!(p, NaN)
-    @test !projection_advance!(p, Inf)
-    @test p.beta == 1.0
-
-    p = fresh()
-    projection_advance!(p, 100.0)
-    @test projection_advance!(p, 100.0 - 1e-8)
-    @test p.beta ≈ 1.3
-
-    p = fresh()
-    projection_advance!(p, 1.0)
-    @test !projection_advance!(p, -5.0; reset=true)
-    @test p.beta == 1.0
-    @test !projection_advance!(p, -5.1)
-    @test projection_advance!(p, -5.2)
-    @test p.beta ≈ 1.0 + 5e-4 * 5.15 / 0.1
-
-    p = fresh()
-    projection_advance!(p, 2.0)
-    @test projection_advance!(p, 2.0)
-    @test p.beta ≈ 1.3
-    @test p.beta_history ≈ [1.0, 1.0]
+    @test projection_advance!(p, 0.0)
+    @test p.beta ≈ exp(0.3)
+    @test projection_advance!(p, 0.05)
+    @test p.beta ≈ exp(0.3+0.15)
+    @test p.beta_history ≈ [1.0, exp(0.3)]
     @test length(p.gray_history) == 2
 
+    # No growth at or above the tolerance (the design still moves), none without a
+    # measured balance, none on the last iteration.
     p = fresh()
-    projection_advance!(p, 0.0)
-    @test !projection_advance!(p, 0.0)
+    for e in (0.1, 0.3, 1.0, NaN, Inf)
+        @test !projection_advance!(p, e)
+        @test p.beta == 1.0
+    end
+    @test !projection_advance!(p, 0.0; allow_advance=false)
     @test p.beta == 1.0
+    @test length(p.beta_history) == 6
 
+    # The grayness stop: a converged projection holds beta also at equilibrium.
     p = fresh()
-    projection_advance!(p, 1.0)
-    @test !projection_advance!(p, 1.0; allow_advance=false)
-    @test p.beta == 1.0
-
-    p = fresh()
-    projection_advance!(p, 1.0)
     projection_apply!(zeros(4), p, [0.0, 0.0, 1.0, 1.0])
-    @test !projection_advance!(p, 0.99999)
-    @test p.beta == 1.0
-    # A converged projection holds beta also on a worse objective.
-    @test !projection_advance!(p, 1.5)
+    @test projection_converged(p)
+    @test !projection_advance!(p, 0.0)
     @test p.beta == 1.0
 end
 
@@ -259,9 +224,9 @@ end
     area = [0.5, 1.0, 1.5]
     p = _projection_test_state(area; rho_min=0.001)
     projection_apply!(zeros(3), p, [0.05, 0.4, 0.9])
-    projection_advance!(p, 2.0)
-    projection_advance!(p, 1.99)
-    beta, previous, history = p.beta, p.previous_objective, copy(p.beta_history)
+    projection_advance!(p, 0.0)
+    projection_advance!(p, 0.02)
+    beta, history = p.beta, copy(p.beta_history)
     weights, derivative, threshold = p.weights, p.derivative, p.threshold_derivative
     @test projection_rebuild!(nothing, [1.0]) === nothing
     @test projection_converged(nothing)
@@ -269,7 +234,7 @@ end
         @test projection_rebuild!(p, next_area) === p
         @test p.weights === weights && p.derivative === derivative && p.threshold_derivative === threshold
         @test p.weights ≈ next_area ./ sum(next_area)
-        @test p.beta == beta && p.previous_objective == previous && p.beta_history == history
+        @test p.beta == beta && p.beta_history == history
         @test_throws ErrorException projection_pullback!(ones(length(next_area)), p)
         x = collect(range(0.2, 0.8; length=length(next_area)))
         out = similar(x)

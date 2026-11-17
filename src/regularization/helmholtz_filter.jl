@@ -3,7 +3,7 @@ function HelmholtzCache(faces::TPFAFaces, radius2::AbstractVector)
     n = length(faces.area)
     cache = HelmholtzCache(faces,zeros(n),TPFAAssemblyWorkspace(),spzeros(n,n),Diagonal(zeros(n)),
         CgWorkspace(n,n,Vector{Float64}),zeros(n),zeros(n),zeros(n),zeros(n),zeros(n),
-        Float64[],Float64[],Float64[],Float64[],zeros(n),falses(n),nothing,(;))
+        Float64[],Float64[],Float64[],Float64[],zeros(n),falses(n),nothing,(;),NO_BALANCE)
     return rebuild_filter!(cache,faces,radius2)
 end
 
@@ -120,6 +120,8 @@ On entry chi must equal P(F*a) on this mesh. The driver enforces this
 after each conservative mesh transfer, before computing mechanics. By default
 there is one design step per mechanical solve. Optional extra substeps retain
 the caller's frozen displacement, just as in the mean-beta reference update.
+`options.measure_balance` records the imbalance of every design step in
+`cache.balance` for the projection continuation of the driver.
 """
 function advance_filtered_design!(design,chi,p,refresh_driving!::F,cache::HelmholtzCache;
         options=DensityOptions(integrator=:explicit,regularization=:helmholtz),
@@ -190,18 +192,52 @@ The move limit acts on the latent design as for the gradient penalty: the
 per-cell box around `cache.design_before` (see `move_box!`) replaces [lower, 1]
 in the volume projection of the design step; eta is not changed.
 """
-function project_filtered_trial!(cache,design,chi,settings)
-    (;options,rho,lower,dt,density_projection) = settings
+function project_filtered_trial!(cache,design,chi,settings,scale)
+    (;options,eta0,rho,lower,dt,density_projection) = settings
     box = move_box!(cache,cache.design_before,lower,options,dt)
     timer = diagnostic_timer(options)
     projection = project_volume!(design,cache.trial,cache.faces.area,rho,lower;tolerance=options.volume_tolerance,box)
     projection_seconds = diagnostic_seconds(options,timer)
+    options.measure_balance && measure_filter_balance!(cache,design,scale,dt/eta0,projection.shift,lower,box)
     move_limited = count_move_limited(design,box,lower)
     timer = diagnostic_timer(options)
     forward_iterations = map_filtered_design!(chi,design,cache,density_projection;tolerance=options.filter_tolerance)
     forward_seconds = diagnostic_seconds(options,timer)
     mark_physical_activity!(cache.changed,chi,cache.activity_reference,options)
     return (;projection,projection_seconds,forward_iterations,forward_seconds,move_limited)
+end
+
+"""Imbalance of the design step just taken, written to `cache.balance`.
+
+With q the filtered design driving force (`cache.q`), s its scale, a = dt/eta0 and
+the volume shift of the projection, the free design cells (strictly inside
+[lower, 1] and inside the move-limit box) moved by a*(F - l) with F_i = q_i/s and
+the normalized multiplier l = shift/a. With volume-weighted L2 norms over the free
+cells (V_free their volume),
+
+    imbalance = |F - l| / (|F| + |l|*sqrt(V_free)),
+
+1 = nothing balanced, 0 = the box/volume KKT point. There is no diffusion term:
+the filter is a map, not a penalty. Without free cells the imbalance is NaN.
+"""
+function measure_filter_balance!(cache,design,scale,a,shift,lower,box)
+    area, q = cache.faces.area, cache.q
+    l = shift/a
+    total = free = net2 = f2 = 0.0
+    @inbounds for i in eachindex(design,area,q)
+        total += area[i]
+        lower < design[i] < 1 || continue
+        box === nothing || box.lower[i] < design[i] < box.upper[i] || continue
+        force = q[i]/scale
+        free += area[i]
+        net2 += area[i]*(force-l)^2
+        f2 += area[i]*force^2
+    end
+    F, L = sqrt(f2), abs(l)*sqrt(free)
+    gross = F+L
+    cache.balance = (imbalance=gross > 0 ? sqrt(net2)/gross : NaN,force=F,diffusion=0.0,
+        obstacle_unit=0.0,free_fraction=free/total)
+    return cache.balance
 end
 
 function filtered_design_substep!(design,chi,p,refresh!::F,cache,work,settings,substep,steps) where F
@@ -215,7 +251,7 @@ function filtered_design_substep!(design,chi,p,refresh!::F,cache,work,settings,s
     refresh!(p)
     work.outer !== nothing && substep == 1 && copyto!(work.outer.driving,p)
     trial = filtered_design_trial!(cache,design,p,work,settings)
-    accepted = project_filtered_trial!(cache,design,chi,settings)
+    accepted = project_filtered_trial!(cache,design,chi,settings,trial.scale.value)
     return (;start_time,threshold,filtered_before,trial,accepted)
 end
 

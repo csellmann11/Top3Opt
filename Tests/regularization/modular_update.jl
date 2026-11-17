@@ -69,23 +69,20 @@ end
     rho = dot(faces.area,initial)/sum(faces.area)
     refresh! = quadratic_force([2.0,9.0,3.0,1.0,4.0],[3.0,40.0,8.0,2.0,6.0],[0.3,0.5,0.4,0.6,0.2])
     for scaling in GRADIENT_SCALINGS, integrator in (:explicit,:semi_implicit), diag in (false,true),
-            enabled in (false,true)
+            g in (0.0,1.5)
         allowed_update(scaling,integrator) || continue
         cache = DensityCache(faces,0.02)
-        design,physical = copy(initial),copy(initial)
-        projection = DensityProjection(DensityProjectionOptions(enabled=enabled,beta_initial=4.0),
-            faces.area;rho_min=lower)
-        projection_apply!(physical,projection,design)
-        options = DensityOptions(;scaling,integrator,diag,substeps=2)
+        cache.obstacle = g
+        design = copy(initial)
+        options = DensityOptions(;scaling,integrator,diag,substeps=2,measure_balance=g > 0)
         force = zeros(5)
         damped = false
         for _ in 1:6
-            advance_density!(design,force,p -> refresh!(p,physical),cache;options,eta0=4.0,rho,lower,
-                physical,density_projection=projection)
+            advance_density!(design,force,p -> refresh!(p,design),cache;options,eta0=4.0,rho,lower)
             damped |= cache.damping_active
             @test dot(faces.area,design)/sum(faces.area) ≈ rho atol=2e-10
-            @test dot(faces.area,physical)/sum(faces.area) ≈ rho atol=2e-10
             @test all(lower-1e-12 .<= design .<= 1+1e-12)
+            @test g == 0 || 0 <= cache.balance.imbalance <= 1+1e-12 || isnan(cache.balance.imbalance)
         end
         @test damped == diag
         @test all(isfinite,design)
@@ -97,22 +94,20 @@ end
     initial = [0.2,0.4,0.6,0.3,0.5]
     rho = dot(faces.area,initial)/sum(faces.area)
     weights = [1.0,20.0,3.0,2.0,1.0]
-    for scaling in GRADIENT_SCALINGS, integrator in (:explicit,:semi_implicit), enabled in (false,true)
+    for scaling in GRADIENT_SCALINGS, integrator in (:explicit,:semi_implicit), g in (0.0,0.8)
         allowed_update(scaling,integrator) || continue
         results = map((false,true)) do diag
             cache = DensityCache(faces,0.02)
-            design,physical = copy(initial),copy(initial)
-            projection = DensityProjection(DensityProjectionOptions(enabled=enabled),faces.area;rho_min=0.001)
-            projection_apply!(physical,projection,design)
+            cache.obstacle = g
+            design = copy(initial)
             options = DensityOptions(;scaling,integrator,diag,substeps=3)
-            advance_density!(design,zeros(5),p -> (@. p = 1+weights*physical^2),cache;options,
-                eta0=15.0,rho,lower=0.001,physical,density_projection=projection)
-            (;design,physical,cache)
+            advance_density!(design,zeros(5),p -> (@. p = 1+weights*design^2),cache;options,
+                eta0=15.0,rho,lower=0.001)
+            (;design,cache)
         end
         @test results[1].design == results[2].design
-        @test results[1].physical == results[2].physical
         @test !results[2].cache.damping_active && results[2].cache.secant_valid
-        # After a reset (projection beta step) the next call is again undamped.
+        # After a reset the next call is again undamped.
         cache = results[2].cache
         reset_secant!(cache)
         @test !cache.secant_valid && all(iszero,cache.damping)
@@ -300,32 +295,35 @@ const MOVE_LIMIT_UPDATES = [[(:gradient,scaling,integrator,diag) for scaling in 
     for integrator in (:explicit,:semi_implicit) for diag in (false,true) if allowed_update(scaling,integrator)];
     [(:helmholtz,:mean,:explicit,false)]]
 
-"""Outer iterations of one update with the substep start states (the final design appended)."""
-function move_limit_run(update,limit,enabled;outer=3,substeps=3,simp_exponent=3.0,diagnostics=true)
+"""Outer iterations of one update with the substep start states (the final design appended).
+`sharpen` adds the projection (Helmholtz) or the obstacle term (gradient penalty)."""
+function move_limit_run(update,limit,sharpen;outer=3,substeps=3,simp_exponent=3.0,diagnostics=true)
     regularization,scaling,integrator,diag = update
     faces = kernel_faces()
     initial = [0.2,0.4,0.6,0.3,0.5]
     lower = 0.001
     rho = dot(faces.area,initial)/sum(faces.area)
     weights = [1.0,20.0,3.0,2.0,1.0]
-    design,physical = copy(initial),copy(initial)
-    projection = DensityProjection(DensityProjectionOptions(enabled=enabled),faces.area;rho_min=lower)
+    design = copy(initial)
     options = DensityOptions(;regularization,scaling,integrator,diag,substeps,move_limit=limit,
-        diagnostics,simp_exponent)
+        diagnostics,simp_exponent,measure_balance=sharpen)
     entries = Vector{Float64}[]
-    refresh! = p -> (push!(entries,copy(design)); @. p = 1+weights*physical^2)
     if regularization == :helmholtz
         eta0 = 1.0
+        physical = copy(initial)
+        refresh! = p -> (push!(entries,copy(design)); @. p = 1+weights*physical^2)
         cache = HelmholtzCache(faces,ones(5),0.2)
+        projection = DensityProjection(DensityProjectionOptions(enabled=sharpen),faces.area;rho_min=lower)
         map_filtered_design!(physical,design,cache,projection)
         step! = () -> advance_filtered_design!(design,physical,zeros(5),refresh!,cache;
             options,eta0,rho,lower,density_projection=projection)
     else
         eta0 = 2.0
+        physical = design
+        refresh! = p -> (push!(entries,copy(design)); @. p = 1+weights*design^2)
         cache = DensityCache(faces,0.02)
-        projection_apply!(physical,projection,design)
-        step! = () -> advance_density!(design,zeros(5),refresh!,cache;
-            options,eta0,rho,lower,physical,density_projection=projection)
+        cache.obstacle = sharpen ? 1.0 : 0.0
+        step! = () -> advance_density!(design,zeros(5),refresh!,cache;options,eta0,rho,lower)
     end
     outers = map(1:outer) do _
         empty!(entries)
@@ -336,9 +334,9 @@ function move_limit_run(update,limit,enabled;outer=3,substeps=3,simp_exponent=3.
 end
 
 @testset "Move limit: per-cell SIMP-scaled box in every update" begin
-    for update in MOVE_LIMIT_UPDATES, enabled in (false,true)
+    for update in MOVE_LIMIT_UPDATES, sharpen in (false,true)
         limit = first(update) == :helmholtz ? 0.005 : 0.02
-        run = move_limit_run(update,limit,enabled)
+        run = move_limit_run(update,limit,sharpen)
         (;faces,rho,lower,eta0) = run
         clipped = 0
         for (;entries,physical,result) in run.outers
@@ -367,8 +365,8 @@ end
 end
 
 @testset "Move limit Inf and 1e300 are bitwise the unlimited update" begin
-    for update in MOVE_LIMIT_UPDATES, enabled in (false,true), diagnostics in (false,true)
-        unlimited,huge = (move_limit_run(update,limit,enabled;diagnostics) for limit in (Inf,1e300))
+    for update in MOVE_LIMIT_UPDATES, sharpen in (false,true), diagnostics in (false,true)
+        unlimited,huge = (move_limit_run(update,limit,sharpen;diagnostics) for limit in (Inf,1e300))
         @test unlimited.design == huge.design && unlimited.physical == huge.physical
         @test all(a.entries == b.entries && a.physical == b.physical for (a,b) in zip(unlimited.outers,huge.outers))
         @test all(outer.result.move_limited == 0 for outer in (unlimited.outers...,huge.outers...))
@@ -443,26 +441,24 @@ end
     end
 end
 
-function damped_allocations(n,scaling,integrator,enabled)
+function damped_allocations(n,scaling,integrator,sharpen)
     faces = TPFAFaces(ones(n),collect(1:n-1),collect(2:n),ones(n-1),fill(0.5,n-1),fill(0.5,n-1))
     cache = DensityCache(faces,0.01)
-    design,physical = fill(0.3,n),fill(0.3,n)
-    projection = DensityProjection(DensityProjectionOptions(enabled=enabled),faces.area;rho_min=0.001)
-    projection_apply!(physical,projection,design)
-    refresh! = p -> (@. p = 1+0.5sin(1:n)+2physical)
-    options = DensityOptions(;scaling,integrator,diag=true,move_limit=0.05,substeps=1)
+    cache.obstacle = sharpen ? 1.0 : 0.0
+    design = fill(0.3,n)
+    refresh! = p -> (@. p = 1+0.5sin(1:n)+2design)
+    options = DensityOptions(;scaling,integrator,diag=true,move_limit=0.05,substeps=1,measure_balance=sharpen)
     force = zeros(n)
-    step! = () -> advance_density!(design,force,refresh!,cache;options,
-        eta0=15.0,rho=0.3,lower=0.001,physical,density_projection=projection)
+    step! = () -> advance_density!(design,force,refresh!,cache;options,eta0=15.0,rho=0.3,lower=0.001)
     step!(); step!(); step!()
     return @allocated step!()
 end
 
 @testset "Damped, move-limited updates reuse mesh-sized storage" begin
-    for scaling in GRADIENT_SCALINGS, integrator in (:explicit,:semi_implicit), enabled in (false,true)
+    for scaling in GRADIENT_SCALINGS, integrator in (:explicit,:semi_implicit), sharpen in (false,true)
         allowed_update(scaling,integrator) || continue
-        small = damped_allocations(20,scaling,integrator,enabled)
-        large = damped_allocations(2000,scaling,integrator,enabled)
+        small = damped_allocations(20,scaling,integrator,sharpen)
+        large = damped_allocations(2000,scaling,integrator,sharpen)
         @test large <= small+1024
         @test large < 8192
     end
