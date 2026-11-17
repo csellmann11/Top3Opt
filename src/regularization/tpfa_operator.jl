@@ -243,14 +243,6 @@ function update_secant_damping!(cache::DensityCache,x,p)
     return cache
 end
 
-"""Forget the secant history; D = 0 until two new entries. An obstacle-weight step
-keeps it: g does not enter the driving force whose secant D measures."""
-function reset_secant!(cache::DensityCache)
-    fill!(cache.damping,0.0)
-    cache.secant_valid = cache.damping_active = false
-    return cache
-end
-
 """Per-cell damping ratio r_i = D_i/(s*eta*b_i) of the current substep."""
 damping_ratio!(cache::DensityCache,scale,eta) =
     (@. cache.damping_ratio = cache.damping/(scale*eta*cache.beta_relative); cache.damping_ratio)

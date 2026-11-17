@@ -19,10 +19,16 @@ or `local_lambda` (the boost), `--integrator explicit` or `semi_implicit`, and
 `--diag true|false` (secant reaction damping). `local_lambda` is explicit only;
 Helmholtz is explicit and takes neither a scaling nor `--diag`. `--move_limit <x>`
 bounds |x³ − x_old³| per cell and optimization step for every update by a box in
-the volume projection (default `Inf`, off), and
-`--projection true` enables volume-preserving projection and continuation
-for any of them. The former `--regularization mean|local_max|local_lambda` and
-`--update_mode` were removed. All updates use the per-cell coefficient
+the volume projection (default `Inf`, off).
+`--projection true` enables sharpening with continuation; the mechanism follows the
+regularization: Helmholtz sharpens with the volume-preserving smooth projection of the
+filtered design (steepness β), the gradient penalty with the double-obstacle term
+(weight g, no projection map). Both continuations grow only while the imbalance of the
+last density substep is below `--sharpen_imbalance_tolerance` (0.1) and stop at
+grayness `--sharpen_gray_tolerance` (0.01); `--projection_growth_rate` (0.3) and
+`--projection_beta_initial` (1) set the projection, `--obstacle_max_weight` (`Inf`)
+caps g. Settings of the inactive mechanism are ignored.
+The former `--regularization mean|local_max|local_lambda` and `--update_mode` were removed. All updates use the per-cell coefficient
 2·β0·h_i² with h_i = cbrt(cell volume) (Helmholtz as r²_i); `--filter_radius` overrides
 Helmholtz with a uniform radius. Above β0 = 1 a one-cell 0→1 interface cannot be
 stationary under `local_max`. `local_lambda` drops the `local_max` mean floor and puts the
@@ -32,7 +38,10 @@ The generator defaults to `REGULARIZATION=gradient`, `SCALING=mean`,
 `INTEGRATOR=semi_implicit`, `DIAG=false`, `MOVE_LIMIT=Inf`, `PROJECTION=false`,
 `BETA0=3.0` and `ETA0=15.0`; override them in the environment, e.g.
 `SCALING=local_max DIAG=true PROJECTION=true BETA0=0.5 bash cluster/run_sweeps.sh`.
-`BETA0` and `ETA0` are passed to the driver as `--beta0` and `--eta0`. Helmholtz and
+`BETA0` and `ETA0` are passed to the driver as `--beta0` and `--eta0`;
+`SHARPEN_IMBALANCE_TOLERANCE`, `SHARPEN_GRAY_TOLERANCE`, `PROJECTION_GROWTH_RATE`,
+`PROJECTION_BETA_INITIAL` and `OBSTACLE_MAX_WEIGHT` as the sharpening flags of the same
+name (defaults as above). Helmholtz and
 `local_lambda` with the semi-implicit integrator print a warning and switch to explicit;
 the removed `UPDATE_MODE` and `REGULARIZATION=mean|local_max|local_lambda` are errors.
 The available values are listed as comments at the top of `run_sweeps.sh`.
@@ -103,9 +112,10 @@ Example job name:
 `toopt_MBB_sym_hypre_Hexahedra_r3_atrue_btrue_ftpfa_usemi_implicit_gmean_Dfalse_MInf_pfalse_B3.0_E15.0_lfalse_dtrue_s200`.
 Here `r` is refinement level, `a` adaptivity, `b` initial refinement, `f` flux
 scheme, `u` integrator, `g` the scaling (or `helmholtz`), `D` damping, `M` move limit,
-`p` projection, `B`/`E` beta0/eta0, `l` the deprecated compatibility switch,
-`d` density marking, and `s` maximum
-optimization steps.
+`p` projection (followed, with `p` true, by the sharpening settings of the active
+mechanism that differ from the defaults: `I`/`Y` imbalance/gray tolerance, `P`/`Q`
+growth rate/initial β, `W` obstacle cap), `B`/`E` beta0/eta0, `l` the deprecated
+compatibility switch, `d` density marking, and `s` maximum optimization steps.
 Result-directory identities include a deterministic fingerprint of all exposed
 density controls, so differing regularization, scaling, integrator, damping, move limit,
 projection, radius, substeps, or tolerances do not reuse the same result directory.

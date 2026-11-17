@@ -100,7 +100,8 @@ multiplier, used by `project_volume!`.
 The secant damping history (`damping` D_i, the previous entry state
 `secant_design`/`secant_force`) is empty until `diag` is used; `damping_ratio`
 r_i = D_i/(s*eta*b_i) belongs to the current substep. A new cache (run start,
-every remesh) has no history; `reset_secant!` clears it.
+every remesh) has no history. A step of the obstacle weight g keeps it: g does not
+enter the driving force whose secant D measures.
 `move_lower`/`move_upper` hold the move-limit box of the current substep; they
 stay empty without a move limit.
 

@@ -14,7 +14,10 @@ for arg in "$@"; do
             echo "INTEGRATOR=explicit|semi_implicit selects the density update (default: semi_implicit)."
             echo "REGULARIZATION=gradient|helmholtz (default: gradient); SCALING=mean|local_max|local_lambda (default: mean)."
             echo "DIAG=true|false secant damping (default: false); MOVE_LIMIT=<number > 0>|Inf (default: Inf)."
-            echo "PROJECTION=true|false (default: false)."
+            echo "PROJECTION=true|false (default: false): sharpening; projection (helmholtz) or double-obstacle term (gradient)."
+            echo "SHARPEN_IMBALANCE_TOLERANCE, SHARPEN_GRAY_TOLERANCE=<number in (0,1)> (defaults: 0.1, 0.01)."
+            echo "PROJECTION_GROWTH_RATE, PROJECTION_BETA_INITIAL=<number > 0> (helmholtz; defaults: 0.3, 1.0)."
+            echo "OBSTACLE_MAX_WEIGHT=<number > 0>|Inf (gradient; default: Inf)."
             echo "BETA0=<number >= 0> (default: 3.0); ETA0=<number > 0> (default: 15.0)."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
@@ -55,6 +58,12 @@ DENSITY_MARKING_OPTIONS=(true)
 #   MOVE_LIMIT       number > 0 | Inf              largest |x^p - x_old^p| per cell and unit time (per-cell box)
 #   PROJECTION       true | false                  sharpening with continuation: projection (helmholtz)
 #                                                  or double-obstacle term (gradient penalty)
+#   SHARPEN_IMBALANCE_TOLERANCE  number in (0,1)   both mechanisms: beta or g grows only below this imbalance
+#   SHARPEN_GRAY_TOLERANCE       number in (0,1)   both mechanisms: continuation stops at this grayness
+#   PROJECTION_GROWTH_RATE       number > 0        projection only: largest ln(beta) step per optimization step
+#   PROJECTION_BETA_INITIAL      number > 0        projection only: initial steepness beta
+#   OBSTACLE_MAX_WEIGHT          number > 0 | Inf  obstacle only: cap of the weight g
+#                                Settings of the inactive mechanism are ignored.
 #   BETA0            number >= 0                   regularization strength; coefficient 2*beta0*h_i^2.
 #                                                  Above beta0 = 1 a one-cell 0->1 interface cannot
 #                                                  be stationary under SCALING=local_max
@@ -74,6 +83,11 @@ SCALING=${SCALING:-mean}               # Options: mean | local_max | local_lambd
 DIAG=${DIAG:-false}                    # Options: true | false
 MOVE_LIMIT=${MOVE_LIMIT:-Inf}          # Positive number or Inf
 PROJECTION=${PROJECTION:-false}        # Options: true | false
+SHARPEN_IMBALANCE_TOLERANCE=${SHARPEN_IMBALANCE_TOLERANCE:-0.1} # Number in (0,1)
+SHARPEN_GRAY_TOLERANCE=${SHARPEN_GRAY_TOLERANCE:-0.01}          # Number in (0,1)
+PROJECTION_GROWTH_RATE=${PROJECTION_GROWTH_RATE:-0.3}           # Positive number
+PROJECTION_BETA_INITIAL=${PROJECTION_BETA_INITIAL:-1.0}         # Positive number
+OBSTACLE_MAX_WEIGHT=${OBSTACLE_MAX_WEIGHT:-Inf}                 # Positive number or Inf
 BETA0=${BETA0:-3.0}                    # Regularization strength beta0 (>= 0)
 ETA0=${ETA0:-15.0}                     # Viscosity eta0 (> 0)
 PETSC_GAMG_SQUARE_GRAPH=${PETSC_GAMG_SQUARE_GRAPH:-1} # PETSc only: 1 = squared graph, 0 = MIS-2
@@ -124,6 +138,22 @@ fi
 if [[ "$MOVE_LIMIT" != Inf && ( ! "$MOVE_LIMIT" =~ $number_pattern || "$MOVE_LIMIT" =~ ^0*([.]0*)?([eE].*)?$ ) ]]; then
     echo "Invalid MOVE_LIMIT: $MOVE_LIMIT (use a positive number such as 0.1, or Inf)." >&2; exit 2
 fi
+# Sharpening settings; checked here so that a bad value fails before submission.
+positive() { [[ "$1" =~ $number_pattern ]] && awk -v x="$1" 'BEGIN { exit !(x > 0) }'; }
+fraction() { positive "$1" && awk -v x="$1" 'BEGIN { exit !(x < 1) }'; }
+for name in SHARPEN_IMBALANCE_TOLERANCE SHARPEN_GRAY_TOLERANCE; do
+    if ! fraction "${!name}"; then
+        echo "Invalid $name: ${!name} (use a number in (0,1))." >&2; exit 2
+    fi
+done
+for name in PROJECTION_GROWTH_RATE PROJECTION_BETA_INITIAL; do
+    if ! positive "${!name}"; then
+        echo "Invalid $name: ${!name} (use a positive number)." >&2; exit 2
+    fi
+done
+if [[ "$OBSTACLE_MAX_WEIGHT" != Inf ]] && ! positive "$OBSTACLE_MAX_WEIGHT"; then
+    echo "Invalid OBSTACLE_MAX_WEIGHT: $OBSTACLE_MAX_WEIGHT (use a positive number, or Inf)." >&2; exit 2
+fi
 
 if [[ ( "$REGULARIZATION" == helmholtz || "$SCALING" == local_lambda ) && "$INTEGRATOR" == semi_implicit ]]; then
     echo "Warning: $REGULARIZATION/$SCALING has no semi-implicit update; switched INTEGRATOR to explicit." >&2
@@ -131,6 +161,19 @@ if [[ ( "$REGULARIZATION" == helmholtz || "$SCALING" == local_lambda ) && "$INTE
 fi
 # Former names in the job label: the scaling of a gradient penalty, or helmholtz.
 if [[ "$REGULARIZATION" == helmholtz ]]; then LABEL=helmholtz; else LABEL=$SCALING; fi
+# Sharpening settings of the active mechanism enter the job name only when they
+# differ from the defaults, so default names stay unchanged.
+SHARPEN_LABEL=
+if [[ "$PROJECTION" == true ]]; then
+    [[ "$SHARPEN_IMBALANCE_TOLERANCE" == 0.1 ]] || SHARPEN_LABEL+="_I$SHARPEN_IMBALANCE_TOLERANCE"
+    [[ "$SHARPEN_GRAY_TOLERANCE" == 0.01 ]] || SHARPEN_LABEL+="_Y$SHARPEN_GRAY_TOLERANCE"
+    if [[ "$REGULARIZATION" == helmholtz ]]; then
+        [[ "$PROJECTION_GROWTH_RATE" == 0.3 ]] || SHARPEN_LABEL+="_P$PROJECTION_GROWTH_RATE"
+        [[ "$PROJECTION_BETA_INITIAL" == 1.0 ]] || SHARPEN_LABEL+="_Q$PROJECTION_BETA_INITIAL"
+    else
+        [[ "$OBSTACLE_MAX_WEIGHT" == Inf ]] || SHARPEN_LABEL+="_W$OBSTACLE_MAX_WEIGHT"
+    fi
+fi
 
 case "$PETSC_GAMG_SQUARE_GRAPH" in
     0|1) ;;
@@ -223,7 +266,7 @@ for solver in "${SOLVERS[@]}"; do
 for mesh in "${MESH_TYPES[@]}"; do
 for adapt in "${ADAPTIVITY_OPTIONS[@]}"; do
 for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
-    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_u${INTEGRATOR}_g${LABEL}_D${DIAG}_M${MOVE_LIMIT}_p${PROJECTION}_B${BETA0}_E${ETA0}_lfalse_d${density}_s${MAX_OPT_STEPS}"
+    NAME="toopt_${benchmark}_${solver}_${mesh}_r${ref}_a${adapt}_b${ADAPTIVITY_AT_START}_f${FLUX_SCHEME}_u${INTEGRATOR}_g${LABEL}_D${DIAG}_M${MOVE_LIMIT}_p${PROJECTION}${SHARPEN_LABEL}_B${BETA0}_E${ETA0}_lfalse_d${density}_s${MAX_OPT_STEPS}"
     JOB_SCRIPT="$JOB_DIR/$NAME.sh"
     if [[ -n "$MEM_PER_CPU" ]]; then
         MEMORY_OPTION=--mem-per-cpu
@@ -237,6 +280,11 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
         -a "$adapt" -b "$ADAPTIVITY_AT_START" --flux_scheme "$FLUX_SCHEME" --laplace_rescale false
         --integrator "$INTEGRATOR" --regularization "$REGULARIZATION" --scaling "$SCALING"
         --diag "$DIAG" --move_limit "$MOVE_LIMIT" --projection "$PROJECTION"
+        --sharpen_imbalance_tolerance "$SHARPEN_IMBALANCE_TOLERANCE"
+        --sharpen_gray_tolerance "$SHARPEN_GRAY_TOLERANCE"
+        --projection_growth_rate "$PROJECTION_GROWTH_RATE"
+        --projection_beta_initial "$PROJECTION_BETA_INITIAL"
+        --obstacle_max_weight "$OBSTACLE_MAX_WEIGHT"
         --beta0 "$BETA0" --eta0 "$ETA0"
         -d "$density" -s "$MAX_OPT_STEPS")
     {
@@ -267,7 +315,7 @@ for density in "${DENSITY_MARKING_OPTIONS[@]}"; do
         SUBMISSION=$(sbatch --parsable "$JOB_SCRIPT")
     fi
     printf '%s\t%s\t%s\n' "$NAME" "$JOB_SCRIPT" "$SUBMISSION" >> "$JOB_DIR/submissions.tsv"
-    echo "$SUBMISSION: $NAME (integrator=$INTEGRATOR, regularization=$REGULARIZATION, scaling=$SCALING, diag=$DIAG, move_limit=$MOVE_LIMIT, projection=$PROJECTION, beta0=$BETA0, eta0=$ETA0, $MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
+    echo "$SUBMISSION: $NAME (integrator=$INTEGRATOR, regularization=$REGULARIZATION, scaling=$SCALING, diag=$DIAG, move_limit=$MOVE_LIMIT, projection=$PROJECTION${SHARPEN_LABEL:+ ($SHARPEN_LABEL)}, beta0=$BETA0, eta0=$ETA0, $MEMORY_OPTION=$MEMORY_VALUE, --time=$JOB_TIME_LIMIT)"
     COUNT=$((COUNT + 1))
 done; done; done; done; done; done
 

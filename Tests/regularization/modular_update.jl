@@ -107,10 +107,6 @@ end
         end
         @test results[1].design == results[2].design
         @test !results[2].cache.damping_active && results[2].cache.secant_valid
-        # After a reset the next call is again undamped.
-        cache = results[2].cache
-        reset_secant!(cache)
-        @test !cache.secant_valid && all(iszero,cache.damping)
     end
 end
 
@@ -192,7 +188,7 @@ end
     end
     # Each term is clamped before the sum: cell 2's force rises with its step and
     # does not cancel the damping of cells 1 and 3.
-    reset_secant!(cache)
+    cache = DensityCache(faces,0.02)
     dp = .-k.*dx; dp[2] = 50.0*dx[2]
     update_secant_damping!(cache,previous,zeros(5)); update_secant_damping!(cache,x,dp)
     measured = 2 .* cache.damping
@@ -200,11 +196,11 @@ end
     @test measured[2] > 0 && measured[3] ≈ A[4]*k[4]*dx[4]^2/(A[2]*(dx[2]^2+m)+A[3]*m+A[4]*(dx[4]^2+m))
     @test -(A[1]*dp[1]*dx[1]+2A[2]*dp[2]*dx[2])/(A[1]*dx[1]^2+2A[2]*dx[2]^2) < 0  # plain fit: clipped
     # A force that grows with the step everywhere measures nothing.
-    reset_secant!(cache)
+    cache = DensityCache(faces,0.02)
     update_secant_damping!(cache,previous,zeros(5)); update_secant_damping!(cache,x,dx)
     @test all(iszero,cache.damping) && !cache.damping_active
     # Uniform motion: every neighborhood moves the mean step and keeps half its fit.
-    reset_secant!(cache)
+    cache = DensityCache(faces,0.02)
     update_secant_damping!(cache,fill(0.4,5),zeros(5)); update_secant_damping!(cache,fill(0.45,5),fill(-0.05*3.0,5))
     @test 2 .* cache.damping ≈ fill(1.5,5)
 end
