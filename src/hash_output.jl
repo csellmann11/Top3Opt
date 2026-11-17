@@ -12,8 +12,11 @@ Scaling and integrator are encoded with the former `regularization`/`update_mode
 values; damping and a finite move limit are appended only when used, so the
 identities of runs without them are unchanged. A finite move limit is encoded as
 `;M=<value>box`: the per-cell box replaced the former eta-increase retry, so these
-runs do not reuse directories of the old rule. Projected runs carry the
-continuation rule (`;C=stall`), since `advance_on_stall` changed their beta schedule.
+runs do not reuse directories of the old rule. Sharpened runs (`projection`) carry
+their mechanism and imbalance-based continuation, `;C=imbalance` (projection of the
+Helmholtz design) or `;C=obstacle` (gradient penalty), so they reuse neither the
+directories of the former objective-based beta rule (`;C=stall`) nor each other's;
+the settings of that mechanism are appended only when changed.
 Explicit gradient runs with zero requested substeps carry `;N=cfl`: their count now
 comes from the measured CFL limit alone instead of the former fixed formula.
 """
@@ -38,9 +41,7 @@ function generate_setting_hash(args=parse_commandline())
     get(args,"diag",false) && (encoded *= ";D=1")
     move_limit = get(args,"move_limit",Inf)
     isfinite(move_limit) && (encoded *= string(";M=",move_limit,"box"))
-    # Projected runs continue beta on stalled progress (advance_on_stall); they
-    # differ from earlier projected runs and must not share their directory.
-    get(args,"projection",false) && (encoded *= ";C=stall")
+    get(args,"projection",false) && (encoded *= sharpening_tag(args))
     # Explicit gradient substeps from the measured CFL limit only (former fixed count removed).
     get(args,"regularization",:gradient) != :helmholtz && integrator == :explicit &&
         get(args,"density_substeps",0) == 0 && (encoded *= ";N=cfl")
@@ -49,6 +50,18 @@ function generate_setting_hash(args=parse_commandline())
         "m",first(string(args["mesh_type"])),"a",Int(args["do_adaptivity"]),
         "g",regularization_label(args),"p",Int(get(args,"projection",false)),
         '_',fingerprint)
+end
+
+"""Fingerprint part of a sharpened run: the mechanism, which follows the regularization,
+and its non-default settings (those of the other mechanism are ignored by the run)."""
+function sharpening_tag(args)
+    helmholtz = get(args,"regularization",:gradient) == :helmholtz
+    tag = helmholtz ? ";C=imbalance" : ";C=obstacle"
+    changed(key,default,code) = (value = get(args,key,default); value == default ? "" : string(";",code,"=",value))
+    tag *= changed("sharpen_imbalance_tolerance",0.1,"I")*changed("sharpen_gray_tolerance",0.01,"Y")
+    tag *= helmholtz ? changed("projection_growth_rate",0.3,"P")*changed("projection_beta_initial",1.0,"Q") :
+        changed("obstacle_max_weight",Inf,"W")
+    return tag
 end
 
 show_setting_hash() = display(generate_setting_hash())

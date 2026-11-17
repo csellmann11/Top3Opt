@@ -78,9 +78,34 @@ function parse_commandline(argv=ARGS;exc_handler=ArgParse.default_handler)
             default = Inf
             range_tester = x -> x > 0
         "--projection"
-            help = "Enable volume-preserving smooth projection with automatic continuation"
+            help = "Sharpening with continuation; the mechanism follows the regularization: the volume-preserving smooth projection of the Helmholtz design (beta), or the double-obstacle term of the gradient penalty (weight g)"
             arg_type = Bool
             default = false
+        "--sharpen_imbalance_tolerance"
+            help = "Both sharpening continuations: beta or g grows only while the imbalance of the last density substep (net over gross force on its free cells) is below this value"
+            arg_type = Float64
+            default = 0.1
+            range_tester = x -> 0 < x < 1
+        "--sharpen_gray_tolerance"
+            help = "Both sharpening continuations: beta or g stops growing once the grayness is at most this value"
+            arg_type = Float64
+            default = 0.01
+            range_tester = x -> 0 < x < 1
+        "--projection_growth_rate"
+            help = "Projection (Helmholtz) only: ln(beta) grows by at most this value per optimization step"
+            arg_type = Float64
+            default = 0.3
+            range_tester = x -> isfinite(x) && x > 0
+        "--projection_beta_initial"
+            help = "Projection (Helmholtz) only: initial projection steepness beta"
+            arg_type = Float64
+            default = 1.0
+            range_tester = x -> isfinite(x) && x > 0
+        "--obstacle_max_weight"
+            help = "Obstacle (gradient penalty) only: cap of the weight g; Inf = none (the grayness stop ends the continuation)"
+            arg_type = Float64
+            default = Inf
+            range_tester = x -> x > 0
         "--beta0"
             help = "Regularization strength beta0; the per-cell coefficient is 2*beta0*h_i^2 with h_i = cbrt(cell volume). beta0 = 1 is the value above which a one-cell 0->1 interface cannot be stationary under local_max"
             arg_type = Float64

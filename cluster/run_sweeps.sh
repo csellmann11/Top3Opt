@@ -53,7 +53,8 @@ DENSITY_MARKING_OPTIONS=(true)
 #                              (forces INTEGRATOR=explicit)
 #   DIAG             true | false                  secant reaction damping (gradient penalty only)
 #   MOVE_LIMIT       number > 0 | Inf              largest |x^p - x_old^p| per cell and unit time (per-cell box)
-#   PROJECTION       true | false                  smooth volume-preserving projection
+#   PROJECTION       true | false                  sharpening with continuation: projection (helmholtz)
+#                                                  or double-obstacle term (gradient penalty)
 #   BETA0            number >= 0                   regularization strength; coefficient 2*beta0*h_i^2.
 #                                                  Above beta0 = 1 a one-cell 0->1 interface cannot
 #                                                  be stationary under SCALING=local_max

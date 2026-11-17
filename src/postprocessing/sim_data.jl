@@ -35,6 +35,8 @@ end
     error_estimator  ::Symbol = :sdwr
     pu_marking_exponent::Float64 = 1.0
     error_history    ::Vector{NamedTuple} = NamedTuple[]
+    # One record per sharpened outer iteration (`projection = true`, see `advance_sharpening!`):
+    # mechanism (:projection or :obstacle), beta or g used and next, threshold, grayness, imbalance.
     projection_history::Vector{NamedTuple} = NamedTuple[]
     density_history  ::Vector{NamedTuple} = NamedTuple[]
     final_strain_energy::Float64 = NaN

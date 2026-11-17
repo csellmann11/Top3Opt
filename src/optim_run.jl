@@ -26,7 +26,11 @@ function run_optimization(
     diag::Bool = false,
     move_limit::Float64 = Inf,
     projection::Bool = false,
-    projection_options::DensityProjectionOptions = DensityProjectionOptions(enabled=projection),
+    sharpen_imbalance_tolerance::Float64 = 0.1,
+    sharpen_gray_tolerance::Float64 = 0.01,
+    projection_growth_rate::Float64 = 0.3,
+    projection_beta_initial::Float64 = 1.0,
+    obstacle_max_weight::Float64 = Inf,
     filter_radius::Float64 = 0.0,
     density_substeps::Int = 0,
     filter_tolerance::Float64 = 1e-12,
@@ -42,13 +46,12 @@ function run_optimization(
     isfinite(pu_marking_exponent) && pu_marking_exponent >= 0 ||
         throw(ArgumentError("pu_marking_exponent must be finite and nonnegative"))
     flux_scheme == :tpfa || throw(ArgumentError("Only flux_scheme=:tpfa is supported"))
+    # `projection` sharpens with continuation; the mechanism follows the regularization
+    # (see `sharpening`), and its continuation reads the imbalance of each update.
     options = DensityOptions(;regularization,scaling,integrator,diag,move_limit,
         substeps=density_substeps,filter_tolerance=filter_tolerance,
-        activity_tolerance=density_activity_tolerance)
+        activity_tolerance=density_activity_tolerance,measure_balance=projection)
     validate_density_options(options,sim_pars.η0)
-    validate_density_projection_options(projection_options)
-    projection == projection_options.enabled || throw(ArgumentError(
-        "projection and projection_options.enabled must agree"))
     isfinite(sim_pars.β0) && sim_pars.β0 >= 0 || throw(ArgumentError("Invalid beta0"))
     isfinite(filter_radius) && filter_radius >= 0 || throw(ArgumentError("Invalid filter radius"))
     0 <= sim_pars.χmin <= sim_pars.ρ_init <= 1 && sim_pars.χmin < 1 ||
@@ -75,7 +78,8 @@ function run_optimization(
     validate_vem_projectors(cv)
 
     
-    states = DesignVarInfo{U}(cv, sim_pars.ρ_init)
+    # Only the Helmholtz filter has a design field apart from the physical density.
+    states = DesignVarInfo{U}(cv, sim_pars.ρ_init; separate_design=regularization == :helmholtz)
 
 
 
@@ -87,7 +91,11 @@ function run_optimization(
     # Radius zero gives Helmholtz the penalty coefficient r²_i = 2*beta0*h_i^2;
     # a positive value overrides it with a uniform physical radius.
     radius = filter_radius
-    density_projection = DensityProjection(projection_options,states.area_vec;rho_min=sim_pars.χmin)
+    # The continuation state lives here: the density cache is rebuilt on every remesh.
+    density_projection,obstacle = sharpening(projection,regularization,states.area_vec,sim_pars.χmin;
+        imbalance_tolerance=sharpen_imbalance_tolerance,gray_tolerance=sharpen_gray_tolerance,
+        growth_rate=projection_growth_rate,beta_initial=projection_beta_initial,
+        max_weight=obstacle_max_weight)
     transfer = DensityTransferWorkspace()
     workspace = DensityMechanicalWorkspace(length(states.χ_vec))
     ch = nothing
@@ -138,6 +146,7 @@ function run_optimization(
                 end
             end
         end
+        obstacle === nothing || (density_cache.obstacle = obstacle.weight)
         @timeit to "state_update" update = state_update!(
             states,cv,sim_pars,density_cache,u,eldata_col;options,density_projection,workspace)
         state_changed = update.changed
@@ -147,14 +156,10 @@ function run_optimization(
             Psi_step0 = Psi
             Psi0 = Psi
         end
-        used_beta = density_projection === nothing ? 0.0 : density_projection.beta
-        used_threshold = projection_threshold(density_projection)
-        candidate_grayness = density_projection === nothing ? measure_of_nondiscreteness(states,sim_pars) : density_projection.grayness
-        @timeit to "state_update" advance_projection!(states,density_cache,density_projection,options,Psi;
+        @timeit to "state_update" sharpened = advance_sharpening!(states,density_cache,
+            density_projection,obstacle,options,sim_pars.χmin;iteration=optimization_step,
             allow_advance=optimization_step < MAX_OPT_STEPS)
-        push!(sim_results.projection_history,(beta=used_beta,
-            next_beta=density_projection === nothing ? 0.0 : density_projection.beta,
-            threshold=used_threshold,grayness=candidate_grayness))
+        sharpened === nothing || push!(sim_results.projection_history,sharpened)
         push!(sim_results.density_history,(
             design_volume=dot(states.area_vec,states.design_vec)/sum(states.area_vec),
             physical_volume=dot(states.area_vec,states.χ_vec)/sum(states.area_vec),
@@ -175,10 +180,16 @@ function run_optimization(
         println("Run time: $run_time minutes")
         println("Measure of nondiscreteness: $mod")
         isfinite(move_limit) && println("Move-limited cells (summed over substeps): $(update.move_limited)")
+        sharpened === nothing || println("Sharpening ($(sharpened.mechanism)): ",
+            round(sharpened.value_used,sigdigits=4)," -> ",round(sharpened.value_next,sigdigits=4),
+            ", imbalance ",round(sharpened.imbalance,sigdigits=3),", grayness ",round(sharpened.grayness,sigdigits=3))
         println("Peak RSS: $(round(Sys.maxrss() / 2^20, digits = 1)) MiB")
     
 
-        if abs(ΔPsi_rel) < tolerance && projection_converged(density_projection)
+        # A beta or g step changes the problem: it blocks the convergence count.
+        advanced = sharpened !== nothing && sharpened.advanced
+        if !advanced && abs(ΔPsi_rel) < tolerance &&
+                projection_converged(density_projection) && obstacle_converged(obstacle)
             n_conv_count += 1
             if n_conv_count >= n_conv_until_stop && !optimization_finished
                 # break
@@ -224,7 +235,7 @@ function run_optimization(
     end
 
     # One final equilibrium solve aligns exported displacement with the accepted
-    # physical density, including the final projection-continuation change.
+    # physical density (the last iteration does not advance the sharpening).
     @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
     sim_results.final_strain_energy = dot(u,k_global*u)/2
     full_name = joinpath(vtk_folder_name, "final_res")

@@ -4,7 +4,7 @@ The adaptive driver supports `error_estimator=:sdwr` (the existing default) and
 `error_estimator=:pu_dwr`. PU-DWR follows the local quadratic Dirichlet-patch
 formulation of the 2D `TTO adaptive DWR` implementation. It estimates error in the
 elastic strain energy and supplies nonnegative cell indicators for mesh marking.
-The estimator is independent of the density regularization and optional projection.
+The estimator is independent of the density regularization and optional sharpening.
 All implementation files use plain includes and small functions, without modules.
 
 ```text
@@ -184,7 +184,7 @@ The true errors decay approximately as `h²`; the estimates are within 4% on
 this test. This is a verification case, not a general effectivity guarantee.
 Additional tests use affine traction equilibria, unequal densities, hanging
 interfaces, nonuniform face/edge loads, and all three regularizations with
-projection during adaptive runs. A production bending-beam run also exercises
+sharpening during adaptive runs. A production bending-beam run also exercises
 line loading and isolated point supports, including snapshot and final exports.
 Serial and two-thread patch localization agree within the test tolerances.
 Estimator arrays remain borrowed from the cache. Current warm allocation checks

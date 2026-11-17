@@ -110,8 +110,10 @@ Result-directory identities include a deterministic fingerprint of all exposed
 density controls, so differing regularization, scaling, integrator, damping, move limit,
 projection, radius, substeps, or tolerances do not reuse the same result directory.
 Runs without damping, move limit and projection keep the fingerprint of the former
-option names. Projected runs got a new fingerprint with the stalled-progress beta
-continuation (`advance_on_stall`), so they never reuse a directory of the old rule.
+option names. Sharpened runs (`p1`) carry their mechanism, `;C=obstacle` (gradient
+penalty) or `;C=imbalance` (projection of the Helmholtz design), with the
+imbalance-based continuation, so they never reuse a directory of the former
+objective-based beta rule (`;C=stall`).
 Runs with a finite move limit likewise got a new fingerprint (`;M=<value>box`) when the
 per-cell box replaced the eta-increase retry.
 For `L_cantilever`, `Voronoi` creates an L-shaped polygon mesh in the x–y plane

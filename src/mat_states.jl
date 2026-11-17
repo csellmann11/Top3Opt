@@ -25,6 +25,8 @@ end
 optimization variable. `area_vec` contains cell volumes in 3D. Both fields are
 initialized together; after editing a custom design, call `map_design!` before
 solving mechanics. Adaptivity transfers design and then rebuilds the mapping.
+`separate_design=false` makes both one vector, for the gradient penalty, which
+evolves the physical density itself; the Helmholtz filter needs them separate.
 """
 struct DesignVarInfo{D}
     χ_vec::Vector{Float64} # physical density used by mechanics and adaptivity
@@ -73,7 +75,7 @@ function resize_states!(states::DesignVarInfo{D},
 end
 
 
-function DesignVarInfo{D}(cv::CellValues{D,U},ρ_init) where {D,U}
+function DesignVarInfo{D}(cv::CellValues{D,U},ρ_init;separate_design::Bool=true) where {D,U}
 
 
     mesh = cv.mesh
@@ -87,7 +89,8 @@ function DesignVarInfo{D}(cv::CellValues{D,U},ρ_init) where {D,U}
     h_vec              = Vector{Float64}(undef,n_states)
     el_id_to_state_id  = OrderedDict{Int,Int}()
 
-    states = DesignVarInfo(χ_vec,similar(χ_vec),x_vec,area_vec,h_vec,el_id_to_state_id)
+    design_vec = separate_design ? similar(χ_vec) : χ_vec
+    states = DesignVarInfo(χ_vec,design_vec,x_vec,area_vec,h_vec,el_id_to_state_id)
     fill_states!(states,cv,ρ_init)
 
     return states

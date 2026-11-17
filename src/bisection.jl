@@ -76,10 +76,9 @@ function prepare_density_cache(cache,cv,states,pars,options,radius)
     return DensityCache(faces,beta)
 end
 
-function map_design!(states,cache::DensityCache,projection,options)
-    projection_apply!(states.χ_vec,projection,states.design_vec)
-    return nothing
-end
+"""Map the persistent design to the physical density. The gradient penalty evolves the
+physical density itself (`design_vec === χ_vec`): there is nothing to map."""
+map_design!(states,cache::DensityCache,::Nothing,options) = nothing
 function map_design!(states,cache::HelmholtzCache,projection,options)
     map_filtered_design!(states.χ_vec,states.design_vec,cache,projection;
         tolerance=options.filter_tolerance)
@@ -90,7 +89,9 @@ end
 
 Returns the update result: the physical activity mask `changed` and the
 move-limit counter `move_limited` (cells ending a substep on a box bound
-tighter than [lower, 1], summed over the substeps).
+tighter than [lower, 1], summed over the substeps). The gradient penalty updates
+the physical density directly; its states share one vector for design and
+physical density (`DesignVarInfo(...; separate_design=false)`).
 """
 function state_update!(states::DesignVarInfo,cv::CellValues,pars::SimPars,
         cache,u,eldata_col;options=DensityOptions(),density_projection=nothing,
@@ -102,24 +103,63 @@ function state_update!(states::DesignVarInfo,cv::CellValues,pars::SimPars,
         result = advance_filtered_design!(states.design_vec,states.χ_vec,workspace.driving,
             refresh!,cache;options,eta0=pars.η0,rho=pars.ρ_init,lower=pars.χmin,density_projection)
     else
-        result = advance_density!(states.design_vec,workspace.driving,refresh!,cache;
-            options,eta0=pars.η0,rho=pars.ρ_init,lower=pars.χmin,
-            physical=states.χ_vec,density_projection)
+        states.design_vec === states.χ_vec && density_projection === nothing || throw(ArgumentError(
+            "The gradient penalty evolves the physical density: no projection, separate_design=false"))
+        result = advance_density!(states.χ_vec,workspace.driving,refresh!,cache;
+            options,eta0=pars.η0,rho=pars.ρ_init,lower=pars.χmin)
     end
     return result
 end
 
-"""Prepare the next projection strength, remap, and include continuation in activity.
-A beta step changes the design-to-force map, so the secant damping history is reset.
+"""Sharpening of a run (`projection = true`); the mechanism follows the regularization:
+the smooth volume-preserving projection of the Helmholtz design (beta), or the
+double-obstacle term of the gradient penalty (weight g, see obstacle.jl). Returns
+(density_projection, obstacle); the unused one is `nothing`, and the settings of the
+unused mechanism are ignored. Both continuations share the imbalance and gray tolerances.
 """
-function advance_projection!(states,cache,projection,options,objective;allow_advance=true)
-    changed = projection_advance!(projection,objective;allow_advance)
+function sharpening(projection,regularization,area,lower;imbalance_tolerance=0.1,
+        gray_tolerance=0.01,growth_rate=0.3,beta_initial=1.0,max_weight=Inf)
+    projection || return (nothing,nothing)
+    regularization == :helmholtz ||
+        return (nothing,ObstacleContinuation(;max_weight,imbalance_tolerance,gray_tolerance))
+    options = DensityProjectionOptions(;enabled=true,beta_initial,max_growth_rate=growth_rate,
+        gray_tolerance,imbalance_tolerance)
+    return DensityProjection(options,area;rho_min=lower),nothing
+end
+
+"""Prepare the next projection strength from the imbalance of the last design step,
+remap, and include the continuation in the activity. The filter input is unchanged:
+changing the projection steepness needs no Helmholtz solve."""
+function advance_projection!(states,cache::HelmholtzCache,projection,options,imbalance;allow_advance=true)
+    changed = projection_advance!(projection,imbalance;allow_advance)
     if changed
-        reset_secant!(cache)
-        # Continuation changes only the scalar projection, not the filter input.
-        input = cache isa HelmholtzCache ? cache.filtered : states.design_vec
-        projection_apply!(states.χ_vec,projection,input)
+        projection_apply!(states.χ_vec,projection,cache.filtered)
         mark_physical_activity!(cache.changed,states.χ_vec,cache.activity_reference,options)
     end
     return changed
+end
+
+"""Advance the sharpening after the density update of outer iteration `iteration` and
+return its history record (`nothing` without sharpening):
+
+    (iteration, mechanism = :projection | :obstacle, value_used, value_next,
+     threshold (NaN for the obstacle), grayness, imbalance, advanced).
+
+The new beta or g takes effect in the next density update. A g step leaves the density
+and the sensitivity unchanged, so neither a remap nor a secant reset follows it.
+"""
+function advance_sharpening!(states,cache,projection,obstacle,options,lower;iteration,allow_advance=true)
+    imbalance = cache.balance.imbalance
+    if projection !== nothing
+        beta,threshold,grayness = projection.beta,projection.eta,projection.grayness
+        advanced = advance_projection!(states,cache,projection,options,imbalance;allow_advance)
+        return (;iteration,mechanism=:projection,value_used=beta,value_next=projection.beta,
+            threshold,grayness,imbalance,advanced)
+    end
+    obstacle === nothing && return nothing
+    weight = obstacle.weight
+    grayness = grayness_metrics(states.χ_vec,states.area_vec,lower).grayness
+    advanced = obstacle_advance!(obstacle,cache.balance,grayness;allow_advance)
+    return (;iteration,mechanism=:obstacle,value_used=weight,value_next=obstacle.weight,
+        threshold=NaN,grayness,imbalance,advanced)
 end

@@ -6,7 +6,7 @@ include entry point for `src/regularization/load.jl`; it defines small functions
 and reusable caches in the caller's scope, without a package module. Launch the
 full 3D optimization through `src/main_optim_runs.jl`.
 Both the existing sDWR and the optional [3D PU-DWR estimator](pu_dwr.md) work with
-all regularizations and optional projection.
+all regularizations and optional sharpening.
 `Project.toml` is an unnamed script environment, so dependency precompilation
 does not expect a `ToOpt3` package module.
 
@@ -19,7 +19,12 @@ does not expect a `ToOpt3` package module.
 | `--integrator explicit` / `semi_implicit` | Explicit (automatic CFL substeps) or semi-implicit gradient-penalty update | `explicit` |
 | `--diag true` | Secant reaction damping of the gradient penalty | `false` |
 | `--move_limit` | Per-cell box `|x³ - x_old³| <= move_limit*dt` per substep, all updates | `Inf` |
-| `--projection true` | Smooth volume-preserving projection and automatic continuation | `false` |
+| `--projection true` | Sharpening with continuation: projection of the Helmholtz design, double-obstacle term of the gradient penalty | `false` |
+| `--sharpen_imbalance_tolerance` | Both continuations grow only below this imbalance of the last density substep | `0.1` |
+| `--sharpen_gray_tolerance` | Both continuations stop at this grayness | `0.01` |
+| `--projection_growth_rate` | Projection only: largest growth of `ln(beta)` per optimization step | `0.3` |
+| `--projection_beta_initial` | Projection only: initial `beta` | `1.0` |
+| `--obstacle_max_weight` | Obstacle only: cap of the weight `g` (`Inf`: none) | `Inf` |
 | `--beta0` | Regularization strength; per-cell coefficient `2*beta0*h_i²` with `h_i = cbrt(cell volume)` | `3.0` |
 | `--eta0` | Viscosity of the density update | `15.0` |
 | `--filter_radius` | Uniform Helmholtz radius override; zero uses r²_i = 2·β0·h_i², the same coefficient as the gradient penalties | `0.0` |
@@ -63,10 +68,12 @@ design step. `--density_substeps n > 0` caps the substep length at 1/n.
 ## Design and physical density
 
 `states.design_vec` is the persistent design `a`. `states.χ_vec` is the physical
-density used by mechanics, VTK output, and adaptive marking. With projection off,
-the gradient formulations use `χ=a`; Helmholtz uses `χ=F*a`. With projection on,
-these become `χ=P(a)` and `χ=P(F*a)` respectively. Custom starting designs should
-be assigned to `design_vec` and mapped to physical density before mechanics.
+density used by mechanics, VTK output, and adaptive marking. Helmholtz uses
+`χ=F*a`, or `χ=P(F*a)` with projection. The gradient penalties evolve the physical
+density itself and have no projection: the driver builds their states with
+`separate_design=false`, so `design_vec` and `χ_vec` are one vector. Custom
+starting designs should be assigned to `design_vec` and mapped to physical density
+(`map_design!`) before mechanics.
 
 Mesh refinement inherits the parent design. Coarsening takes a volume-weighted
 average of child designs. The operator is rebuilt and physical density is
@@ -158,23 +165,23 @@ chi_i  = clamp(chi_i + a*((q_i/s - l)/b_i(l) - (K chi)_i/volume_i), lower, 1),  
   (j = i and face neighbors). Diffusion keeps the baseline operator, so the CFL limit
   is that of `mean`; a capped explicit step that runs past it can make the volume
   target unreachable, which is an error here.
-- With signed forces (`q_i < 0`, e.g. the projection pullback) or `l < 0` the bound
+- With signed forces (`q_i < 0`) or `l < 0` the bound
   is 4 and monotonicity is not guaranteed; the bisection keeps a sign change and
   stops with an error if a step cannot reach the volume target.
 - Only the explicit update is available, because the boost needs the multiplier of
   the current step.
 
-Here `q` is the physical force pulled back through projection, and `s` is its
+Here `q` is the physical force, and `s` is its
 volume/grayness-weighted mean magnitude with binary and zero-force safeguards.
 The 2D code uses the same gradient-penalty convention with `h_i = sqrt(cell area)`.
 The maximum reads original forces, so traversal order
 cannot propagate a peak beyond direct face neighbors. Coefficients are frozen
 within each substep and refreshed afterwards.
 
-The penalty acts on the design field, including when projection is enabled.
+The penalty acts on the physical density `χ`.
 With `K` the positive TPFA stiffness and `M=diag(cell volumes)`, explicit evolution
-uses `a + dt/eta0 * (q/s - M⁻¹*K*a)`. The implicit option solves
-`(M + dt/eta0*K)*trial = M*(a + dt/eta0*q/s)`. Both enforce design bounds and
+uses `χ + dt/eta0 * (q/s - M⁻¹*K*χ)`. The implicit option solves
+`(M + dt/eta0*K)*trial = M*(χ + dt/eta0*q/s)`. Both enforce the bounds and
 volume afterwards. This split implicit update is not a coupled constrained
 backward-Euler solve. Neither force-dependent coefficient derivatives nor a
 hard minimum member-size guarantee are introduced.
@@ -188,8 +195,7 @@ Helmholtz tolerance and are not additional command-line options.
 A cell whose force falls steeply when it grows (a stiff, single-cell-dominated
 objective, force `-k (x - x*)`) overshoots its maximum when `dt*k/eta > 2` and
 two-cycles. The damping measures this curvature per cell from the entry states
-`k-1, k` of two consecutive optimization steps (design `x`, design force `p` after
-the projection pullback):
+`k-1, k` of two consecutive optimization steps (density `x`, force `p`):
 
 ```text
 D_new_i = max(-(p_i^k - p_i^(k-1)) / (x_i^k - x_i^(k-1)), 0)    (0 if |dx_i| <= 1e-12)
@@ -210,7 +216,37 @@ substep while damping is active). For `local_lambda` the denominator
 `b_i(l) + D_i/(s*eta0)` is evaluated inside the floored bisection. The right-hand
 side is unchanged, so stationary points depend neither on `D` nor on `eta0`;
 without history the update is bitwise the undamped one. The history is reset at
-the start of a run, on every remesh (new cache), and on every projection beta step.
+the start of a run and on every remesh (new cache). A step of the obstacle weight
+`g` keeps it: `g` does not enter the force whose secant `D` measures.
+
+### Double-obstacle term (`--projection true`)
+
+The gradient penalty sharpens with a double-obstacle potential instead of a density
+projection. Its force per unit volume, positive = grow, is
+
+```text
+g * kappa_i * (chi_i - c),   c = (1 + lower)/2,   kappa_i = base_i / h_i² (= 2*beta0)
+```
+
+`kappa_i` is the normalized diffusion per face of a uniform grid (`t_f/volume_i = 2*beta0`
+on cubes), so `g` is mesh independent: a mesh-aligned planar interface stays gray for
+`g < 2` and becomes binary above. The term enters exactly like the diffusion,
+`K*chi` becomes `K*chi - G` with the integrated force `G_i = g*base_i*h_i*(chi_i - c)`:
+it is boosted together with `beta` (not divided by `b_i`), divided by `1 + r_i` with
+damping, and explicit in both integrators (evaluated at the substep start; an implicit
+anti-diffusive reaction would amplify without bound). `g = 0` is bitwise the plain update.
+
+The driver continues `g` from zero by the imbalance of the last density substep. On
+its free cells (strictly inside `[lower, 1]` and the move-limit box), with volume-weighted
+L2 norms, `F = (q/s - l)/b`, `D = -(K chi)/volume`, `U = kappa*(chi_old - c)` and the
+net term `N = (chi - chi_old)*(1 + r)/a` actually taken (`N = F + D + g*U` explicitly),
+
+```text
+imbalance = |N| / (|F| + |D| + g*|U|)
+dg        = max(0, imbalance_tolerance - imbalance) * (|F| + |D| + g*|U|) / |U|,
+```
+
+capped at `--obstacle_max_weight`; `g` stops for good at the gray tolerance.
 
 ### Move limit (`--move_limit`)
 
@@ -257,24 +293,33 @@ Normalize `t=(phi-χmin)/(1-χmin)` and apply the normalized tanh projection. It
 threshold is found by a scalar safeguarded Newton solve so that physical and
 input material volumes agree. The exact pullback differentiates this implicit
 threshold, including its global rank-one correction. Therefore the existing
-design volume constraint also enforces physical volume.
+design volume constraint also enforces physical volume. The projection belongs to
+the Helmholtz design; the gradient penalties sharpen with the double-obstacle term.
 
-Projection beta is separate from the gradient-penalty `beta0`. Defaults in
-`DensityProjectionOptions` set initial beta `1`, growth factor `1e-3`, relative
-growth cap `0.5`, and grayness target `0.01`. After a completed iteration, improving
-objectives increase beta according to objective progress, capped at the relative
-growth limit. A nonzero plateau uses the cap; sufficiently low physical grayness
-holds beta. A worsening objective with the grayness still above target is treated
-as stalled progress (`advance_on_stall=true`, default) and advances with the same
-rule, `min(growth_factor*scale/|improvement|, max_growth_rate*beta)`: once the
-oscillation is damped, the objective drifts slightly worse after a beta step while
-the grayness stays above target, and holding beta would never reach the gray target
-the stop test requires. `advance_on_stall=false` restores holding beta. Beta is fixed during each mechanical solve and
+Projection beta is separate from the gradient-penalty `beta0`. It starts at
+`--projection_beta_initial` and grows by the imbalance of the last design step: on
+the free design cells (inside `[lower, 1]` and the move-limit box), with `F = q/s`
+and the normalized multiplier `l`,
+
+```text
+imbalance  = |F - l| / (|F| + |l|*sqrt(V_free))
+ln(beta)  += projection_growth_rate * max(0, 1 - imbalance/sharpen_imbalance_tolerance)
+```
+
+Beta holds while the design still moves (imbalance at or above the tolerance), and
+stops for good once the physical grayness is at most `--sharpen_gray_tolerance`. The
+objective does not enter. Beta is fixed during each mechanical solve and
 its density substeps. A continuation change remaps physical density and contributes
 to adaptive activity before marking. Helmholtz reuses its stored filtered field
 for this remapping, so sharpening needs no additional filter solve. Continuation
-history survives remeshing. The final iteration records its projection state but
-does not advance beta for an unused next iteration.
+history survives remeshing. The final iteration records its sharpening state but
+advances neither beta nor `g` for an unused next iteration. A beta or `g` step blocks
+the convergence count of that iteration, and convergence requires the active
+mechanism to be converged. `projection_history` holds one record per sharpened
+optimization step: `(iteration, mechanism, value_used, value_next, threshold, grayness,
+imbalance, advanced)` with `mechanism` `:projection` or `:obstacle` (`threshold = NaN`).
+The settings of the inactive mechanism are ignored, so switching the regularization
+alone gives a working run.
 
 ## Results and field alignment
 

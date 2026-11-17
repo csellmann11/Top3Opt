@@ -9,6 +9,19 @@ include("../src/hash_output.jl")
     @test defaults["scaling"] == :mean && defaults["integrator"] == :explicit
     @test !defaults["diag"] && defaults["move_limit"] == Inf
     @test !defaults["projection"]
+    # Sharpening settings: shared tolerances, then those of the projection and the obstacle.
+    @test (defaults["sharpen_imbalance_tolerance"],defaults["sharpen_gray_tolerance"]) == (0.1,0.01)
+    @test (defaults["projection_growth_rate"],defaults["projection_beta_initial"]) == (0.3,1.0)
+    @test defaults["obstacle_max_weight"] == Inf
+    tuned = parse_commandline(["--sharpen_imbalance_tolerance","0.2","--sharpen_gray_tolerance","0.05",
+        "--projection_growth_rate","0.5","--projection_beta_initial","2","--obstacle_max_weight","8"])
+    @test (tuned["sharpen_imbalance_tolerance"],tuned["sharpen_gray_tolerance"]) == (0.2,0.05)
+    @test (tuned["projection_growth_rate"],tuned["projection_beta_initial"],tuned["obstacle_max_weight"]) == (0.5,2.0,8.0)
+    for argv in (["--sharpen_imbalance_tolerance","0"],["--sharpen_imbalance_tolerance","1"],
+            ["--sharpen_gray_tolerance","0"],["--projection_growth_rate","0"],
+            ["--projection_beta_initial","Inf"],["--obstacle_max_weight","0"])
+        @test_throws ArgParseError parse_commandline(argv;exc_handler=ArgParse.debug_handler)
+    end
     @test defaults["filter_radius"] == 0.0
     @test defaults["density_substeps"] == 0
     @test defaults["beta0"] == 3.0 && defaults["eta0"] == 15.0
@@ -68,4 +81,25 @@ include("../src/hash_output.jl")
         @test generate_setting_hash(args) != original
     end
     @test length(original) < 80
+    # Sharpening is imbalance based now and its mechanism follows the regularization:
+    # neither mechanism reuses the directory of the former objective-based beta rule
+    # (identities of ";C=stall") nor the other one's.
+    sharpened(regularization;kw...) = generate_setting_hash(merge(copy(defaults),
+        Dict("projection"=>true,"regularization"=>regularization),Dict(string(k)=>v for (k,v) in kw)))
+    obstacle,projected = sharpened(:gradient),sharpened(:helmholtz)
+    @test obstacle != "s300r3mHa0gmeanp1_88af6d621e052730"
+    @test projected != "s300r3mHa0ghelmholtzp1_48e422bcff3fd595"
+    @test startswith(obstacle,"s300r3mHa0gmeanp1_") && startswith(projected,"s300r3mHa0ghelmholtzp1_")
+    # A changed setting of the active mechanism is a new run; one of the other is ignored.
+    @test sharpened(:gradient;obstacle_max_weight=8.0) != obstacle
+    @test sharpened(:gradient;sharpen_imbalance_tolerance=0.2) != obstacle
+    @test sharpened(:gradient;sharpen_gray_tolerance=0.05) != obstacle
+    @test sharpened(:gradient;projection_growth_rate=0.5,projection_beta_initial=2.0) == obstacle
+    @test sharpened(:helmholtz;projection_growth_rate=0.5) != projected
+    @test sharpened(:helmholtz;projection_beta_initial=2.0) != projected
+    @test sharpened(:helmholtz;sharpen_imbalance_tolerance=0.2) != projected
+    @test sharpened(:helmholtz;obstacle_max_weight=8.0) == projected
+    # Without sharpening every sharpening setting is ignored.
+    @test generate_setting_hash(merge(copy(defaults),Dict("obstacle_max_weight"=>8.0,
+        "sharpen_imbalance_tolerance"=>0.2,"projection_growth_rate"=>0.5))) == original
 end
