@@ -22,8 +22,8 @@ end
 
 """Density update settings. Three orthogonal choices define a gradient-penalty update:
 
-- `scaling` the boost b_i: `:mean` (b = 1), `:local_max`, `:local_lambda` (explicit only),
-  see `update_coefficients!`;
+- `scaling` the boost b_i: `:mean` (b = 1), `:local_max`, `:local_lambda` or `:local_free`
+  (both explicit only), see `update_coefficients!`;
 - `integrator` `:explicit` (the fewest equal substeps inside the measured CFL limit)
   or `:semi_implicit` (implicit diffusion, one step);
 - `diag` the secant reaction damping, see `update_secant_damping!`.
@@ -91,11 +91,14 @@ const NO_BALANCE = (imbalance=NaN,force=0.0,diffusion=0.0,obstacle_unit=0.0,free
 """
 `stiffness` is always the baseline TPFA operator K(base_beta). `beta_relative`
 is the local boost b_i >= 1/2 of `:local_max` (b_i = max(m_i,|lambda|/s)/2 after a
-`:local_lambda` step; all ones for `:mean`): it scales
+`:local_lambda` step, the boost b_i(l) the update used after a `:local_free` step;
+all ones for `:mean`): it scales
 both beta_i and the viscosity eta_i, so the update divides the driving force and
 the multipliers of a cell by b_i and never changes `stiffness` or the system.
 `volume_weight` is the response of the unconstrained update to a unit volume
-multiplier, used by `project_volume!`.
+multiplier, used by `project_volume!`. `push_boost` holds the boost of `:local_free`
+for cells that gain material (see `update_coefficients!`); it is written only by that
+scaling and stays empty otherwise.
 
 The secant damping history (`damping` D_i, the previous entry state
 `secant_design`/`secant_force`) is empty until `diag` is used; `damping_ratio`
@@ -143,6 +146,7 @@ mutable struct DensityCache
     fields::NamedTuple
     obstacle::Float64
     balance::typeof(NO_BALANCE)
+    push_boost::Vector{Float64}
 end
 
 """Reusable coordinate/CSR storage for rebuilding a changing TPFA graph.

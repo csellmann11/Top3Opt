@@ -111,8 +111,8 @@ function evolve_gradient_design!(chi,p,refresh!::F,cache,work::W,settings::S,nom
         if last_substep
             cfl_excess > 1+1e-12 && println("[density] explicit update capped at ",
                 options.max_substeps," substeps; step is ",round(cfl_excess,sigdigits=3),
-                "x the stability limit (",options.scaling == :local_lambda ?
-                "raise max_substeps or eta0; local_lambda is explicit only" :
+                "x the stability limit (",options.scaling in (:local_lambda,:local_free) ?
+                "raise max_substeps or eta0; $(options.scaling) is explicit only" :
                 "use integrator=semi_implicit to avoid this",")")
             return (changed=cache.changed,records=work.records,move_limited)
         end
@@ -155,7 +155,7 @@ function gradient_substep!(chi,p,refresh!::F,cache,work,settings,substep,nominal
     options.diag && substep == 1 && update_secant_damping!(cache,cache.old,p)
     scale = driving_scale(cache.old,p,cache.faces.area,lower)
     timer = diagnostic_timer(options)
-    update_coefficients!(cache,p,scale.value,options)
+    update_coefficients!(cache,p,scale.value,options,lower)
     coefficient_seconds = diagnostic_seconds(options,timer)
     if scale.force_max == 0
         # Both force-dependent beta and eta vanish, and with beta the obstacle term.
@@ -193,13 +193,14 @@ driving force, scale, boost and damping are those of the unlimited update.
 function gradient_projection!(chi,cache,p,scale,dt,settings,box)
     (;options,eta0,rho,lower) = settings
     trial = gradient_trial!(cache,p,scale,dt,eta0,options,lower)
-    # `:local_lambda` (explicit only) puts the current |lambda| into the boost.
-    floored = options.scaling == :local_lambda
+    # `:local_lambda` and `:local_free` (explicit only) put the current |lambda| into the boost.
+    floored = options.scaling in (:local_lambda,:local_free)
     weights = floored ? nothing : volume_response!(cache,options)
     timer = diagnostic_timer(options)
     projection = floored ?
         project_volume_floored!(chi,cache,p,scale,dt/eta0,rho,lower;
-            tolerance=options.volume_tolerance,damping=cache.damping_active ? 1/(scale*eta0) : 0.0,box) :
+            tolerance=options.volume_tolerance,damping=cache.damping_active ? 1/(scale*eta0) : 0.0,box,
+            push_boost=options.scaling == :local_free ? cache.push_boost : nothing) :
         project_volume!(chi,cache.trial,cache.faces.area,rho,lower;
             tolerance=options.volume_tolerance,weights,box)
     projection_seconds = diagnostic_seconds(options,timer)

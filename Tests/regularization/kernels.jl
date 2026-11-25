@@ -2,6 +2,20 @@
 method_options(method;kw...) = method == :helmholtz ?
     DensityOptions(;regularization=:helmholtz,kw...) : DensityOptions(;scaling=method,kw...)
 
+"""Reference push boost of `:local_free` from face-neighbor sets, max(|q_i|, max_j g_j*|q_j|)/2,
+with the gray weight g_j = 4*theta*(1 - theta), theta = clamp((old_j - lower)/(1 - lower), 0, 1)."""
+function reference_push_boost(faces,q,old,lower)
+    neighbors = [Int[] for _ in eachindex(q)]
+    for (i,j) in zip(faces.left,faces.right)
+        push!(neighbors[i],j); push!(neighbors[j],i)
+    end
+    g = [4theta*(1-theta) for theta in clamp.((old .- lower)./(1-lower),0.0,1.0)]
+    return [max(LOCAL_LAMBDA_GUARD,abs(q[i]),(g[j]*abs(q[j]) for j in neighbors[i])...)/2 for i in eachindex(q)]
+end
+
+"""Final boost of `:local_free`: the push boost where q > l, the frozen local_lambda boost otherwise, floored by |l|/2."""
+local_free_boost(boost,push,q,l) = max.(ifelse.(q .> l,push,boost),abs(l)/2)
+
 # Unequal cell volumes, a split face and an isolated cell exercise the actual
 # finite-volume algebra without coupling these unit tests to a mesh generator.
 function kernel_faces()
@@ -88,8 +102,8 @@ end
     force = [1.0,20.0,3.0,2.0,1.0]
     lower,eta0 = 0.001,15.0
     rho = dot(faces.area,initial)/sum(faces.area)
-    for method in (:mean,:local_max,:local_lambda), integrator in (:explicit,:semi_implicit), g in (0.0,0.6)
-        method == :local_lambda && integrator == :semi_implicit && continue
+    for method in (:mean,:local_max,:local_lambda,:local_free), integrator in (:explicit,:semi_implicit), g in (0.0,0.6)
+        method in (:local_lambda,:local_free) && integrator == :semi_implicit && continue
         cache = DensityCache(faces,baseline)
         cache.obstacle = g
         design = copy(initial)
@@ -112,10 +126,12 @@ end
         expected = similar(initial)
         project_volume!(expected,trial,faces.area,rho,lower;weights)
         result = advance_density!(design,copy(force),identity,cache;options=opts,eta0,rho,lower)
-        if method == :local_lambda
-            # Fixed point: the explicit step with the final boost max(r,|l|/2), diffusion included.
+        if method in (:local_lambda,:local_free)
+            # Fixed point: the explicit step with the final boost max(r,|l|/2), diffusion included;
+            # local_free takes the push boost (gray weights of the start design) where q > l.
             l = only(result.records).lambda/scale
-            final = max.(boost,abs(l)/2)
+            final = method == :local_lambda ? max.(boost,abs(l)/2) :
+                local_free_boost(boost,reference_push_boost(faces,pulled./scale,initial,lower),pulled./scale,l)
             @test cache.beta_relative ≈ final
             @test norm(K*initial./faces.area)/eta0 > 1e-6 # diffusion is far above atol
             expected = clamp.(initial .+ ((pulled./scale .- l)./final .- K*initial./faces.area .+ obstacle)./eta0,lower,1.0)
@@ -182,8 +198,8 @@ end
     faces = kernel_faces()
     initial = [0.2,0.4,0.6,0.3,0.5]
     rho = dot(faces.area,initial)/sum(faces.area)
-    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit)
-        method in (:helmholtz,:local_lambda) && integrator == :semi_implicit && continue
+    for method in (:mean,:local_max,:local_lambda,:local_free,:helmholtz), integrator in (:explicit,:semi_implicit)
+        method in (:helmholtz,:local_lambda,:local_free) && integrator == :semi_implicit && continue
         cache = method == :helmholtz ? HelmholtzCache(faces,ones(5),0.2) : DensityCache(faces,0.02)
         design,physical = copy(initial),copy(initial)
         opts = method_options(method;integrator)
@@ -290,8 +306,8 @@ end
     rho = dot(faces.area,initial)/sum(faces.area)
     weights = [1.0,20.0,3.0,2.0,1.0]
     # Sharpening: the projection of the Helmholtz design, the obstacle term of the gradient penalty.
-    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit), sharpen in (false,true)
-        method in (:helmholtz,:local_lambda) && integrator == :semi_implicit && continue
+    for method in (:mean,:local_max,:local_lambda,:local_free,:helmholtz), integrator in (:explicit,:semi_implicit), sharpen in (false,true)
+        method in (:helmholtz,:local_lambda,:local_free) && integrator == :semi_implicit && continue
         results = map(1:3) do mode
             cache = method == :helmholtz ? HelmholtzCache(faces,ones(5),0.2) : DensityCache(faces,0.02)
             design = copy(initial)
@@ -351,8 +367,8 @@ function kernel_allocations(n,method,integrator,sharpen)
 end
 
 @testset "Steady mesh updates reuse mesh-sized storage" begin
-    for method in (:mean,:local_max,:local_lambda,:helmholtz), integrator in (:explicit,:semi_implicit), sharpen in (false,true)
-        method in (:helmholtz,:local_lambda) && integrator == :semi_implicit && continue
+    for method in (:mean,:local_max,:local_lambda,:local_free,:helmholtz), integrator in (:explicit,:semi_implicit), sharpen in (false,true)
+        method in (:helmholtz,:local_lambda,:local_free) && integrator == :semi_implicit && continue
         small = kernel_allocations(20,method,integrator,sharpen)
         large = kernel_allocations(2000,method,integrator,sharpen)
         @test large <= small+1024
@@ -417,4 +433,45 @@ end
         @test all(==(target),ends)
     end
     @test_throws ArgumentError project_volume_floored!(zeros(n),DensityCache(faces,0.5),force,1.0,0.1,1.5,0.001)
+end
+
+@testset "local_free: local_lambda below the multiplier, free-neighbor max above it" begin
+    n, lower = 30, 0.001
+    faces = TPFAFaces(ones(n),collect(1:n-1),collect(2:n),ones(n-1),fill(0.5,n-1),fill(0.5,n-1))
+    # Solid, graded, void and graded blocks; a force peak in the solid cell 6 at the jump.
+    initial = [i <= 6 ? 1.0 : i <= 12 ? 1-(i-6)/7 : i <= 18 ? lower : 0.1+0.6*(i-18)/12 for i in 1:n]
+    force = [0.5+2exp(-((i-22)/3)^2)+(i == 6 ? 200.0 : i == 7 ? 5.0 : 0.0) for i in 1:n]
+    rho = dot(faces.area,initial)/n
+    chi, cache = copy(initial), DensityCache(faces,0.5)
+    options = DensityOptions(integrator=:explicit,scaling=:local_free,substeps=1,diagnostics=true)
+    result = advance_density!(chi,zeros(n),p->copyto!(p,force),cache;options,eta0=15.0,rho,lower)
+    s = driving_scale(initial,force,faces.area,lower).value
+    q, l = force./s, only(result.records).lambda/s
+    g = [4*(x-lower)/(1-lower)*(1-(x-lower)/(1-lower)) for x in initial]
+    plain = [max(maximum(q[max(1,i-1):min(n,i+1)]),l)/2 for i in 1:n]   # local_lambda
+    push = [max(q[i],maximum(g[j]*q[j] for j in max(1,i-1):min(n,i+1) if j != i),l)/2 for i in 1:n]
+    b = cache.beta_relative
+    @test l > 0
+    @test any(q .> l) && any(q .<= l)
+    @test b ≈ ifelse.(q .> l,push,plain) rtol=1e-12
+    @test cache.push_boost ≈ reference_push_boost(faces,q,initial,lower) rtol=1e-12
+    @test maximum(abs,(q .- l)./b) <= 2+1e-12
+    # The gray cell 7 gains material next to the solid peak cell 6 and does not see the peak.
+    @test q[7] > l
+    @test b[7] ≈ q[7]/2 rtol=1e-12
+    @test b[7] < plain[7]/10
+    @test dot(faces.area,chi)/n ≈ rho atol=1e-10
+    @test all(lower .<= chi .<= 1)
+    # The explicit update with the final boost reproduces the accepted design.
+    K = diffusion_matrix(faces,fill(0.5,n))
+    @test chi ≈ clamp.(initial .+ ((q .- l)./b .- K*initial./faces.area)./15.0,lower,1.0) atol=1e-12
+    # local_lambda on the same state keeps the peak in the boost of cell 7.
+    other = DensityCache(faces,0.5)
+    advance_density!(copy(initial),zeros(n),p->copyto!(p,force),other;
+        options=DensityOptions(integrator=:explicit,scaling=:local_lambda,substeps=1),eta0=15.0,rho,lower)
+    @test other.beta_relative[7] >= q[6]/2
+    @test isempty(other.push_boost)
+    # Explicit only.
+    @test_throws ArgumentError advance_density!(copy(initial),zeros(n),p->copyto!(p,force),DensityCache(faces,0.5);
+        options=DensityOptions(integrator=:semi_implicit,scaling=:local_free),eta0=15.0,rho,lower)
 end

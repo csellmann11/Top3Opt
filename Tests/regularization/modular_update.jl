@@ -1,7 +1,7 @@
 # Modular gradient-penalty update: scaling x integrator x diag, the move limit,
 # and the removed option names. Uses kernel_faces() from kernels.jl.
-const GRADIENT_SCALINGS = (:mean,:local_max,:local_lambda)
-allowed_update(scaling,integrator) = !(scaling == :local_lambda && integrator == :semi_implicit)
+const GRADIENT_SCALINGS = (:mean,:local_max,:local_lambda,:local_free)
+allowed_update(scaling,integrator) = !(scaling in (:local_lambda,:local_free) && integrator == :semi_implicit)
 
 """Force of a quadratic objective per cell, p = f0 - k*(x - xstar) (positive = grow)."""
 quadratic_force(f0,k,xstar) = (p,x) -> (@. p = f0-k*(x-xstar))
@@ -40,13 +40,15 @@ recount_move_limited(x,box,lower) = count(i -> (box.lower[i] > lower && x[i] == 
     rho = dot(faces.area,x)/sum(faces.area)
     run(options) = advance_density!(copy(x),ones(5),identity,DensityCache(faces,0.02);
         options,eta0=15.0,rho,lower=0.001)
-    for old in (:mean,:local_max,:local_lambda)
+    for old in (:mean,:local_max,:local_lambda,:local_free)
         @test_throws ArgumentError run(DensityOptions(regularization=old))
         @test_throws ArgumentError validate_density_options(DensityOptions(regularization=old),15.0)
     end
     for options in (DensityOptions(integrator=:implicit),DensityOptions(scaling=:helmholtz),
             DensityOptions(scaling=:local_lambda,integrator=:semi_implicit),
             DensityOptions(scaling=:local_lambda,integrator=:semi_implicit,diag=true),
+            DensityOptions(scaling=:local_free,integrator=:semi_implicit),
+            DensityOptions(scaling=:local_free,integrator=:semi_implicit,diag=true),
             DensityOptions(regularization=:helmholtz,diag=true),
             DensityOptions(regularization=:helmholtz,scaling=:local_max),
             DensityOptions(regularization=:helmholtz,integrator=:semi_implicit),
@@ -55,6 +57,7 @@ recount_move_limited(x,box,lower) = count(i -> (box.lower[i] > lower && x[i] == 
         @test_throws ArgumentError validate_density_options(options,15.0)
     end
     @test_throws ArgumentError run(DensityOptions(scaling=:local_lambda,integrator=:semi_implicit))
+    @test_throws ArgumentError run(DensityOptions(scaling=:local_free,integrator=:semi_implicit))
     @test_throws ArgumentError run(DensityOptions(regularization=:helmholtz))
     # Defaults are the former default (:mean, explicit, no damping, no move limit).
     defaults = DensityOptions()
@@ -140,9 +143,11 @@ end
         q = p1/q_scale
         Dn = D/q_scale # normalized like q = p/s
         diffusion = K*x1 ./ faces.area
-        if scaling == :local_lambda
+        if scaling in (:local_lambda,:local_free)
             l = only(result.records).lambda/q_scale
-            b = max.(boost,abs(l)/2)
+            # local_free: push boost from the gray weights of the substep start x1 where q > l.
+            b = scaling == :local_lambda ? max.(boost,abs(l)/2) :
+                local_free_boost(boost,reference_push_boost(faces,q,x1,lower),q,l)
             @test cache.beta_relative ≈ b
             expected = clamp.(x1 .+ (q .- l .- b.*diffusion)./(eta0.*b .+ Dn),lower,1.0)
         elseif integrator == :explicit
@@ -396,7 +401,7 @@ end
         @test maximum(abs.(free.^3 .- x0.^3)) > limit
     end
     # A box that cannot reach the volume target in one step is an error naming the move limit.
-    for scaling in (:mean,:local_lambda)
+    for scaling in (:mean,:local_lambda,:local_free)
         failure = try
             advance_density!(copy(x0),force,identity,DensityCache(faces,0.02);
                 options=DensityOptions(;scaling,move_limit=1e-3,substeps=1),eta0=15.0,rho=rho+0.05,lower)
