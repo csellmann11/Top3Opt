@@ -11,11 +11,11 @@ for arg in "$@"; do
         -h|--help)
             echo "Usage: bash cluster/run_sweeps.sh [--dry-run] [--smoke]"
             echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
-            echo "INTEGRATOR=explicit|semi_implicit selects the density update (default: semi_implicit)."
+            echo "INTEGRATOR=explicit|semi_implicit selects the density update (default: explicit)."
             echo "REGULARIZATION=gradient|helmholtz (default: gradient); SCALING=mean|local_max|local_lambda|local_free (default: mean)."
             echo "DIAG=true|false secant damping (default: false); MOVE_LIMIT=<number > 0>|Inf (default: Inf)."
             echo "PROJECTION=true|false (default: false)."
-            echo "BETA0=<number >= 0> (default: 3.0); ETA0=<number > 0> (default: 15.0)."
+            echo "BETA0=<number >= 0> (default: 2.0); ETA0=<number > 0> (default: 15.0)."
             echo "--dry-run generates scripts without submitting jobs."
             exit 0 ;;
         *) echo "Unknown argument: $arg" >&2; exit 2 ;;
@@ -69,13 +69,13 @@ FLUX_SCHEME=tpfa              # TPFA is the only supported gradient approximatio
 if [[ -n "${UPDATE_MODE:-}" ]]; then
     echo "UPDATE_MODE was removed; use INTEGRATOR=explicit|semi_implicit." >&2; exit 2
 fi
-INTEGRATOR=${INTEGRATOR:-semi_implicit} # Options: explicit | semi_implicit
+INTEGRATOR=${INTEGRATOR:-explicit} # Options: explicit | semi_implicit
 REGULARIZATION=${REGULARIZATION:-gradient} # Options: gradient | helmholtz
 SCALING=${SCALING:-mean}               # Options: mean | local_max | local_lambda | local_free
 DIAG=${DIAG:-false}                    # Options: true | false
 MOVE_LIMIT=${MOVE_LIMIT:-Inf}          # Positive number or Inf
 PROJECTION=${PROJECTION:-false}        # Options: true | false
-BETA0=${BETA0:-3.0}                    # Regularization strength beta0 (>= 0)
+BETA0=${BETA0:-2.0}                    # Regularization strength beta0 (>= 0)
 ETA0=${ETA0:-15.0}                     # Viscosity eta0 (> 0)
 PETSC_GAMG_SQUARE_GRAPH=${PETSC_GAMG_SQUARE_GRAPH:-1} # PETSc only: 1 = squared graph, 0 = MIS-2
 

@@ -33,8 +33,8 @@ is `local_lambda`, except that a cell gaining material counts a neighbor's force
 by that neighbor's grayness 4θ(1−θ).
 See [regularization options](../docs/regularization.md) for complete examples.
 The generator defaults to `REGULARIZATION=gradient`, `SCALING=mean`,
-`INTEGRATOR=semi_implicit`, `DIAG=false`, `MOVE_LIMIT=Inf`, `PROJECTION=false`,
-`BETA0=3.0` and `ETA0=15.0`; override them in the environment, e.g.
+`INTEGRATOR=explicit`, `DIAG=false`, `MOVE_LIMIT=Inf`, `PROJECTION=false`,
+`BETA0=2.0` and `ETA0=15.0`; override them in the environment, e.g.
 `SCALING=local_max DIAG=true PROJECTION=true BETA0=0.5 bash cluster/run_sweeps.sh`.
 `BETA0` and `ETA0` are passed to the driver as `--beta0` and `--eta0`. Helmholtz and
 `local_lambda`/`local_free` with the semi-implicit integrator print a warning and switch to explicit;
@@ -104,7 +104,7 @@ cluster/
 ```
 
 Example job name:
-`toopt_MBB_sym_petsc_Hexahedra_r3_atrue_btrue_ftpfa_usemi_implicit_gmean_Dfalse_MInf_pfalse_B3.0_E15.0_lfalse_dtrue_s200`.
+`toopt_MBB_sym_petsc_Hexahedra_r3_atrue_btrue_ftpfa_uexplicit_gmean_Dfalse_MInf_pfalse_B2.0_E15.0_lfalse_dtrue_s200`.
 Here `r` is refinement level, `a` adaptivity, `b` initial refinement, `f` flux
 scheme, `u` integrator, `g` the scaling (or `helmholtz`), `D` damping, `M` move limit,
 `p` projection, `B`/`E` beta0/eta0, `l` the deprecated compatibility switch,
