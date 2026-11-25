@@ -12,7 +12,7 @@ for arg in "$@"; do
             echo "Usage: bash cluster/run_sweeps.sh [--dry-run] [--smoke]"
             echo "Edit the axes and fixed parameters below. --smoke selects one small, five-step MBB run."
             echo "INTEGRATOR=explicit|semi_implicit selects the density update (default: semi_implicit)."
-            echo "REGULARIZATION=gradient|helmholtz (default: gradient); SCALING=mean|local_max|local_lambda (default: mean)."
+            echo "REGULARIZATION=gradient|helmholtz (default: gradient); SCALING=mean|local_max|local_lambda|local_free (default: mean)."
             echo "DIAG=true|false secant damping (default: false); MOVE_LIMIT=<number > 0>|Inf (default: Inf)."
             echo "PROJECTION=true|false (default: false)."
             echo "BETA0=<number >= 0> (default: 3.0); ETA0=<number > 0> (default: 15.0)."
@@ -51,6 +51,8 @@ DENSITY_MARKING_OPTIONS=(true)
 #                    local_max beta_i and eta_i boosted by the neighbor max |p|
 #                    local_lambda  local_max without the mean floor: boost max(neighbor max |p|, |lambda|)/2
 #                              (forces INTEGRATOR=explicit)
+#                    local_free    local_lambda, but a gaining cell weights neighbor |p| by 4*theta*(1-theta)
+#                              (forces INTEGRATOR=explicit)
 #   DIAG             true | false                  secant reaction damping (gradient penalty only)
 #   MOVE_LIMIT       number > 0 | Inf              largest |x^p - x_old^p| per cell and unit time (per-cell box)
 #   PROJECTION       true | false                  smooth volume-preserving projection
@@ -69,7 +71,7 @@ if [[ -n "${UPDATE_MODE:-}" ]]; then
 fi
 INTEGRATOR=${INTEGRATOR:-semi_implicit} # Options: explicit | semi_implicit
 REGULARIZATION=${REGULARIZATION:-gradient} # Options: gradient | helmholtz
-SCALING=${SCALING:-mean}               # Options: mean | local_max | local_lambda
+SCALING=${SCALING:-mean}               # Options: mean | local_max | local_lambda | local_free
 DIAG=${DIAG:-false}                    # Options: true | false
 MOVE_LIMIT=${MOVE_LIMIT:-Inf}          # Positive number or Inf
 PROJECTION=${PROJECTION:-false}        # Options: true | false
@@ -89,14 +91,14 @@ esac
 
 case "$REGULARIZATION" in
     gradient|helmholtz) ;;
-    mean|local_max|local_lambda)
+    mean|local_max|local_lambda|local_free)
         echo "REGULARIZATION=$REGULARIZATION was removed; use REGULARIZATION=gradient SCALING=$REGULARIZATION." >&2; exit 2 ;;
     *) echo "Unknown REGULARIZATION: $REGULARIZATION (choose gradient or helmholtz)." >&2; exit 2 ;;
 esac
 
 case "$SCALING" in
-    mean|local_max|local_lambda) ;;
-    *) echo "Unknown SCALING: $SCALING (choose mean, local_max or local_lambda)." >&2; exit 2 ;;
+    mean|local_max|local_lambda|local_free) ;;
+    *) echo "Unknown SCALING: $SCALING (choose mean, local_max, local_lambda or local_free)." >&2; exit 2 ;;
 esac
 
 case "$DIAG" in
@@ -124,7 +126,7 @@ if [[ "$MOVE_LIMIT" != Inf && ( ! "$MOVE_LIMIT" =~ $number_pattern || "$MOVE_LIM
     echo "Invalid MOVE_LIMIT: $MOVE_LIMIT (use a positive number such as 0.1, or Inf)." >&2; exit 2
 fi
 
-if [[ ( "$REGULARIZATION" == helmholtz || "$SCALING" == local_lambda ) && "$INTEGRATOR" == semi_implicit ]]; then
+if [[ ( "$REGULARIZATION" == helmholtz || "$SCALING" == local_lambda || "$SCALING" == local_free ) && "$INTEGRATOR" == semi_implicit ]]; then
     echo "Warning: $REGULARIZATION/$SCALING has no semi-implicit update; switched INTEGRATOR to explicit." >&2
     INTEGRATOR=explicit
 fi

@@ -16,9 +16,9 @@ axis. Older generated jobs may pass `--laplace_rescale false`; this deprecated
 option remains accepted as a no-op. Regenerate jobs that request removed schemes.
 
 The Julia driver accepts `--regularization gradient` (gradient penalty) or `helmholtz`.
-The gradient penalty is set by three independent options: `--scaling mean`, `local_max`
-or `local_lambda` (the boost), `--integrator explicit` or `semi_implicit`, and
-`--diag true|false` (secant reaction damping). `local_lambda` is explicit only;
+The gradient penalty is set by three independent options: `--scaling mean`, `local_max`,
+`local_lambda` or `local_free` (the boost), `--integrator explicit` or `semi_implicit`, and
+`--diag true|false` (secant reaction damping). `local_lambda` and `local_free` are explicit only;
 Helmholtz is explicit and takes neither a scaling nor `--diag`. `--move_limit <x>`
 bounds |x³ − x_old³| per cell and optimization step for every update by a box in
 the volume projection (default `Inf`, off), and
@@ -28,15 +28,17 @@ for any of them. The former `--regularization mean|local_max|local_lambda` and
 2·β0·h_i² with h_i = cbrt(cell volume) (Helmholtz as r²_i); `--filter_radius` overrides
 Helmholtz with a uniform radius. Above β0 = 1 a one-cell 0→1 interface cannot be
 stationary under `local_max`. `local_lambda` drops the `local_max` mean floor and puts the
-current volume multiplier into the boost, `b_i = max(m_i, |lambda|/s)/2`.
+current volume multiplier into the boost, `b_i = max(m_i, |lambda|/s)/2`. `local_free`
+is `local_lambda`, except that a cell gaining material counts a neighbor's force only
+by that neighbor's grayness 4θ(1−θ).
 See [regularization options](../docs/regularization.md) for complete examples.
 The generator defaults to `REGULARIZATION=gradient`, `SCALING=mean`,
 `INTEGRATOR=semi_implicit`, `DIAG=false`, `MOVE_LIMIT=Inf`, `PROJECTION=false`,
 `BETA0=3.0` and `ETA0=15.0`; override them in the environment, e.g.
 `SCALING=local_max DIAG=true PROJECTION=true BETA0=0.5 bash cluster/run_sweeps.sh`.
 `BETA0` and `ETA0` are passed to the driver as `--beta0` and `--eta0`. Helmholtz and
-`local_lambda` with the semi-implicit integrator print a warning and switch to explicit;
-the removed `UPDATE_MODE` and `REGULARIZATION=mean|local_max|local_lambda` are errors.
+`local_lambda`/`local_free` with the semi-implicit integrator print a warning and switch to explicit;
+the removed `UPDATE_MODE` and `REGULARIZATION=mean|local_max|local_lambda|local_free` are errors.
 The available values are listed as comments at the top of `run_sweeps.sh`.
 
 ## Run on the cluster

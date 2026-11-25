@@ -7,7 +7,7 @@ end
 pu3d_body_iszero(::typeof(def_rhs_fun)) = true
 
 """Parse the driver options. Removed names (`--update_mode`, `--regularization
-mean|local_max|local_lambda`) are rejected; `exc_handler` lets tests catch errors."""
+mean|local_max|local_lambda|local_free`) are rejected; `exc_handler` lets tests catch errors."""
 function parse_commandline(argv=ARGS;exc_handler=ArgParse.default_handler)
     s = ArgParseSettings(;exc_handler)
     @add_arg_table! s begin
@@ -61,7 +61,7 @@ function parse_commandline(argv=ARGS;exc_handler=ArgParse.default_handler)
             arg_type = Symbol
             default = :gradient
         "--scaling"
-            help = "Gradient-penalty boost: mean, local_max, or local_lambda (explicit only)"
+            help = "Gradient-penalty boost: mean, local_max, local_lambda or local_free (both explicit only)"
             arg_type = Symbol
             default = :mean
         "--integrator"
@@ -126,16 +126,16 @@ function parse_commandline(argv=ARGS;exc_handler=ArgParse.default_handler)
     isfinite(args["pu_marking_exponent"]) && args["pu_marking_exponent"] >= 0 ||
         throw(ArgumentError("pu_marking_exponent must be finite and nonnegative"))
     regularization,scaling,integrator = args["regularization"],args["scaling"],args["integrator"]
-    regularization in (:mean,:local_max,:local_lambda) && throw(ArgumentError(
+    regularization in (:mean,:local_max,:local_lambda,:local_free) && throw(ArgumentError(
         "--regularization $regularization was removed; use --regularization gradient --scaling $regularization"))
     regularization in (:gradient,:helmholtz) ||
         throw(ArgumentError("regularization must be gradient or helmholtz"))
-    scaling in (:mean,:local_max,:local_lambda) ||
-        throw(ArgumentError("scaling must be mean, local_max, or local_lambda"))
+    scaling in (:mean,:local_max,:local_lambda,:local_free) ||
+        throw(ArgumentError("scaling must be mean, local_max, local_lambda, or local_free"))
     integrator in (:explicit,:semi_implicit) ||
         throw(ArgumentError("integrator must be explicit or semi_implicit"))
-    scaling == :local_lambda && integrator != :explicit &&
-        throw(ArgumentError("local_lambda needs the current multiplier in the boost; choose --integrator explicit"))
+    scaling in (:local_lambda,:local_free) && integrator != :explicit &&
+        throw(ArgumentError("$scaling needs the current multiplier in the boost; choose --integrator explicit"))
     if regularization == :helmholtz
         integrator == :explicit ||
             throw(ArgumentError("Helmholtz uses an explicit design update; choose --integrator explicit"))

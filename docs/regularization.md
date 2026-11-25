@@ -16,6 +16,7 @@ does not expect a `ToOpt3` package module.
 | `--scaling mean` | Gradient penalty with mean-force scaling (boost `b_i = 1`) | `mean` |
 | `--scaling local_max` | Direct-neighbor sensitivity boost | |
 | `--scaling local_lambda` | `local_max` without the mean floor, current `abs(lambda)` in the boost (explicit only) | |
+| `--scaling local_free` | `local_lambda`, but a gaining cell counts neighbor forces only by their grayness (explicit only) | |
 | `--integrator explicit` / `semi_implicit` | Explicit (automatic CFL substeps) or semi-implicit gradient-penalty update | `explicit` |
 | `--diag true` | Secant reaction damping of the gradient penalty | `false` |
 | `--move_limit` | Per-cell box `|x³ - x_old³| <= move_limit*dt` per substep, all updates | `Inf` |
@@ -43,10 +44,10 @@ julia --project=. src/main_optim_runs.jl --regularization helmholtz --filter_rad
 The same option names are keywords of `run_optimization` and fields of
 `DensityOptions`. The three gradient-penalty settings are orthogonal: every
 scaling works with both integrators and with or without damping, except that
-`local_lambda` is explicit only. Helmholtz uses an explicit design update with
+`local_lambda` and `local_free` are explicit only. Helmholtz uses an explicit design update with
 elliptic forward/adjoint solves and has neither a boost nor damping; requesting
 `semi_implicit`, a scaling other than `mean`, or `--diag true` for it is an error.
-The former `--regularization mean|local_max|local_lambda` and `--update_mode`
+The former `--regularization mean|local_max|local_lambda` (and `local_free`) and `--update_mode`
 (`update_mode` keyword) were removed and are rejected; run fingerprints of runs without damping and
 move limit are unchanged. A finite move limit appends `;M=<value>box` to the fingerprint,
 so these runs do not reuse directories of the former eta-increase rule. With zero
@@ -163,6 +164,31 @@ chi_i  = clamp(chi_i + a*((q_i/s - l)/b_i(l) - (K chi)_i/volume_i), lower, 1),  
   stops with an error if a step cannot reach the volume target.
 - Only the explicit update is available, because the boost needs the multiplier of
   the current step.
+
+### local_free
+
+At an interface the solid neighbor's large force sits in `m_i` of a gray cell and
+slows its growth under `local_lambda`. `local_free` removes that for cells that gain
+material and changes nothing else:
+
+```text
+theta_j  = clamp((chi_j - lower)/(1 - lower), 0, 1),   g_j = 4*theta_j*(1 - theta_j)
+m_i^free = max(abs(q_i), g_j*abs(q_j), j = face neighbors)/s   (own force unweighted)
+b_i(l)   = max(m_i^free, abs(l))/2   if q_i/s > l    (push)
+b_i(l)   = max(m_i, abs(l))/2        otherwise       (pull: local_lambda)
+```
+
+- `g` is taken from the design at the start of the substep (`cache.old`; with
+  projection the persistent design, while `q` is the pulled-back force). A clamped
+  neighbor (`g = 0`) does not count in the push of a cell; a cell below the
+  multiplier keeps the relief by any loaded neighbor, which lets a front advance.
+- The force is that of `local_lambda` or larger for `q_i/s > l` and identical
+  otherwise, continuous at the switch (its numerator vanishes there) and bounded by
+  2 for `q >= 0`, `l >= 0`.
+- Bisection, diffusion, secant damping, move limit and the stored boost are those of
+  `local_lambda` with this `b_i`; `project_volume_floored!` takes the push boost
+  `m_i^free/2` as `push_boost`. The stronger regularization around a force peak
+  only acts on a gaining cell while the peak cell is gray. Explicit only.
 
 Here `q` is the physical force pulled back through projection, and `s` is its
 volume/grayness-weighted mean magnitude with binary and zero-force safeguards.

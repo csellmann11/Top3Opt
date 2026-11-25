@@ -20,7 +20,7 @@ function DensityCache(faces::TPFAFaces, beta0::Union{Real,AbstractVector})
     return DensityCache(faces,b,ones(n),K,diagonal_indices,face_indices,
         nothing,Diagonal(Float64[]),nothing,true,NaN,NaN,false,
         Float64[],Float64[],Float64[],Float64[],false,false,
-        zeros(n),zeros(n),zeros(n),zeros(n),Float64[],Float64[],Float64[],zeros(n),falses(n),nothing,(;))
+        zeros(n),zeros(n),zeros(n),zeros(n),Float64[],Float64[],Float64[],zeros(n),falses(n),nothing,(;),Float64[])
 end
 
 """Harmonic face coefficient, including an insulating zero-coefficient cell."""
@@ -83,8 +83,16 @@ interface cannot be stationary.
 """
 const LOCAL_MAX_BOOST_SCALE = 0.5
 
-"""Normalized boost floor of `:local_lambda`; only guards a zero force against zero."""
+"""Normalized boost floor of `:local_lambda` and `:local_free`; only guards a zero force
+against zero."""
 const LOCAL_LAMBDA_GUARD = 1e-12
+
+"""Gray weight g = 4*theta*(1 - theta), theta = (chi - lower)/(1 - lower) in [0, 1]:
+0 at both bounds, 1 at half density."""
+@inline function gray_weight(chi,lower)
+    theta = clamp((chi-lower)/(1-lower),0.0,1.0)
+    return 4theta*(1-theta)
+end
 
 """Freeze the local boost for one density substep (`options.scaling`).
 
@@ -123,11 +131,28 @@ p(chi).
 The existing face graph supplies neighbors. Read each neighbor's original p
 so a single traversal cannot propagate a peak beyond its direct neighbors.
 The trial buffer is free until the subsequent density solve/projection.
+
+`:local_free` is `:local_lambda` for a cell that loses material (q_i <= l, q = p/scale).
+For a cell that gains material (q_i > l, the push) a neighbor counts in the max only as
+far as it is free to move, by the gray weight g_j = `gray_weight(old_j,lower)` of the
+substep's start design `cache.old`; the cell's own force is not weighted:
+
+    m_i^free = max(|q_i|, max_{j != i} g_j*|q_j|) <= m_i,
+    b_i(l) = max(m_i^free, |l|)/2  if q_i > l,     b_i(l) = max(m_i, |l|)/2  otherwise.
+
+A gray cell next to a solid one is thus not slowed by the solid cell's large force,
+while the pull on a cell below l keeps the relief by any loaded neighbor. The force
+is that of `:local_lambda` or larger, continuous in l (the numerator vanishes at the
+switch) and bounded by 2 for q >= 0, l >= 0. `beta_relative` holds the `:local_lambda`
+part m_i/2 and `cache.push_boost` m_i^free/2; the explicit projection selects between
+them with the current multiplier (`project_volume_floored!`). `lower` is the density's
+lower bound; only `:local_free` reads it, and its callers must pass the actual bound.
 """
-function update_coefficients!(cache::DensityCache, p, scale, options)
+function update_coefficients!(cache::DensityCache, p, scale, options, lower=0.0)
     relative, candidate = cache.beta_relative, cache.trial
-    if options.scaling in (:local_max,:local_lambda)
+    if options.scaling in (:local_max,:local_lambda,:local_free)
         floor = options.scaling == :local_max ? 1.0 : LOCAL_LAMBDA_GUARD
+        options.scaling == :local_free && free_boost!(cache,p,scale,lower)
         for i in eachindex(p)
             candidate[i] = max(floor,abs(p[i])/scale)
         end
@@ -146,6 +171,23 @@ function update_coefficients!(cache::DensityCache, p, scale, options)
     candidate == relative && return false
     copyto!(relative,candidate)
     return true
+end
+
+"""Push boost of `:local_free`, m_i^free/2 (see `update_coefficients!`), into
+`cache.push_boost`. The gray weights are those of the substep's start design `cache.old`."""
+function free_boost!(cache::DensityCache, p, scale, lower)
+    old, faces = cache.old, cache.faces
+    push = resize!(cache.push_boost,length(p))
+    @inbounds for i in eachindex(p,push)
+        push[i] = max(LOCAL_LAMBDA_GUARD,abs(p[i])/scale)
+    end
+    @inbounds for f in eachindex(faces.left)
+        i, j = faces.left[f], faces.right[f]
+        push[i] = max(push[i],gray_weight(old[j],lower)*abs(p[j])/scale)
+        push[j] = max(push[j],gray_weight(old[i],lower)*abs(p[i])/scale)
+    end
+    push .*= LOCAL_MAX_BOOST_SCALE
+    return push
 end
 
 """Secant reaction damping (`diag`): update the measured curvature at an outer entry.

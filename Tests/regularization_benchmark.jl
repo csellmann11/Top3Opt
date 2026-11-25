@@ -20,7 +20,7 @@ include("../src/optim_run.jl")
 # Isolate density behavior from cluster solver availability.
 solve_lse(K, f, cv, ch) = cholesky(Symmetric(K)) \ f
 
-"""`label` is a gradient-penalty scaling (mean, local_max, local_lambda) or helmholtz."""
+"""`label` is a gradient-penalty scaling (mean, local_max, local_lambda, local_free) or helmholtz."""
 function benchmark_regularization(label=:mean;steps=10,level=2,projection=false,integrator=:explicit,
         diag=false,move_limit=Inf)
     mesh = create_rectangular_mesh(12,2,4,3.,0.5,1.,StandardEl{1})

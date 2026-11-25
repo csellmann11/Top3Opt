@@ -14,7 +14,7 @@ include("../src/hash_output.jl")
     @test defaults["beta0"] == 3.0 && defaults["eta0"] == 15.0
     scaled = parse_commandline(["--beta0","0.5","--eta0","30"])
     @test scaled["beta0"] == 0.5 && scaled["eta0"] == 30.0
-    for scaling in ("mean","local_max","local_lambda"), diag in ("false","true"), projection in ("false","true")
+    for scaling in ("mean","local_max","local_lambda","local_free"), diag in ("false","true"), projection in ("false","true")
         args = parse_commandline(["--scaling",scaling,"--diag",diag,"--projection",projection])
         @test args["regularization"] == :gradient && args["scaling"] == Symbol(scaling)
         @test args["diag"] == (diag == "true") && args["projection"] == (projection == "true")
@@ -27,13 +27,16 @@ include("../src/hash_output.jl")
     @test parse_commandline(["--move_limit","0.05"])["move_limit"] == 0.05
     @test parse_commandline(["--move_limit","Inf"])["move_limit"] == Inf
     @test parse_commandline(["--scaling","local_lambda","--integrator","explicit"])["integrator"] == :explicit
+    @test parse_commandline(["--scaling","local_free","--integrator","explicit"])["integrator"] == :explicit
     for argv in (["--regularization","helmholtz","--integrator","semi_implicit"],
             ["--regularization","helmholtz","--scaling","local_max"],
             ["--regularization","helmholtz","--diag","true"],
             ["--scaling","local_lambda","--integrator","semi_implicit"],
+            ["--scaling","local_free","--integrator","semi_implicit"],
             ["--integrator","implicit"],["--scaling","helmholtz"],
             # Removed names: the former regularization values and --update_mode.
-            ["--regularization","mean"],["--regularization","local_max"],["--regularization","local_lambda"])
+            ["--regularization","mean"],["--regularization","local_max"],["--regularization","local_lambda"],
+            ["--regularization","local_free"])
         @test_throws ArgumentError parse_commandline(argv)
     end
     @test_throws ArgParseError parse_commandline(["--update_mode","implicit"];exc_handler=ArgParse.debug_handler)
@@ -68,4 +71,7 @@ include("../src/hash_output.jl")
         @test generate_setting_hash(args) != original
     end
     @test length(original) < 80
+    # local_free runs get their own directory, apart from local_lambda.
+    @test generate_setting_hash(merge(copy(defaults),Dict("scaling"=>:local_free))) ∉
+        (original,generate_setting_hash(merge(copy(defaults),Dict("scaling"=>:local_lambda))))
 end

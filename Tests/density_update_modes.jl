@@ -24,7 +24,7 @@ end
 @testset "Conservative persistent design and remapping" begin
     unequal = DensityTransferWorkspace(Dict(11=>1,12=>2),[0.2,0.8],[1.0,3.0])
     @test transferred_design((id=10,parent_id=0,childs=[11,12]),unequal) ≈ 0.65
-    for label in (:mean,:local_max,:local_lambda,:helmholtz), projected in (false,true)
+    for label in (:mean,:local_max,:local_lambda,:local_free,:helmholtz), projected in (false,true)
         cv,states,pars = density_fixture()
         options = label == :helmholtz ? DensityOptions(regularization=:helmholtz) : DensityOptions(scaling=label)
         proj = DensityProjection(DensityProjectionOptions(enabled=projected),states.area_vec;rho_min=pars.χmin)
@@ -96,8 +96,8 @@ end
     output_root = mktempdir(;prefix="toopt3-regularization-",cleanup=false)
     # Labels are the former regularization names: a scaling of the gradient penalty, or helmholtz.
     # Damping and the move limit run on the adaptive meshes (remesh resets the secant history).
-    for label in (:mean,:local_max,:local_lambda,:helmholtz), projected in (false,true), adaptive in (false,true)
-        integrators = label in (:helmholtz,:local_lambda) ? (:explicit,) : (:explicit,:semi_implicit)
+    for label in (:mean,:local_max,:local_lambda,:local_free,:helmholtz), projected in (false,true), adaptive in (false,true)
+        integrators = label in (:helmholtz,:local_lambda,:local_free) ? (:explicit,) : (:explicit,:semi_implicit)
         extras = label == :helmholtz ? ((false,Inf),(false,0.05)) :
             adaptive ? ((false,Inf),(true,Inf),(true,0.05)) : ((false,Inf),)
         for integrator in integrators, (diag,move_limit) in extras

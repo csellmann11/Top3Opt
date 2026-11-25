@@ -116,7 +116,7 @@ function projected_mass!(chi,y,area,shift,lower,weights=nothing,box=nothing)
     return mass,free_volume
 end
 
-"""Explicit `scaling=:local_lambda` projection with the current |lambda| in the boost.
+"""Explicit `scaling=:local_lambda`/`:local_free` projection with the current |lambda| in the boost.
 
 With the normalized multiplier l, q = p/scale, a = dt/eta0 and r the frozen peak
 boost (`cache.beta_relative`, see `update_coefficients!`), the boost is
@@ -143,8 +143,16 @@ replaces eta*b_i(l) and the diffusion no longer cancels from the boost:
 with K*old taken from `cache.rhs` (explicit trial). `damping = 0` is the undamped form above.
 A move-limit `box` (see `move_box!`) replaces [lower, 1] in every clamp; the
 bracket search is unchanged.
+
+`push_boost` (`cache.push_boost` for `:local_free`, `nothing` otherwise) is the boost
+without floor of a cell that gains material: b_i(l) = max(push_i, |l|/2) where q_i > l,
+and max(r_i, |l|/2) as above otherwise. The force vanishes at the switch q_i = l, so
+the volume stays continuous and nonincreasing in l >= 0 for q >= 0. This holds without secant
+damping only: in the damped form b_i(l) also multiplies the diffusion term, so chi_i(l) jumps
+at q_i = l where push_i != r_i, and the bisection can end on such a jump with an error.
 """
-function project_volume_floored!(chi,cache,driving,scale,a,rho,lower;tolerance=1e-10,damping=0.0,box=nothing)
+function project_volume_floored!(chi,cache,driving,scale,a,rho,lower;tolerance=1e-10,damping=0.0,box=nothing,
+        push_boost=nothing)
     0 <= lower < 1 && lower <= rho <= 1 || throw(ArgumentError("Require 0 <= lower < 1 and lower <= rho <= 1"))
     tolerance > 0 || throw(ArgumentError("Projection tolerance must be positive"))
     trial, relative, area = cache.trial, cache.beta_relative, cache.faces.area
@@ -158,8 +166,8 @@ function project_volume_floored!(chi,cache,driving,scale,a,rho,lower;tolerance=1
     total = sum(area)
     # Captures only variables that are never reassigned here, so nothing is boxed.
     volume_at!(l) = (damping > 0 ?
-        damped_floored_volume!(chi,cache,driving,scale,a,lower,l,damping,box) :
-        floored_volume!(chi,trial,relative,driving,area,scale,a,lower,l,box))/total
+        damped_floored_volume!(chi,cache,driving,scale,a,lower,l,damping,box,push_boost) :
+        floored_volume!(chi,trial,relative,driving,area,scale,a,lower,l,box,push_boost))/total
     volume = volume_at!(0.0)
     abs(volume-rho) <= tolerance && return (shift=0.0,iterations=0,error=volume-rho)
     # Grow the bracket away from l = 0 until the volume crosses rho.
@@ -188,33 +196,40 @@ function project_volume_floored!(chi,cache,driving,scale,a,rho,lower;tolerance=1
     abs(volume-rho) <= tolerance || error("Floored volume projection failed: error=$(volume-rho)",
         box === nothing ? "" : " (the move limit may make the volume unreachable in one step)")
     boost_floor = LOCAL_MAX_BOOST_SCALE*abs(l)
-    @. relative = max(relative,boost_floor)
+    @inbounds for i in eachindex(relative,driving)
+        relative[i] = floored_boost(relative,push_boost,i,boost_floor,driving[i]/scale,l)
+    end
     return (shift=a*l,iterations=iterations,error=volume-rho)
 end
 
-"""Mass of chi_i(l) = clamp(z_i + a*(q_i - l)/max(r_i,|l|/2), lower, 1), written into chi."""
-function floored_volume!(chi,trial,relative,driving,area,scale,a,lower,l,box=nothing)
+# Boost b_i(l) = max(r_i, |l|/2); with a push boost (`:local_free`) max(push_i, |l|/2) where q_i > l.
+@inline floored_boost(relative,::Nothing,i,boost_floor,q,l) = max(relative[i],boost_floor)
+@inline floored_boost(relative,push,i,boost_floor,q,l) = max(q > l ? push[i] : relative[i],boost_floor)
+
+"""Mass of chi_i(l) = clamp(z_i + a*(q_i - l)/b_i(l), lower, 1) (`floored_boost`), written into chi."""
+function floored_volume!(chi,trial,relative,driving,area,scale,a,lower,l,box=nothing,push_boost=nothing)
     boost_floor = LOCAL_MAX_BOOST_SCALE*abs(l)
     mass = 0.0
     @inbounds for i in eachindex(chi,trial,relative,driving,area)
         lower_i, upper_i = cell_bounds(box,lower,i)
         q = driving[i]/scale
         z = trial[i]-a*q/relative[i]
-        chi[i] = clamp(z+a*(q-l)/max(relative[i],boost_floor),lower_i,upper_i)
+        chi[i] = clamp(z+a*(q-l)/floored_boost(relative,push_boost,i,boost_floor,q,l),lower_i,upper_i)
         mass += area[i]*chi[i]
     end
     return mass
 end
 
 """Mass of the damped floored update (see `project_volume_floored!`), written into chi."""
-function damped_floored_volume!(chi,cache,driving,scale,a,lower,l,damping,box=nothing)
+function damped_floored_volume!(chi,cache,driving,scale,a,lower,l,damping,box=nothing,push_boost=nothing)
     boost_floor = LOCAL_MAX_BOOST_SCALE*abs(l)
     old, Kold, relative, D, area = cache.old, cache.rhs, cache.beta_relative, cache.damping, cache.faces.area
     mass = 0.0
     @inbounds for i in eachindex(chi,old,Kold,relative,D,driving,area)
         lower_i, upper_i = cell_bounds(box,lower,i)
-        b = max(relative[i],boost_floor)
-        chi[i] = clamp(old[i]+a*(driving[i]/scale-l-b*(Kold[i]/area[i]))/(b+D[i]*damping),lower_i,upper_i)
+        q = driving[i]/scale
+        b = floored_boost(relative,push_boost,i,boost_floor,q,l)
+        chi[i] = clamp(old[i]+a*(q-l-b*(Kold[i]/area[i]))/(b+D[i]*damping),lower_i,upper_i)
         mass += area[i]*chi[i]
     end
     return mass
@@ -242,16 +257,16 @@ end
 
 function validate_density_options(options::DensityOptions, eta0)
     (;regularization,scaling,integrator) = options
-    regularization in (:mean,:local_max,:local_lambda) && throw(ArgumentError(
+    regularization in (:mean,:local_max,:local_lambda,:local_free) && throw(ArgumentError(
         "regularization=:$regularization was removed; use regularization=:gradient, scaling=:$regularization"))
     regularization in (:gradient,:helmholtz) || throw(ArgumentError(
         "Use regularization=:gradient or :helmholtz"))
-    scaling in (:mean,:local_max,:local_lambda) || throw(ArgumentError(
-        "Use scaling=:mean, :local_max, or :local_lambda"))
+    scaling in (:mean,:local_max,:local_lambda,:local_free) || throw(ArgumentError(
+        "Use scaling=:mean, :local_max, :local_lambda, or :local_free"))
     integrator in (:explicit,:semi_implicit) || throw(ArgumentError(
         "Unknown density integrator $integrator; use :explicit or :semi_implicit"))
-    scaling == :local_lambda && integrator != :explicit &&
-        throw(ArgumentError("local_lambda needs the current multiplier in the boost; select integrator=:explicit"))
+    scaling in (:local_lambda,:local_free) && integrator != :explicit &&
+        throw(ArgumentError("$scaling needs the current multiplier in the boost; select integrator=:explicit"))
     if regularization == :helmholtz
         integrator == :explicit || throw(ArgumentError(
             "Helmholtz uses an explicit design step and elliptic filter solves; select integrator=:explicit"))
