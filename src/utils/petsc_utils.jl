@@ -6,7 +6,10 @@
 # AndersonPlasticity (src/linsolve/petsc_gamg.jl, benchmarks/petsc/REPORT.md):
 #   * block size 3 + rigid-body near-null space (3 translations + 3 rotations
 #     about the node centroid, Dirichlet DOFs zeroed, orthonormalised),
-#   * GAMG aggregation threshold 0.01, set through the C API (PETSc.jl option
+#   * GAMG aggregation threshold 0.001 and coarse-grid limit 3000 equations
+#     (measured 2026-11-25: on adapted meshes threshold 0.01 coarsens slowly and
+#     fills the coarse levels, about 2x the setup time and more iterations),
+#     set through the C API (PETSc.jl option
 #     kwargs do not all reach the PC),
 #   * optional l1-Jacobi Chebyshev level smoothers with a fixed interval,
 #   * every PETSc object is destroyed explicitly, in reverse creation order:
@@ -17,7 +20,8 @@
 # arrays are copied (0-based Int64).
 #
 # ENV knobs (read at every solve):
-#   PETSC_CG_RTOL (1e-4)   PETSC_CG_MAXIT (1000)   PETSC_GAMG_THRESHOLD (0.01)
+#   PETSC_CG_RTOL (1e-4)   PETSC_CG_MAXIT (1000)   PETSC_GAMG_THRESHOLD (0.001)
+#   PETSC_GAMG_COARSE_EQ_LIMIT (3000; coarsening stops below this many equations)
 #   PETSC_GAMG_RBM (1)     PETSC_GAMG_L1CHEB (0)   PETSC_GAMG_CHEB_EMIN (0.1)
 #   PETSC_GAMG_CHEB_EMAX (1.0)   PETSC_GAMG_VIEW (0)   PETSC_VERBOSE (1)
 #   PETSC_GAMG_SQUARE_GRAPH (1; 0 selects MIS-2 aggressive coarsening)
@@ -70,6 +74,9 @@ end
 _petsc_gamg_set_threshold(pc::Ptr{Cvoid}, thr::Float64) =
     _petsc_check(ccall(_petsc_sym(:PCGAMGSetThreshold), Cint,
                        (Ptr{Cvoid}, Ptr{Cdouble}, Int64), pc, [thr], 1), "PCGAMGSetThreshold")
+_petsc_gamg_set_coarse_eq_limit(pc::Ptr{Cvoid}, n::Int) =
+    _petsc_check(ccall(_petsc_sym(:PCGAMGSetCoarseEqLim), Cint,
+                       (Ptr{Cvoid}, Int64), pc, Int64(n)), "PCGAMGSetCoarseEqLim")
 # PETSc.jl drops false-valued keyword options, so set this through the C API.
 _petsc_gamg_set_square_graph(pc::Ptr{Cvoid}, enabled::Bool) =
     _petsc_check(ccall(_petsc_sym(:PCGAMGSetAggressiveSquareGraph), Cint,
@@ -264,7 +271,8 @@ function solve_lse_petsc(k_global::SparseMatrixCSC, rhs_global::AbstractVector,
         ksp = PETSc.KSP(A; ksp_type = "cg", ksp_norm_type = "unpreconditioned",
                         ksp_rtol = rtol, ksp_max_it = maxit, pc_type = "gamg")
         pc = _petsc_ksp_get_pc(ksp.ptr)
-        _petsc_gamg_set_threshold(pc, _petsc_env_f("PETSC_GAMG_THRESHOLD", "0.01"))
+        _petsc_gamg_set_threshold(pc, _petsc_env_f("PETSC_GAMG_THRESHOLD", "0.001"))
+        _petsc_gamg_set_coarse_eq_limit(pc, _petsc_env_i("PETSC_GAMG_COARSE_EQ_LIMIT", "3000"))
         _petsc_gamg_set_square_graph(pc, _petsc_env_b("PETSC_GAMG_SQUARE_GRAPH", "1"))
 
         t1 = time_ns()

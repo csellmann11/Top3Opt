@@ -27,7 +27,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Experiment axes. Defaults reproduce the 16 combinations in the old sweep.
 BENCHMARK_CASES=(MBB_sym L_cantilever)        # Options: MBB_sym | Cantilever_sym | Bending_Beam_sym | simple_lever | pressure_plate | L_cantilever
-SOLVERS=(hypre)                  # petsc | hypre
+SOLVERS=(petsc)                  # petsc | hypre
 MAX_REF_LEVELS=(3 4 5 6)
 MESH_TYPES=(Hexahedra Voronoi)
 ADAPTIVITY_OPTIONS=(true false)
@@ -201,9 +201,9 @@ if (( ! DRY_RUN )) && ! command -v sbatch >/dev/null 2>&1; then
 fi
 
 # Pin current PETSc defaults/overrides into the generated scripts.
-PETSC_KEYS=(PETSC_CG_RTOL PETSC_CG_MAXIT PETSC_GAMG_THRESHOLD PETSC_GAMG_SQUARE_GRAPH PETSC_GAMG_RBM
+PETSC_KEYS=(PETSC_CG_RTOL PETSC_CG_MAXIT PETSC_GAMG_THRESHOLD PETSC_GAMG_COARSE_EQ_LIMIT PETSC_GAMG_SQUARE_GRAPH PETSC_GAMG_RBM
     PETSC_GAMG_L1CHEB PETSC_GAMG_CHEB_EMIN PETSC_GAMG_CHEB_EMAX PETSC_GAMG_VIEW PETSC_VERBOSE)
-PETSC_DEFAULTS=(1e-4 1000 0.01 1 1 0 0.1 1.0 0 1)
+PETSC_DEFAULTS=(1e-4 1000 0.001 3000 1 1 0 0.1 1.0 0 1)
 
 # mktemp provides a unique suite even when two submissions start simultaneously.
 mkdir -p "$SCRIPT_DIR/jobs" "$SCRIPT_DIR/logs" "$SCRIPT_DIR/results"
