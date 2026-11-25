@@ -90,6 +90,8 @@ function run_optimization(
     density_projection = DensityProjection(projection_options,states.area_vec;rho_min=sim_pars.χmin)
     transfer = DensityTransferWorkspace()
     workspace = DensityMechanicalWorkspace(length(states.χ_vec))
+    # The stiffness matrix of a step is dead once the next one is assembled.
+    sparsity_workspace = SparsityWorkspace()
     ch = nothing
     density_cache = nothing
     error_cache = nothing
@@ -118,7 +120,7 @@ function run_optimization(
             rebuild_operator = false
         end
 
-        @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
+        @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars;sparsity_workspace)
         element_error = nothing
         if optimization_step < MAX_OPT_STEPS && (do_adaptivity || optimization_step in take_snapshots_at)
             @timeit to "adaptivity" begin
@@ -225,7 +227,7 @@ function run_optimization(
 
     # One final equilibrium solve aligns exported displacement with the accepted
     # physical density, including the final projection-continuation change.
-    @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars)
+    @timeit to "compute_displacement" u,k_global,eldata_col = compute_displacement(cv,ch,states,rhs_fun,sim_pars;sparsity_workspace)
     sim_results.final_strain_energy = dot(u,k_global*u)/2
     full_name = joinpath(vtk_folder_name, "final_res")
     if error_estimator == :pu_dwr

@@ -14,18 +14,38 @@ function create_dense_node_id_map(mesh::Mesh{D}) where {D}
 end
 
 """
+Reusable index and value storage of the global stiffness matrix. A matrix built with
+a workspace aliases these vectors: the next `get_sparsity_pattern` call with the same
+workspace overwrites it, so use one only where the previous matrix is no longer needed
+(the optimization loop). Without a workspace every call allocates a fresh matrix.
+"""
+struct SparsityWorkspace
+    colptr::Vector{Int}
+    rowvals::Vector{Int}
+    values::Vector{Float64}
+end
+SparsityWorkspace() = SparsityWorkspace(Int[], Int[], Float64[])
+
+"""
 Expand each stored scalar entry to a dense block of structural zeros.
 
 This has the same CSC structure as `kron(pattern, sparse(ones(Bool, U, U)))`,
 but writes the final Float64 matrix directly instead of allocating and then
 discarding a full vector of integer connectivity counts.
 """
-function _expand_sparsity_blocks(pattern::SparseMatrixCSC, U::Int)
+function _expand_sparsity_blocks(pattern::SparseMatrixCSC, U::Int,
+        workspace::Union{Nothing,SparsityWorkspace} = nothing)
     U > 0 || throw(ArgumentError("The number of components must be positive"))
     nrows, ncols = size(pattern) .* U
-    colptr = Vector{Int}(undef, ncols + 1)
-    rowvals = Vector{Int}(undef, nnz(pattern) * U * U)
-    values = zeros(Float64, length(rowvals))
+    if workspace === nothing
+        colptr = Vector{Int}(undef, ncols + 1)
+        rowvals = Vector{Int}(undef, nnz(pattern) * U * U)
+        values = zeros(Float64, length(rowvals))
+    else
+        colptr = resize!(workspace.colptr, ncols + 1)
+        rowvals = resize!(workspace.rowvals, nnz(pattern) * U * U)
+        values = fill!(resize!(workspace.values, length(rowvals)), 0.0)
+    end
 
     position = 1
     @inbounds for column in axes(pattern, 2), component in 1:U
@@ -40,7 +60,8 @@ function _expand_sparsity_blocks(pattern::SparseMatrixCSC, U::Int)
 end
 
 function get_sparsity_pattern(
-    cv::CellValues{D,U}
+    cv::CellValues{D,U};
+    workspace::Union{Nothing,SparsityWorkspace} = nothing
     ) where {D,U}
 
 
@@ -86,7 +107,7 @@ function get_sparsity_pattern(
 
     small_sparse_pattern = node2el_id * node2el_id' 
 
-    return _expand_sparsity_blocks(small_sparse_pattern, U)
+    return _expand_sparsity_blocks(small_sparse_pattern, U, workspace)
 end
 
 

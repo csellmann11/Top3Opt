@@ -2,34 +2,51 @@ using Ju3VEM
 
 isdefined(@__MODULE__, :PU3DCache) || include("pu_dwr.jl")
 
+"""Inverse-distance average of the element stabilization at the nodes, indexed by node id."""
 function project_states_to_nodes(
     eldata_col::Dict{Int,<:ElData},
     cv::CellValues{D,U},
     states::DesignVarInfo) where {D,U}
 
-    node_sums   = zeros(Float64,length(cv.mesh.topo.nodes))
-    node_states = Dict{Int,Float64}()
+    nodes       = cv.mesh.topo.nodes
+    node_sums   = zeros(Float64,length(nodes))
+    node_states = zeros(Float64,length(nodes))
     e2s = states.el_id_to_state_id
     for (el_id,el_data) in eldata_col
-        sid      = e2s[el_id]
-        γ_stab   = el_data.γ_stab
-        bc       = states.x_vec[sid]
-        node_ids = el_data.node_ids
-        
-        for node_id in node_ids
-            weight =  get!(node_states,node_id,0.0)
-            node    = cv.mesh.topo.nodes[node_id]
-            d       = norm(node.coords - bc)
-            weight += γ_stab/d
-            node_states[node_id] = weight
-            node_sums[node_id] += 1/d
+        γ_stab = el_data.γ_stab
+        bc     = states.x_vec[e2s[el_id]]
+        for node_id in el_data.node_ids
+            d = norm(nodes[node_id].coords - bc)
+            node_states[node_id] += γ_stab/d
+            node_sums[node_id]   += 1/d
         end
     end
-    for node_id in keys(node_states)
-        node_states[node_id] /= node_sums[node_id]
+    @inbounds for node_id in eachindex(node_states)
+        node_sums[node_id] > 0 && (node_states[node_id] /= node_sums[node_id])
     end
-
     return node_states
+end
+
+# Σ_i ((P u - u)_i)² * weight(node of i) * hvol for one element. P couples only equal
+# components, so the sum over the other components (structural zeros) is skipped.
+function element_error(u::AbstractVector{Float64},el_data::ElData,
+        dof_mapping::Dict{Int,SVector{U,Int}},node_states::Vector{Float64}) where {U}
+    node_ids = el_data.node_ids
+    proj     = el_data.proj
+    error    = 0.0
+    @inbounds for a in eachindex(node_ids)
+        dofs_a = dof_mapping[node_ids[a]]
+        weight = node_states[node_ids[a]]
+        for c in 1:U
+            du = 0.0
+            for b in eachindex(node_ids)
+                du += proj[a,b] * u[dof_mapping[node_ids[b]][c]]
+            end
+            du -= u[dofs_a[c]]
+            error += du^2 * weight * el_data.hvol
+        end
+    end
+    return error
 end
 
 function estimate_element_error(
@@ -39,41 +56,21 @@ function estimate_element_error(
     eldata_col::Dict{Int,<:ElData}
     ) where {D,U}
 
-    element_error = Dict{Int,Float64}()
-
     node_states = project_states_to_nodes(eldata_col,cv,states)
+    dof_mapping = cv.dh.dof_mapping
 
-    for (el_id,el_data) in eldata_col
-
-        # dofs = el_data.dofs
-        node_ids = el_data.node_ids
-        error = @no_escape begin 
-            node_ids = el_data.node_ids 
-            dofs = @alloc(Int,length(node_ids)*U)
-            get_dofs!(dofs,cv.dh,node_ids)
-            uel  = @view u[dofs]
-            proj = stretch(el_data.proj,Val(3))
-            node_ids = el_data.node_ids 
-            hvol     = el_data.hvol
-            error = 0.0 
-            for i in axes(proj,1)
-                du = 0.0 
-                for j in axes(proj,2)
-                    du += proj[i,j] * uel[j]
-                end  
-                du -= uel[i]
-                n_count = ceil(Int,i/U)
-                error += du^2 * node_states[node_ids[n_count]] * hvol
-            end
-            error 
-        end
-        element_error[el_id] = error
+    # Elements are independent: evaluate them on all threads, then fill the Dict.
+    elements = collect(eldata_col)
+    errors   = Vector{Float64}(undef,length(elements))
+    Threads.@threads for k in eachindex(elements)
+        errors[k] = element_error(u,elements[k].second,dof_mapping,node_states)
     end
-
-
-    return element_error
+    element_error_col = sizehint!(Dict{Int,Float64}(),length(elements))
+    for k in eachindex(elements)
+        element_error_col[elements[k].first] = errors[k]
+    end
+    return element_error_col
 end
-
 
 
 
@@ -167,12 +164,41 @@ function recycle_mesh!(mesh::Mesh{D,ET}) where {D,ET<:ElType{1}}
 end
 
 
+"""
+    update_facedata(mesh, old) -> Dict
+
+Face data for the adapted mesh. A root face that already existed and still has the
+same nodes (no edge of it was split or merged) keeps its `FaceData` object; a face
+whose node list changed keeps its geometry integrals and only gets a new projector;
+only new faces are computed from scratch. Reused entries are exactly what a full
+rebuild would compute, since they depend only on the face's nodes.
+"""
+function update_facedata(mesh::Mesh{3,StandardEl{K}}, old::Dict{Int,FD}) where {K,FD}
+    topo = mesh.topo
+    K_MAX = max(2*K-1, 2)
+    facedata_col = sizehint!(Dict{Int,FD}(), length(old))
+    scratch = Ju3VEM.VEMGeo.FlattenVecs{3,Int}()
+    for face in RootIterator{3}(topo)
+        previous = get(old, face.id, nothing)
+        if previous === nothing
+            facedata_col[face.id] = Ju3VEM.VEMUtils.h1_projectors!(face.id, mesh,
+                Ju3VEM.VEMGeo.precompute_face_monomials(face.id, topo, Val(K_MAX)))
+            continue
+        end
+        foreach(empty!, scratch.v.args)
+        Ju3VEM.VEMUtils.get_iterative_area_node_ids!(scratch, face, mesh)
+        facedata_col[face.id] = scratch.v.args == previous.face_node_ids.v.args ? previous :
+            Ju3VEM.VEMUtils.h1_projectors!(face.id, mesh, previous.dΩ)
+    end
+    return facedata_col
+end
+
 function adapt_mesh(cv::CellValues{D,U},
     coarse_marker::AbstractVector{Bool},
     ref_marker::AbstractVector{Bool}) where {D,U}
 
     topo = cv.mesh.topo
-    for element in RootIterator{4}(topo)
+    @timeit to "refine_coarsen" for element in RootIterator{4}(topo)
         if coarse_marker[element.id]
             _coarsen!(element,topo)
         elseif ref_marker[element.id]
@@ -180,6 +206,10 @@ function adapt_mesh(cv::CellValues{D,U},
         end
     end
 
-    return CellValues{U}(recycle_mesh!(cv.mesh))
-    # return CellValues{U}(Mesh(topo,StandardEl{1}()))
+    # Same result as CellValues{U}(recycle_mesh!(cv.mesh)), but only faces that
+    # are new or whose nodes changed get their projector recomputed.
+    mesh = recycle_mesh!(cv.mesh)
+    @timeit to "dof_handler" dh = Ju3VEM.VEMUtils.DofHandler{U}(mesh)
+    @timeit to "facedata" facedata_col = update_facedata(mesh, cv.facedata_col)
+    return CellValues(mesh, cv.vnm, facedata_col, cv.volume_data, dh)
 end

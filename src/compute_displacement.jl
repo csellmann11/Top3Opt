@@ -143,10 +143,11 @@ end
 function assembly(cv::CellValues{D,U,ET},
     states::DesignVarInfo{D},
     f::F,
-    sim_pars::SimPars) where {D,U,F<:Function,K,ET<:ElType{K}}
+    sim_pars::SimPars;
+    sparsity_workspace = nothing) where {D,U,F<:Function,K,ET<:ElType{K}}
 
     mat_law = sim_pars.mat_law
-    @timeit to "set up assembler" k_global = get_sparsity_pattern(cv)
+    @timeit to "set up assembler" k_global = get_sparsity_pattern(cv;workspace=sparsity_workspace)
     # ass = FR.start_assemble(Symmetric(k_global),zeros(size(k_global,1))) #!
     ass = FR.start_assemble(k_global,zeros(size(k_global,1)))
 
@@ -162,6 +163,7 @@ function assembly(cv::CellValues{D,U,ET},
     eldata_col  = Dict{Int,ElData{D}}()
 
     e2s = states.el_id_to_state_id
+    dofs = Int[]
 
     k_poly_space = build_k_poly_space(mat_law,(sim_pars.λ,sim_pars.μ,1.0))
 
@@ -183,7 +185,7 @@ function assembly(cv::CellValues{D,U,ET},
         node_ids = FixedSizeVector{Int}(undef,length(cv.vnm.map))
         copyto!(node_ids,cv.vnm.map.keys)
 
-        dofs = FixedSizeVector{Int}(undef,length(node_ids)*U)
+        resize!(dofs,length(node_ids)*U)
         get_dofs!(dofs,cv.dh,node_ids)
   
         vol_data = cv.volume_data
@@ -209,9 +211,10 @@ function compute_displacement(cv::CellValues{D,U,ET},
     ch::ConstraintHandler,
     states::DesignVarInfo{D},
     f::F,
-    sim_pars::SimPars) where {D,U,F<:Function,K,ET<:ElType{K}}
+    sim_pars::SimPars;
+    sparsity_workspace = nothing) where {D,U,F<:Function,K,ET<:ElType{K}}
 
-    @timeit to "assembly" k_global,rhs_global, eldata_col = assembly(cv,states,f,sim_pars)
+    @timeit to "assembly" k_global,rhs_global, eldata_col = assembly(cv,states,f,sim_pars;sparsity_workspace)
 
     @timeit to "apply" apply!(k_global,rhs_global,ch)
 
