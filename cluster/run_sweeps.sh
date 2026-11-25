@@ -27,7 +27,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Experiment axes. Defaults reproduce the 16 combinations in the old sweep.
 BENCHMARK_CASES=(MBB_sym L_cantilever)        # Options: MBB_sym | Cantilever_sym | Bending_Beam_sym | simple_lever | pressure_plate | L_cantilever
-SOLVERS=(petsc)                  # petsc | hypre
+SOLVERS=(hypre)                  # petsc | hypre
 MAX_REF_LEVELS=(3 4 5 6)
 MESH_TYPES=(Hexahedra Voronoi)
 ADAPTIVITY_OPTIONS=(true false)

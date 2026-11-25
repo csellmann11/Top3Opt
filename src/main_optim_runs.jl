@@ -21,7 +21,10 @@ using Pardiso
 using HYPRE
 using PETSc
 using MPI
-HYPRE.Init()
+# HYPRE.Init defaults to ONE OpenMP thread and overrides OMP_NUM_THREADS; ask for the
+# Julia thread count instead (HYPRE_NUM_THREADS overrides, e.g. 1 for serial).
+HYPRE.Init(; nthreads = parse(Int, get(ENV, "HYPRE_NUM_THREADS", string(Threads.nthreads()))))
+println("HYPRE OpenMP threads: ", HYPRE.NumThreads())
 const to = TimerOutput()
 const ps = MKLPardisoSolver()
 set_matrixtype!(ps, 2)

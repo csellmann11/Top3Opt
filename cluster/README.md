@@ -6,9 +6,8 @@
 top of the generator.
 The configured sweep has 32 combinations: `MBB_sym` and `L_cantilever`, four
 refinement levels, two meshes, and adaptivity on/off. It uses 200 optimization
-steps and PETSc (GAMG threshold 0.001, coarse-grid limit 3000 equations;
-override with `PETSC_GAMG_THRESHOLD` / `PETSC_GAMG_COARSE_EQ_LIMIT`); the smoke
-run also selects PETSc, with five steps.
+steps and HYPRE, which runs on as many OpenMP threads as Julia has threads
+(`HYPRE_NUM_THREADS` overrides); the smoke run selects PETSc and five steps.
 `FLUX_SCHEME=tpfa` is the supported face-gradient approximation for all jobs.
 The former `diamond`, `taylor`, and `strong` options have been removed.
 The selected scheme appears in each job's arguments and name; it is not a sweep
@@ -104,7 +103,7 @@ cluster/
 ```
 
 Example job name:
-`toopt_MBB_sym_petsc_Hexahedra_r3_atrue_btrue_ftpfa_uexplicit_gmean_Dfalse_MInf_pfalse_B2.0_E15.0_lfalse_dtrue_s200`.
+`toopt_MBB_sym_hypre_Hexahedra_r3_atrue_btrue_ftpfa_uexplicit_gmean_Dfalse_MInf_pfalse_B2.0_E15.0_lfalse_dtrue_s200`.
 Here `r` is refinement level, `a` adaptivity, `b` initial refinement, `f` flux
 scheme, `u` integrator, `g` the scaling (or `helmholtz`), `D` damping, `M` move limit,
 `p` projection, `B`/`E` beta0/eta0, `l` the deprecated compatibility switch,
