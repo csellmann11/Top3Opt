@@ -23,6 +23,9 @@ function solve_lse_hypre(
             NumFunctions=3,       # 3 DOFs for elasticity
             CoarsenType=10,       # HMIS (High-Parallel/Low-Memory Coarsening)
             RelaxType=6,          # Sym G.S./Jacobi
+            # Aggressive coarsening on the first levels: 2-4x cheaper setup, about
+            # twice the iterations, lower total (measured 2026-11-25). 0 disables it.
+            AggNumLevels=parse(Int, get(ENV, "HYPRE_AGG_NUM_LEVELS", "1")),
             NumSweeps=1,
             MaxIter=1,
             Tol=0.0

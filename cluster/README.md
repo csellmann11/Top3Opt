@@ -197,6 +197,8 @@ PETSC_CG_RTOL=1e-5 bash cluster/run_sweeps.sh --smoke --dry-run
 to off. PETSc options listed in the generator are pinned at generation time,
 using the current solver defaults unless overridden in the environment.
 Set `SOLVERS=(petsc hypre)` to compare the two supported backends.
+HYPRE uses one level of aggressive coarsening by default; `HYPRE_AGG_NUM_LEVELS=0`
+restores the previous hierarchy.
 For PETSc setup comparisons, set `SOLVERS=(petsc)` and change
 `PETSC_GAMG_SQUARE_GRAPH` near the top of `run_sweeps.sh`: `1` keeps squared-graph
 aggressive coarsening (the existing default), while `0` selects MIS-2 without

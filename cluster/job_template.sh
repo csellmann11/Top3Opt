@@ -60,7 +60,7 @@ printf 'Arguments:'; printf ' %q' "${ARGS[@]}"; printf '\n'
     git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null || true
     git -C "$PROJECT_ROOT" status --short 2>/dev/null || true
     printf 'Arguments:'; printf ' %q' "${ARGS[@]}"; printf '\n'
-    env | sort | grep '^PETSC_' || true
+    env | sort | grep -E '^(PETSC|HYPRE)_' || true
 } > "$TOOPT_RESULTS_DIR/run_info.txt"
 
 julia --startup-file=no --project="$PROJECT_ROOT" --threads="$JULIA_NUM_THREADS" \
