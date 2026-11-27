@@ -156,5 +156,34 @@ function get_simulation_times(to::TimerOutput)
     catch
         sim_times.adaptivity_time = 0.0
     end
+    # Wall time since the timer was created or last reset.
+    sim_times.total_time = TimerOutputs.tottime(to)/(1e09)
     return sim_times
+end
+
+"""
+    record_step_times!(sim_results, to, step, previous) -> SimulationTimes
+
+Append the times of optimization step `step` (the cumulative timer minus `previous`)
+and the data of its linear solve to `sim_results.first_steps`. Called at the start of
+the following step, so the adaptation that closes `step` is included. On a given
+refinement level step 1 solves the same system in every run, which makes these
+records a speed test of the node the job ran on.
+"""
+function record_step_times!(sim_results, to::TimerOutput, step::Int, previous)
+    now_times = get_simulation_times(to)
+    last = LAST_SOLVE[]
+    push!(sim_results.first_steps, (
+        step = step,
+        n_dofs = last.n,
+        nnz = last.nnz,
+        iterations = last.iterations,
+        linear_setup = last.setup,
+        linear_solve = last.solve,
+        solver = now_times.solve_time - previous.solve_time,
+        assembly = now_times.assembly_time - previous.assembly_time,
+        state_update = now_times.state_update_time - previous.state_update_time,
+        adaptivity = now_times.adaptivity_time - previous.adaptivity_time,
+        total = now_times.total_time - previous.total_time))
+    return now_times
 end

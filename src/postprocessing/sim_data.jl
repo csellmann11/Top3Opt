@@ -20,8 +20,10 @@ end
     sim_times_conv_iter::SimulationTimes = SimulationTimes()
 
     simulation_times ::SimulationTimes = SimulationTimes()
+    # Times of the first two optimization steps (see record_step_times!).
+    first_steps      ::Vector{NamedTuple} = NamedTuple[]
 
-    mod              ::Vector{Float64} = Float64[]
+    mod             ::Vector{Float64} = Float64[]
     strain_energy    ::Vector{Float64} = Float64[]
     number_of_states ::Vector{Int} = Int[]
     number_of_dofs   ::Vector{Int} = Int[]
@@ -93,6 +95,28 @@ function update_sim_data!(
     push!(sim_data.strain_energy,strain_energy)
     push!(sim_data.number_of_states,number_of_states)
     push!(sim_data.number_of_dofs,number_of_dofs)
+end
+
+"""
+    print_first_steps(sim_data::SimulationResults)
+
+Print the times of the first optimization steps next to the run totals. All times in
+seconds; `lin_setup`/`lin_solve` are the native solver times, `solver` also holds the
+matrix conversion.
+"""
+function print_first_steps(sim_data::SimulationResults)
+    println("\nCalibration: first optimization steps (seconds)")
+    @printf("%-6s %9s %11s %5s %10s %10s %10s %10s %10s %10s %10s\n",
+        "step","n_dofs","nnz","its","lin_setup","lin_solve","solver","assembly","state_upd","adaptivity","total")
+    for s in sim_data.first_steps
+        @printf("%-6d %9d %11d %5d %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f\n",
+            s.step,s.n_dofs,s.nnz,s.iterations,s.linear_setup,s.linear_solve,
+            s.solver,s.assembly,s.state_update,s.adaptivity,s.total)
+    end
+    t = sim_data.simulation_times
+    @printf("%-6s %9s %11s %5s %10s %10s %10.3f %10.3f %10.3f %10.3f %10.3f\n",
+        "run","","","","","",t.solve_time,t.assembly_time,t.state_update_time,t.adaptivity_time,t.total_time)
+    flush(stdout)
 end
 
 """

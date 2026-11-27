@@ -3,6 +3,10 @@ using SparseArrays
 using Printf
 include("hypre_conversion.jl")
 
+# Size, iteration count and native setup/solve time of the most recent linear solve
+# (either backend); the driver reads it for the per-step calibration record.
+const LAST_SOLVE = Ref((n=0, nnz=0, iterations=0, setup=0.0, solve=0.0))
+
 function solve_lse_hypre(
     k_global::SparseMatrixCSC,
     rhs_global::AbstractVector;
@@ -70,6 +74,8 @@ function solve_lse_hypre(
             length(rhs_global), nnz(k_global), iterations, relres,
             t_setup, t_solve, (time_ns() - t_start) / 1e9)
     flush(stdout)
+    LAST_SOLVE[] = (n=length(rhs_global), nnz=nnz(k_global), iterations=Int(iterations),
+                    setup=t_setup, solve=t_solve)
     return u
 
 end

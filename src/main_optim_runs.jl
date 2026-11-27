@@ -135,18 +135,21 @@ function main(
         error("Invalid b_case: $b_case")
     end
 
-    mesh = create_benchmark_mesh(b_case, MeshType,
-        l_beam, ly, lz, nx, ny, nz, StandardEl{K})
-
-    if do_adaptivity_at_the_start || !do_adaptivity
-        println("Refining mesh to the finest level")
-        for _ in 1:(MAX_REF_LEVEL-1)
-            for element in RootIterator{4}(mesh.topo)
-                _refine!(element, mesh.topo)
+    function build_mesh(ref_level::Int)
+        # Not named `mesh`: that would be the variable of the enclosing function.
+        base = create_benchmark_mesh(b_case, MeshType,
+            l_beam, ly, lz, nx, ny, nz, StandardEl{K})
+        (do_adaptivity_at_the_start || !do_adaptivity) || return base
+        for _ in 1:(ref_level-1)
+            for element in RootIterator{4}(base.topo)
+                _refine!(element, base.topo)
             end
         end
-        mesh = Mesh(mesh.topo, StandardEl{1}())
+        return Mesh(base.topo, StandardEl{1}())
     end
+
+    (do_adaptivity_at_the_start || !do_adaptivity) && println("Refining mesh to the finest level")
+    mesh = build_mesh(MAX_REF_LEVEL)
 
 
 
@@ -174,16 +177,13 @@ function main(
     folder_name = "$(string(b_case))_$(today())_$(setting_hash)"
     println("The folder name is $folder_name")
 
-    println("="^100)
-    println("Starting optimization")
-    println("="^100)
-    @time sim_results = run_optimization(
-        mesh, 
+    run(mesh, vtk_folder_name, max_opt_steps, max_ref_level, take_snapshots_at) = run_optimization(
+        mesh,
         rhs_fun,
         sim_pars,
-        vtk_folder_name=joinpath(results_root, "vtk", "Adaptive_Runs", folder_name),
-        MAX_OPT_STEPS=MAX_OPT_STEPS,
-        MAX_REF_LEVEL=MAX_REF_LEVEL,
+        vtk_folder_name=vtk_folder_name,
+        MAX_OPT_STEPS=max_opt_steps,
+        MAX_REF_LEVEL=max_ref_level,
         density_marking=density_marking,
         error_estimator=args["error_estimator"],
         pu_marking_exponent=args["pu_marking_exponent"],
@@ -198,14 +198,36 @@ function main(
         density_substeps=args["density_substeps"],
         filter_tolerance=args["filter_tolerance"],
         density_activity_tolerance=args["density_activity_tolerance"],
-        take_snapshots_at= Int[1, 10, 20, 30, 50, 100, 200],
+        take_snapshots_at=take_snapshots_at,
         do_adaptivity=do_adaptivity,
         b_case=b_case
     )
 
+    # Warm-up: the same run on a small mesh compiles the code, so that the first step
+    # of the real run is free of compile time and usable as a speed test of the node.
+    # Its output is discarded and the timer restarts. TOOPT_WARMUP=0 skips it.
+    if get(ENV, "TOOPT_WARMUP", "1") != "0"
+        warmup_level = min(2, MAX_REF_LEVEL)
+        t_warmup = time()
+        mktempdir() do dir
+            redirect_stdout(devnull) do
+                run(build_mesh(warmup_level), joinpath(dir, "vtk"), 4, warmup_level, Int[1])
+            end
+        end
+        @printf("Warm-up run (level %d, 4 steps): %.1f s\n", warmup_level, time() - t_warmup)
+        reset_timer!(to)
+    end
+
+    println("="^100)
+    println("Starting optimization")
+    println("="^100)
+    @time sim_results = run(mesh, joinpath(results_root, "vtk", "Adaptive_Runs", folder_name),
+        MAX_OPT_STEPS, MAX_REF_LEVEL, Int[1, 10, 20, 30, 50, 100, 200])
+
 
 
     show(to)
+    print_first_steps(sim_results)
 
 
     println("The folder hash is $(setting_hash)")

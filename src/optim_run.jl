@@ -106,8 +106,12 @@ function run_optimization(
     sim_results.diag = diag
     sim_results.move_limit = move_limit
     sim_results.filter_radius = regularization == :helmholtz ? radius : 0.0
+    step_times = SimulationTimes()
     for optimization_step in 1:MAX_OPT_STEPS
         flush(stdout)
+        if optimization_step in (2,3)
+            step_times = record_step_times!(sim_results,to,optimization_step-1,step_times)
+        end
         if rebuild_operator
             boundary_data = error_estimator == :pu_dwr ? PU3DBoundaryData() : nothing
             @timeit to "adaptivity" ch = create_constraint_handler(cv,b_case;boundary_data)

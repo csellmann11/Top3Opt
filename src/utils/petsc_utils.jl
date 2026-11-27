@@ -330,6 +330,7 @@ function solve_lse_petsc(k_global::SparseMatrixCSC, rhs_global::AbstractVector,
                 t_setup, t_solve, (time_ns() - t0) / 1e9)
         flush(stdout)
     end
+    LAST_SOLVE[] = (n=Int(n), nnz=nnz(k_global), iterations=Int(its), setup=t_setup, solve=t_solve)
     return buffers.x
 end
 
